@@ -119,7 +119,7 @@ def cmd_setup(a) -> None:
     from ctxgraph import setup as S
 
     S.run(Path(a.project or Path.cwd()), a.home or os.environ.get("CTXGRAPH_HOME"), True if a.yes else None,
-          model=not a.no_model, history=not a.no_import)
+          model=not a.no_model, history=not a.no_import, quality=a.quality)
     if a.print_cursor:
         e = S.mcp_entry()
         print("\nCursor - .cursor/mcp.json of the project (no hooks there: turns are saved via the remember tool):\n"
@@ -180,9 +180,11 @@ def main(argv=None) -> None:
     p.set_defaults(f=cmd_import_graphify)
     sub.add_parser("mcp").set_defaults(f=lambda a: __import__("ctxgraph.memory_mcp", fromlist=["main"]).main())
     sub.add_parser("hook-stop").set_defaults(f=cmd_hook_stop)
-    p = sub.add_parser("setup", help="connect this project: .mcp.json, Stop hook, model download, first import")
-    p.add_argument("-y", "--yes", action="store_true", help="agree to the model download and the history import")
+    p = sub.add_parser("setup", help="connect this project: MCP server, Stop hook, first import (--quality: + model)")
+    p.add_argument("-y", "--yes", action="store_true", help="agree to the history import (and the model download with --quality)")
     p.add_argument("--no-model", action="store_true", help="only write the config files")
+    p.add_argument("--quality", action="store_true",
+                   help="better recall: BM25 + multilingual-e5-base (int8 ONNX, ~300 MB download, needs the `quality` extra)")
     p.add_argument("--no-import", action="store_true", help="do not import earlier sessions")
     p.add_argument("--print-cursor", action="store_true", help="also print the Cursor MCP config")
     p.set_defaults(f=cmd_setup)

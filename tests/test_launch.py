@@ -224,3 +224,42 @@ def test_store_refuses_vectors_of_another_encoder(tmp_path):
     with pytest.raises(EncoderMismatch, match="do not mix"):
         ProjectMemory(tmp_path / "proj", encoder=other, home=tmp_path / "home")
     ProjectMemory(tmp_path / "proj", encoder=HashingEncoder(), home=tmp_path / "home")  # the same encoder: fine
+
+
+def test_default_mode_is_bm25_without_any_model(tmp_path, monkeypatch):
+    """No encoder given, no quality config: BM25 recall, a hashing encoder for the graph only, no model needed."""
+    monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path / "empty-hub"))  # the model is surely not there
+    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    from ctxgraph.memory import ProjectMemory, wants_quality
+
+    assert not wants_quality(tmp_path / "home")
+    m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
+    assert m.mode == "bm25" and m.s.q("SELECT value FROM memory_meta WHERE key='encoder'")[0][0].startswith("hashing")
+    m.remember("Для базы данных используем PostgreSQL с репликацией.", ts="2026-11-01T10:00:00Z")
+    m.remember("Деплой делаем на Fly.io, а не на Heroku.", ts="2026-11-02T10:00:00Z")
+    hits = m.recall("какую базу данных используем", k=1)
+    assert hits and "PostgreSQL" in hits[0].text  # lemmas: "базу" ~ "базы"
+    m2 = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")  # reopened: keeps its mode
+    assert m2.mode == "bm25"
+
+
+def test_setup_quality_moves_a_default_store_aside_and_keeps_rules(tmp_path, monkeypatch):
+    from ctxgraph.memory import ProjectMemory
+
+    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    home, proj = tmp_path / "home", tmp_path / "proj"
+    proj.mkdir()
+    m = ProjectMemory(proj, home=home)
+    rid = m.pin_rule("Ключи API — только в .env.")
+    db = m.db_path
+    del m
+    monkeypatch.setattr(S, "ensure_model", lambda assume: True)
+    import ctxgraph.memory as MM
+
+    monkeypatch.setattr(MM, "HOME", home)
+    assert S.enable_quality(proj, str(home), True)
+    assert json.loads((home / "config.json").read_text("utf-8"))["quality"] is True
+    assert list(db.parent.glob("graph.sqlite.bm25-*"))  # the old store is kept aside, not deleted
+    import sqlite3
+
+    assert sqlite3.connect(db).execute("SELECT id FROM pinned_rules").fetchall() == [(rid,)]

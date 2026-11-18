@@ -6,7 +6,9 @@
    its working directory.
 2. `.claude/settings.local.json`: the Claude Code Stop hook `ctxgraph hook-stop` (the project comes from the hook's
    input; merged, an earlier ctxgraph hook is replaced, other hooks are kept). `settings.local.json` is per-user.
-3. The encoder model (multilingual-e5-base, int8 ONNX, ~300 MB): downloaded once, after the user agrees; then offline.
+3. Nothing to download by default: recall is BM25 over the stored sentences. `--quality` adds multilingual-e5-base
+   (int8 ONNX, ~300 MB, downloaded once after the user agrees; then offline) and fuses it with BM25 by RRF; an
+   existing default store is rebuilt for it (pinned rules are kept).
 4. On first connection: import of this project's earlier Claude Code sessions (asks first), and the decision
    chronology as the first result.
 """
@@ -190,7 +192,57 @@ def first_import(project: Path, assume: bool | None, limit: int = 15) -> None:
     print(format_decisions(rows))
 
 
-def run(project: Path, home: str | None, assume: bool | None, model: bool = True, history: bool = True) -> None:
+def enable_quality(project: Path, home: str | None, assume: bool | None) -> bool:
+    """The quality mode: onnxruntime installed, the model downloaded, `quality` in <home>/config.json; a store built in
+    the default mode is moved aside (to `graph.sqlite.bm25-<time>`) so the next import rebuilds it with vectors."""
+    import time
+
+    try:
+        import onnxruntime  # noqa: F401
+        import tokenizers  # noqa: F401
+    except ImportError:
+        print("Quality mode needs the `quality` extra (onnxruntime, tokenizers, huggingface_hub). Reinstall with:\n"
+              '  uv tool install --reinstall "think-to-recall[quality] @ <the same source>"')  # fmt: skip
+        return False
+    if not ensure_model(assume):
+        return False
+    from ctxgraph import memory as MM
+
+    hdir = Path(home) if home else MM.HOME
+    hdir.mkdir(parents=True, exist_ok=True)
+    cfg = hdir / "config.json"
+    data = _read_json(cfg)
+    data["quality"] = True
+    _write_json(cfg, data)
+    print(f"Quality mode: on for new stores ({cfg}).")
+    db = hdir / MM.project_slug(project) / "graph.sqlite"
+    stored = MM._stored_encoder(db)
+    if stored and not stored.startswith("e5-"):
+        bak = db.with_name(f"graph.sqlite.bm25-{time.strftime('%Y%m%d-%H%M%S')}")
+        db.rename(bak)
+        print(f"  The memory of this project was built in the default mode; moved aside to {bak.name} and rebuilt "
+              "from the history below (pinned rules are carried over).")  # fmt: skip
+        _carry_rules(bak, db)
+    return True
+
+
+def _carry_rules(old: Path, new: Path) -> None:
+    import sqlite3
+
+    rows = sqlite3.connect(old).execute("SELECT id, text, ts, origin, fragment, removed FROM pinned_rules").fetchall()
+    if not rows:
+        return
+    new.parent.mkdir(parents=True, exist_ok=True)
+    con = sqlite3.connect(new)
+    con.execute("CREATE TABLE IF NOT EXISTS pinned_rules (id TEXT PRIMARY KEY, text TEXT NOT NULL, ts TEXT NOT NULL, "
+                "origin TEXT NOT NULL, fragment TEXT NOT NULL DEFAULT '', removed INTEGER NOT NULL DEFAULT 0)")  # fmt: skip
+    con.executemany("INSERT OR REPLACE INTO pinned_rules VALUES(?,?,?,?,?,?)", rows)
+    con.commit()
+    con.close()
+
+
+def run(project: Path, home: str | None, assume: bool | None, model: bool = True, history: bool = True,
+        quality: bool = False) -> None:  # fmt: skip
     project = project.resolve()
     print(f"Project: {project}\n")
     p, st = write_mcp(project, home)
@@ -200,7 +252,12 @@ def run(project: Path, home: str | None, assume: bool | None, model: bool = True
     print("  Restart Claude Code in this folder and approve the `ctxgraph` server when it asks.\n")
     if not model:
         return
-    ok = ensure_model(assume)
+    ok = True
+    if quality:
+        ok = enable_quality(project, home, assume)
+    else:
+        print("Recall: BM25 over your conversations - works right away, nothing to download. "
+              "`ctxgraph setup --quality` adds a 300 MB model for better recall (optional).")  # fmt: skip
     check_spacy()
     if ok and history:
         print()

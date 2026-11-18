@@ -3,7 +3,9 @@ model's reasoning steps.
 
 One SQLite per project in `~/.ctxgraph/<project-slug>/` (override: CTXGRAPH_HOME). Writing goes through the normal
 append path `Graph.add_episode` (privacy scrub before storage, concepts, co-occurrence, decision changes); no LLM
-calls. Recall = "main line + periphery": dense retrieval over turns (a turn scores its best sentence) for the
+calls. Ranking: BM25 over the stored sentences by default (no model, no download; `ctxgraph/lexical.py`), or - in the
+optional quality mode (`ctxgraph setup --quality`) - BM25 fused by RRF with multilingual-e5-base (int8 ONNX). Recall =
+"main line + periphery": dense retrieval over turns (a turn scores its best sentence) for the
 question comes first and is never displaced; turns found through the joined text of the model's reasoning steps (the
 stage-2 signal, `reports/result_stage2.md`) are added after it, without duplicates, only in the space left in the
 block. Why: in stages 1 and 2 every loss of an added retrieval was a displacement of a memory the base already had in
@@ -183,6 +185,42 @@ class EncoderMismatch(RuntimeError):
     pass
 
 
+LEGACY = "an earlier encoder (multilingual-e5-base on PyTorch, before 0.2.1)"
+
+
+def _stored_encoder(db: Path) -> str:
+    """The encoder a store was built with: its name, LEGACY for an old store without the mark, "" for a new one."""
+    if not db.exists():
+        return ""
+    import sqlite3
+
+    con = sqlite3.connect(db)
+    try:
+        row = con.execute("SELECT value FROM memory_meta WHERE key='encoder'").fetchone()
+        if row:
+            return row[0]
+        n = con.execute("SELECT COUNT(*) FROM fragments").fetchone()[0]
+        return LEGACY if n else ""
+    except sqlite3.Error:
+        return ""
+    finally:
+        con.close()
+
+
+def wants_quality(home: Path) -> bool:
+    """The quality mode for new stores: CTXGRAPH_QUALITY=1 or `"quality": true` in <home>/config.json (written by
+    `ctxgraph setup --quality`)."""
+    if os.environ.get("CTXGRAPH_QUALITY", "").lower() in ("1", "true", "yes"):
+        return True
+    import json
+
+    cfg = Path(home) / "config.json"
+    try:
+        return bool(json.loads(cfg.read_text("utf-8")).get("quality")) if cfg.exists() else False
+    except (OSError, ValueError):
+        return False
+
+
 @dataclass
 class Hit:
     episode: str
@@ -203,7 +241,10 @@ class Hit:
 
 
 class ProjectMemory:
-    def __init__(self, project: str | Path | None = None, *, encoder=None, home: Path | None = None) -> None:
+    def __init__(self, project: str | Path | None = None, *, encoder=None, home: Path | None = None,
+                 mode: str | None = None) -> None:  # fmt: skip
+        """`mode`: "bm25" (default for a new store), "hybrid" (BM25 + e5 by RRF, the quality mode) or "vector" (the
+        given encoder alone - tests and experiments). An existing store keeps the mode it was built with."""
         from ctxgraph.v2.graph import Config, Graph
         from ctxgraph.v2.store import Store
 
@@ -211,13 +252,25 @@ class ProjectMemory:
         self.dir = (home or HOME) / project_slug(self.project)
         self.dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.dir / "graph.sqlite"
+        stored = _stored_encoder(self.db_path)
         if encoder is None:
-            # model already downloaded -> no network at all (the memory holds private conversations);
-            # not downloaded -> a clear error instead of a silent download (`ctxgraph setup` asks first)
-            from ctxgraph import model as M
+            if stored == LEGACY:
+                raise EncoderMismatch(f"The memory in {self.db_path} was built with {LEGACY}: its vectors do not mix "
+                                      "with this version. Move that folder away and run `ctxgraph import`.")  # fmt: skip
+            quality = stored.startswith("e5-") if stored else wants_quality(home or HOME)
+            if quality:
+                # the quality model: downloaded -> no network at all; not downloaded -> a clear error, never a silent
+                # download (`ctxgraph setup --quality` asks first)
+                from ctxgraph import model as M
 
-            M.prepare()
-            encoder = M.OnnxE5Encoder()
+                M.prepare()
+                encoder, mode = M.OnnxE5Encoder(), mode or "hybrid"
+            else:
+                from ctxgraph.embed import HashingEncoder
+
+                encoder, mode = HashingEncoder(), mode or "bm25"  # vectors only for the graph view, not for recall
+        self.mode = mode or "vector"
+        self._bm25 = None
         self.g = Graph(Store(self.db_path), encoder, config=Config())
         self.s = self.g.s
         # the encoder that made this store's vectors: vectors of different encoders must not be mixed
@@ -225,7 +278,7 @@ class ProjectMemory:
         name = getattr(encoder, "name", type(encoder).__name__)
         had = self.s.q("SELECT value FROM memory_meta WHERE key='encoder'")
         n_frag = self.s.q("SELECT COUNT(*) FROM fragments")[0][0]
-        built = had[0][0] if had else ("an earlier encoder (multilingual-e5-base on PyTorch, before 0.2.1)" if n_frag else "")
+        built = had[0][0] if had else (LEGACY if n_frag else "")
         if built and built != name:
             raise EncoderMismatch(f"The memory in {self.db_path} was built with {built}, not {name}: their vectors "
                                   f"do not mix. Move that folder away and run `ctxgraph import` to rebuild it.")  # fmt: skip
@@ -590,7 +643,47 @@ class ProjectMemory:
 
     # ── reading ──────────────────────────────────────────────────────────────────────────────────────────────────────
     def _dense(self, text: str) -> dict[str, tuple[float, str]]:
-        """Best sentence score per turn (a turn scores its best sentence)."""
+        """Turns ranked for `text` (a turn scores its best sentence), best first: BM25, BM25 + vectors by RRF, or
+        vectors alone, by the mode of the store."""
+        if self.mode == "vector":
+            return self._vector(text)
+        lex = self._lexical(text)
+        if self.mode == "bm25":
+            return lex
+        vec = self._vector(text)
+        out: dict[str, tuple[float, str]] = {}
+        for i, e in enumerate(rrf(list(lex), list(vec))[:400]):
+            out[e] = (1.0 / (61 + i), (lex.get(e) or vec.get(e))[1])
+        return out
+
+    def _lexical(self, text: str) -> dict[str, tuple[float, str]]:
+        from ctxgraph.lexical import BM25Index
+
+        fids = self.g._fids
+        if self._bm25 is None or len(self._bm25.fids) > len(fids) or self._bm25.fids != fids[:len(self._bm25.fids)]:
+            self._bm25 = BM25Index()
+        new = fids[len(self._bm25.fids):]
+        if new:
+            txt: dict[str, str] = {}
+            for i in range(0, len(new), 500):
+                part = new[i:i + 500]
+                txt.update(self.s.q("SELECT id, text FROM fragments WHERE id IN (%s)" % ",".join("?" * len(part)), part))
+            self._bm25.extend(list(new), [txt.get(f, "") for f in new])
+        d = self._bm25.scores(text)
+        st = self._status()
+        w = np.array([WEIGHT.get(st.get(f, ("info", ""))[0], 0.6) for f in fids], dtype=np.float32)
+        d = d * w  # the same status weights as for vectors
+        best: dict[str, tuple[float, str]] = {}
+        for j in np.argsort(-d, kind="stable")[:400]:
+            if d[j] <= 0:
+                break
+            ep = fids[j].split(":")[1]
+            if ep not in best:
+                best[ep] = (float(d[j]), fids[j])
+        return best
+
+    def _vector(self, text: str) -> dict[str, tuple[float, str]]:
+        """Best sentence score per turn by the encoder's vectors."""
         if not self.g._fids:
             return {}
         d = self.g._fmat @ self.g.enc.one(text)
@@ -806,7 +899,12 @@ def _window(text: str, sentence: str, n: int) -> str:
             ps = text.rfind("\n", 0, j - 1) + 1
             prev = text[ps:j - 1]
             if prev.rstrip().endswith(":"):
-                a = min(a, ps) if i - ps <= 2 * n else a
+                if i - ps <= 2 * n:
+                    a = min(a, ps)
+                else:  # the lead is far: show it, then the item with the sentence ("Убираем X:" … "4. …")
+                    head = prev.strip()
+                    b = max(ls + max(n - len(head), 200), i + len(sentence))
+                    return ("…" if ps else "") + head + "\n…\n" + text[ls:b] + ("…" if b < len(text) else "")
                 break
             if prev.strip() and not LIST_ITEM.match(prev) and not prev[:1].isspace():
                 break

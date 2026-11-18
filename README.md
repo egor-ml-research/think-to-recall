@@ -28,12 +28,18 @@ With [pipx](https://pipx.pypa.io/) instead of uv:
 pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@launch" && ctxgraph setup
 ```
 
-The package is not on PyPI yet; both commands install this branch from GitHub. No PyTorch: the encoder runs as int8
-ONNX on onnxruntime. The install is about 200 MB, plus about 300 MB for the model that `ctxgraph setup` downloads.
-For finer English concepts in the graph view (spaCy parser, WordNet), install `think-to-recall[english]` instead;
-recall does not need it.
+**Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
+125 MB. The quality mode is optional: it adds multilingual-e5-base (int8 ONNX, about 300 MB, no PyTorch) and fuses it
+with BM25, which finds a few more answers worded differently from your question:
 
-`setup` does four things, and asks before the two that need your consent:
+```bash
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@launch" && ctxgraph setup --quality
+```
+
+The package is not on PyPI yet; the commands install this branch from GitHub. For finer English concepts in the
+graph view, add the `english` extra.
+
+`setup` does four things, and asks before importing your history:
 
 1. Registers the `ctxgraph` MCP server **without any path that could end up in git**. With the `claude` CLI on
    PATH it runs `claude mcp add --scope local ctxgraph -- ctxgraph-mcp`: the entry is kept in your own Claude Code
@@ -43,14 +49,15 @@ recall does not need it.
 2. Adds a Claude Code **Stop hook** `ctxgraph hook-stop` to `.claude/settings.local.json`. After every turn it queues
    the session transcript; the project comes from the hook's input. The hook is fast: it only appends a path, and the
    server reads the transcript later. Other hooks and settings are kept, and an earlier ctxgraph hook is replaced.
-3. **Asks before downloading** the sentence encoder: multilingual-e5-base as int8 ONNX
+3. **Downloads nothing by default.** Recall works on BM25 over the stored sentences (Russian words lemmatized with
+   pymorphy3, whose dictionaries ship with the package). With `--quality` setup **asks before downloading** the
+   sentence encoder multilingual-e5-base as int8 ONNX
    ([Xenova/multilingual-e5-base](https://huggingface.co/Xenova/multilingual-e5-base), an export of
-   [intfloat/multilingual-e5-base](https://huggingface.co/intfloat/multilingual-e5-base), MIT; about 300 MB, a
-   pinned revision), run by onnxruntime on the CPU. No PyTorch. The download happens once. After that every ctxgraph
-   process runs with the Hugging Face hub in offline mode, and the memory never touches the network. The MCP server
-   will not start a download nobody agreed to: without the model it answers "run `ctxgraph setup`". If the download
-   fails (no network, proxy), setup says what was not downloaded, from where, and to rerun `ctxgraph setup`; a
-   partial download resumes.
+   [intfloat/multilingual-e5-base](https://huggingface.co/intfloat/multilingual-e5-base), MIT; about 300 MB, a pinned
+   revision) and turns the quality mode on: BM25 and the encoder's vectors are fused by reciprocal rank fusion. The
+   download happens once; after that every ctxgraph process runs with the Hugging Face hub offline. A memory built
+   in the default mode is moved aside and rebuilt (pinned rules are kept). If the download fails (no network, proxy),
+   setup says what was not downloaded, from where, and to rerun it; a partial download resumes.
 4. **Asks before importing** the project's earlier Claude Code sessions (`~/.claude/projects/<project>/*.jsonl`).
    It then prints the **decision chronology**, so you see what the memory knows straight away.
 
@@ -72,8 +79,8 @@ into the memory folder; if you pass `--out` inside the project, ignore that file
 conversations. If your team does not use ctxgraph, keep the `ctxgraph` entry out of a shared `.mcp.json`
 (with the `claude` CLI, setup does not write it there at all).
 
-Options: `--yes` agrees to both questions (for scripts), `--no-model` only writes the config files, `--no-import`
-skips the history, `--home DIR` keeps the stores somewhere other than `~/.ctxgraph`, and `--print-cursor` prints a
+Options: `--quality` turns on the quality mode (see above), `--yes` agrees to the questions (for scripts),
+`--no-model` only writes the config files, `--no-import` skips the history, `--home DIR` keeps the stores somewhere other than `~/.ctxgraph`, and `--print-cursor` prints a
 Cursor config. Cursor has no hooks, so there turns are saved through the `remember` tool.
 
 ## Use
@@ -119,8 +126,8 @@ next turn form one unit. That last message is the report of what was done. It is
 does not take a result slot of its own. The assistant's intermediate messages ("running the tests now…") are
 progress and are not searched.
 
-**Main line + periphery.** `recall` first searches by the question itself (dense retrieval with e5; a turn is scored
-by its best sentence). That is the **main line**: it comes first and is never displaced. The assistant also passes
+**Main line + periphery.** `recall` first searches by the question itself (BM25 by default, BM25 + e5 in the quality
+mode; a turn is scored by its best sentence). That is the **main line**: it comes first and is never displaced. The assistant also passes
 1–3 short **reasoning steps**, such as "an earlier decision about this component" or "a constraint the user stated".
 Turns found only through those steps form the **periphery**. They are added after the main line, without duplicates,
 only in the space left in the block. The periphery is how a memory that looks unrelated to the question still turns
@@ -200,10 +207,12 @@ and the conversation concepts and decisions that mention it. Re-importing replac
 - **Recall searches conversations, not code.** The Graphify layer is shown in the graph view only.
 - **Name links are exact.** A code symbol is linked only when the chat names it exactly as written. Only concepts
   frequent enough to appear in the view get links drawn.
-- **Size and speed.** The encoder is about 300 MB (int8 ONNX, onnxruntime; no PyTorch). The MCP server starts
-  loading it in the background as soon as Claude Code connects. Importing a long history takes minutes. int8
-  vectors are close to the full-precision model (cosine 0.98–0.99), not identical: a store keeps the name of the
-  encoder that built it and refuses vectors of another one (`ctxgraph import` into a fresh folder rebuilds it).
+- **Size and speed.** The default install is about 125 MB and needs no model; importing a long history takes about
+  a minute. The quality mode adds about 300 MB and makes the first import several times slower (291 s against 69 s
+  for 775 turns on a laptop CPU). A store remembers its mode; switching to `--quality` rebuilds it.
+- **Lexical by default.** BM25 finds what shares words with your question. On our check of 29 questions about past
+  decisions it was correct on 19 (e5 alone: 18, BM25 + e5: 21) and never showed an outdated answer as current, but
+  it misses answers worded differently from the question; `--quality` recovers some of them.
 - **Claude Code first.** Automatic recording relies on the Claude Code Stop hook. Cursor works through the
   `remember` tool only. Chats from claude.ai can be imported from a data export with `ctxgraph import-claude-ai`.
 - **Tested on Windows.** Linux and macOS should work, but have not been checked yet.

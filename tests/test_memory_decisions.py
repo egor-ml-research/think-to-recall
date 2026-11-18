@@ -319,3 +319,13 @@ def test_infinitive_done_by_user_and_resume_after_summary(tmp_path):
     assert any(r["kind"] == "выполнено пользователем" and "Удалите старый стенд" in r["decision"] for r in rows)
     out = m.render(m.recall("пересоздать тестовый стенд", k=3))
     assert "просьба ассистента" in out and "→ выполнено пользователем 2026-11-09: «Deleted it»" in out
+
+
+def test_window_keeps_the_lead_line_of_a_long_list():
+    from ctxgraph.memory import _window
+
+    items = "\n".join(f"{k}. " + "Пункт про сборку и тесты, подробно и длинно. " * 6 for k in range(1, 6))
+    text = "Сначала вступление о проекте.\n\nУбираем модуль аналитики из приложения полностью:\n\n" + items + \
+        "\n6. Веб-версию не трогать."
+    out = _window(text, "Веб-версию не трогать.", 300)
+    assert out.startswith("…Убираем модуль аналитики из приложения полностью:\n…\n6. Веб-версию не трогать.")
