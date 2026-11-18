@@ -1,112 +1,190 @@
-# think-to-recall — graph memory for LLMs, built without a generative model
+# ctxgraph — decision memory for AI coding assistants
 
-> The Python package inside this repository is called `ctxgraph`, the project's working name. Imports, scripts, Kaggle kernels and reports all use it. The main pre-registrations and results have English translations (`*.en.md`, linked below); the Russian originals are authoritative.
+Your assistant forgets what you decided last week. ctxgraph remembers it.
 
-A research prototype. A graph is built from a user's conversations: episodes → sentences → concepts. Edges are co-occurrence and embedding synonyms. Building the graph makes **no LLM calls**. Retrieval is dense e5, with personalized PageRank over the graph on top, as in HippoRAG 2.
+ctxgraph is a local memory of your conversations with Claude Code, organised around **decisions**: what you decided
+to do, what you decided not to do, what you put on hold, and when the assistant reported it done. It runs as an MCP
+server next to Claude Code. Before answering, the assistant can ask it what was decided earlier in the project. The
+answer comes with dates and statuses, and every turn is recorded automatically.
 
-**The project's question:** does such a graph find the right memory better than plain dense retrieval? This matters most for a memory that is semantically far from the question — an *implicit* link.
-
-Every conclusion below comes from **one frozen run under a pre-registration** (`reports/prereg_*.md`). Parameters were tuned on dev only. Changes made after seeing results are labelled, and the original result stays primary.
-
-## Main results
-
-Recall@5, difference in percentage points [95 % bootstrap]. p is a one-sided paired sign-flip permutation test (10 000 permutations, seed 0), Holm-corrected.
-
-| experiment | comparison | result | verdict |
-|---|---|---|---|
-| bench1: MuSiQue / 2Wiki, 1 000 questions each | graph v2 + PPR − dense e5 | −7.2 [−9.3; −5.2] / −4.2 [−6.0; −2.5] | **not supported**: the graph instead of dense is worse |
-| bench1b, MuSiQue, H1 | dense + graph gate − dense | **+2.5** [+1.4; +3.5], p = 0.0002 | **supported**; 2Wiki +3.5 (descriptive) |
-| bench1b, MuSiQue, H2 | reranker + graph gate − reranker | +0.7 [−0.2; +1.6], p = 0.067 | **not supported** |
-| stage 1: IMLogic, 1 931 questions | dense + graph gate − dense | −0.5 [−1.1; +0.2] | **not supported** |
-| stage 1: IMLogic | graph gate over an EverMemOS-style search stack − the stack | −0.9 [−1.6; −0.2] | **significantly worse** (reverse test p = 0.008) |
-| stage 2: ImplexConv, 300 questions, H1 | dense + search over the LLM's plan steps − dense | **+5.3** [+2.1; +8.6], p = 0.0022 | **supported** |
-| stage 2: IMLogic, 397 questions, H1 | same | +0.8 [−1.3; +2.8], p = 0.32 | not supported |
-| stage 2, H2 (both sets) | one search per step ("sleeves") − one search over all steps | −4.8 and −2.8 | **not supported**: sleeves are worse |
-
-**Documents behind the table** (English translation · Russian original, which is authoritative):
-
-| experiment | pre-registration | result |
-|---|---|---|
-| bench1b | [EN](reports/prereg_bench1b.en.md) · [RU](reports/prereg_bench1b.md) | [EN](reports/result_bench1b.en.md) · [RU](reports/result_bench1b.md) |
-| stage 1 (implicit links) | [EN](reports/prereg_implicit.en.md) · [RU](reports/prereg_implicit.md) | [EN](reports/result_stage1.en.md) · [RU](reports/result_stage1.md) — IMLogic only; ImplexConv postponed (weekly GPU quota) |
-| stage 2 (plan steps) | [EN](reports/prereg_stage2.en.md) · [RU](reports/prereg_stage2.md) | [EN](reports/result_stage2.en.md) · [RU](reports/result_stage2.md) |
-| bench1 (first attempt) | [RU](reports/prereg_bench1.md) | [RU](reports/result_bench1.md) |
-
-Earlier exploratory reports (E1–E1d, E3, architecture notes, debug reports) are in Russian. `docs/history/` holds the original task statements and research notes; the `reports/` of the early stages E1–E1c are a research archive.
-
-**IMLogic rows** are reported with the authors' permission (2026-11-12): summary Recall only, with attribution. Benchmark — IMLogic: Ding, Yu, Wang, Xiao, Bao, Wang, He, *Towards Root Memory: Benchmarking and Enhancing Implicit Logical Memory Retrieval for Personalized LLMs*, [arXiv 2606.23283v2](https://arxiv.org/abs/2606.23283v2); data and code: [github.com/ThisIsCosine/IMLogic](https://github.com/ThisIsCosine/IMLogic). Data: CC BY-NC-ND 4.0 (inherited from HaluMem); code: MIT. The data and question texts are not redistributed here.
-
-**The gate** adds or raises a graph candidate in the dense top-5 only on a strong signal. Without a signal, its output is identical to the base ranking (an invariant checked on every question).
-
-**The planner** is one LLM call per question (Mistral Large 4), which returns at most three short search queries about the user's past facts that could change the answer.
-
-### What works
-
-- **The graph as a cautious add-on to dense retrieval.** The gate gives a small gain on multi-hop factual questions (MuSiQue, 2Wiki).
-- **Searching over the steps of a plan the LLM writes before answering.** This finds the implicit memory clearly better than searching by the question alone on ImplexConv. The graph is not needed for this.
-
-### What does not work
-
-- **The graph instead of dense** retrieval loses.
-- **The graph on top of a strong reranker** adds nothing significant.
-- **On conversational memory (IMLogic)**, a graph seeded from the question does not help. On top of an EverMemOS-style search stack it hurts.
-- **Splitting the plan into separate "sleeves"** is worse than one search over the whole text of the steps.
-- **Using a reranker to filter graph insertions** does not work (dev). The reranker scores similarity to the question, and the decisive memory is, by construction, dissimilar to the question.
-
-### Limitations
-
-- **Not computed:** stage 1 on ImplexConv and all variants over the EverMemOS-style stack in stage 2. The Kaggle GPU quota ran out.
-- **Stage 2 used part of the sample:** 300 of 855 ImplexConv questions (the first in a seed-0 order) and 3 of 18 IMLogic users (397 of 1 931 questions). The free NVIDIA API almost stopped answering. The subset rule was fixed by an amendment before any analysis.
-- **The EverMemOS-style stack (D0)** is EverMemOS's open retrieval library (`everalgo`) without LLM memory construction, not the full EverMemOS.
-- **Embeddings are e5-base.** HippoRAG 2 / NV-Embed-v2 report higher absolute numbers (MuSiQue R@5 74.7 / 69.7 vs our 51–60). Our conclusions are about differences against the same base.
+- **Local only.** One SQLite file per project on your machine. No cloud, no account, no LLM calls to build the memory.
+- **Works on the history you already have.** On first connection it imports your earlier Claude Code sessions of the
+  project (if you agree) and shows the decision chronology right away.
+- **One command to connect.** `ctxgraph setup` writes the MCP config and the hook for the project you are in.
+- **A graph you can look at.** `ctxgraph view` opens a local 2D or 3D map of topics, concepts and decisions. A
+  [Graphify](https://github.com/Graphify-Labs/graphify) code graph can be shown on the same map.
 
 ## Install
 
-```bash
-python -m venv .venv
-.venv/Scripts/python -m pip install -e ".[dev,bench]"   # Linux/macOS: .venv/bin/python
-.venv/Scripts/python -m spacy download en_core_web_sm
-.venv/Scripts/python -c "import nltk; [nltk.download(p, download_dir='.cache/nltk') for p in ('wordnet', 'omw-1.4')]"
-```
-
-API keys are needed only for the stage-2 planner and the older E1* experiments. They go in `.env` (template: `.env.example`). The repository contains no keys.
-
-## Reproduce with one command
+One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-.venv/Scripts/python scripts/reproduce_tables.py
+uv tool install "think-to-recall[memory] @ git+https://github.com/egor-ml-research/think-to-recall@launch" && ctxgraph setup
 ```
 
-In about 10 s, this recomputes every row of the table above except bench1. It works from the saved per-question outputs in `reports/bench1b/test/`, `reports/implicit/main/` and `reports/implicit/stage2_main/`, with the same test: 10 000 permutations, seed 0, Holm correction. No GPU and no API. It counts wins and losses per question, so they can differ from the reports, which count passages.
+With [pipx](https://pipx.pypa.io/) instead of uv:
 
-**Full reruns** use the Kaggle kernels in `kaggle/*/run.py`:
-- `bench1b` — GPU;
-- `implicit` — stage 1, GPU;
-- `stage2cpu` — stage 2, CPU plus planner calls to the NVIDIA API.
+```bash
+pipx install "think-to-recall[memory] @ git+https://github.com/egor-ml-research/think-to-recall@launch" && ctxgraph setup
+```
 
-Code and data reach the kernels as a dataset (`scripts/bench1_kaggle_pack.py`). Data are downloaded at pinned revisions; IMLogic is placed manually (see *Data and licenses*).
+The package is not on PyPI yet; both commands install this branch from GitHub.
 
-## Layout
+`setup` does four things, and asks before the two that need your consent:
 
-| path | what |
+1. Adds the `ctxgraph` server to the project's `.mcp.json`. Other servers in that file are kept.
+2. Adds a Claude Code **Stop hook** to `.claude/settings.local.json`. After every turn it queues the session
+   transcript. The hook is fast: it only appends a path, and the server reads the transcript later. Other hooks and
+   settings are kept, and an earlier ctxgraph hook is replaced. `settings.local.json` is per-user and not committed.
+3. **Asks before downloading** the sentence encoder
+   ([intfloat/multilingual-e5-base](https://huggingface.co/intfloat/multilingual-e5-base), MIT, about 1.1 GB, a pinned
+   revision). The download happens once. After that every ctxgraph process runs with the Hugging Face hub in offline
+   mode, and the memory never touches the network. The MCP server will not start a download nobody agreed to: without
+   the model it answers "run `ctxgraph setup`".
+4. **Asks before importing** the project's earlier Claude Code sessions (`~/.claude/projects/<project>/*.jsonl`).
+   It then prints the **decision chronology**, so you see what the memory knows straight away.
+
+Restart Claude Code in the project folder and approve the `ctxgraph` server when it asks.
+
+Options: `--yes` agrees to both questions (for scripts), `--no-model` only writes the config files, `--no-import`
+skips the history, `--home DIR` keeps the stores somewhere other than `~/.ctxgraph`, and `--print-cursor` prints a
+Cursor config. Cursor has no hooks, so there turns are saved through the `remember` tool.
+
+## Use
+
+In Claude Code the assistant gets these tools:
+
+| tool | what it does |
 |---|---|
-| `ctxgraph/v2/` | graph v2: concept extraction (spaCy / pymorphy3), SQLite store, PPR, gate (`gate.py`) |
-| `ctxgraph/` (top level) | first version — a "menu" of related concepts for the model (E1–E1c; not supported) |
-| `scripts/bench1*_run.py` | MuSiQue / 2Wiki |
-| `scripts/implicit_run.py` | IMLogic / ImplexConv: variants A, B, C, D0, D and plan-step search (SC / SR / SG) |
-| `scripts/evermem_stack.py` | D0: EverMemOS-style retrieval stack on `everalgo` |
-| `scripts/planner.py` | plan steps: one LLM call per question, at most 3 steps |
-| `ARCHITECTURE_V2.md` | architecture (Russian); §3.16 is the next step (context-dependent edge weights) |
+| `recall(question, steps)` | finds earlier turns relevant to the question and to the assistant's reasoning steps |
+| `decisions(limit)` | the decision chronology, newest first, with confirmations and reports |
+| `rules`, `pin_rule`, `unpin_rule` | the project's pinned standing rules |
+| `remember(text)` | save one statement explicitly |
+| `import_history` | import earlier sessions (only when you ask), then show the chronology |
+| `forget(episode)` | hide one turn from recall |
+| `memory_status`, `show_graph` | what is stored; the path of the graph view |
 
-## Data and licenses
+The same things are available from the terminal:
 
-Code is Apache-2.0 (`LICENSE`). The repository contains no datasets; get them from:
+```bash
+ctxgraph decisions --limit 30
+```
 
-| dataset | where | how it reaches a run |
-|---|---|---|
-| ImplexConv | [Hugging Face: Kaylee0501/ImplexConv](https://huggingface.co/datasets/Kaylee0501/ImplexConv), revision `baf436948f4b` | downloaded by the scripts |
-| IMLogic | [authors' repository: ThisIsCosine/IMLogic](https://github.com/ThisIsCosine/IMLogic) (`dataset/dialogue/HaluMem-Medium.jsonl`, `dataset/qa/`), paper [arXiv 2606.23283v2](https://arxiv.org/abs/2606.23283v2); our copy (downloaded 2026-10-30) is identical to the repository at commit `8823def` (v2) apart from line endings; SHA-256 with LF line endings: `HaluMem-Medium.jsonl` 39d284f936c5130a…, the 20 `qa/qa_userNN.json` files concatenated in order bde5fc6027e03346… | placed manually in `.cache/bench/imlogic/` |
-| MuSiQue, 2WikiMultiHopQA | [Hugging Face: osunlp/HippoRAG_2](https://huggingface.co/datasets/osunlp/HippoRAG_2) (test), [dgslibisey/MuSiQue](https://huggingface.co/datasets/dgslibisey/MuSiQue) (dev) | downloaded by the scripts (`scripts/bench1_run.py`) |
+```bash
+ctxgraph recall "which encoder do we use" --step "an earlier decision about the model" --step "a size limit the user set"
+```
 
-- **IMLogic licence:** data CC BY-NC-ND 4.0 (inherited from HaluMem), code MIT. Summary Recall is published with the authors' permission for non-commercial research, with attribution. `reports/` holds only IMLogic question ids, ranks and metrics — no question or memory text.
-- D0 uses `everalgo` (Apache-2.0), installed via pip.
+```bash
+ctxgraph rules --add "Never push to main without asking"
+```
+
+```bash
+ctxgraph import
+```
+
+```bash
+ctxgraph view --3d
+```
+
+## How recall works
+
+**One unit = your turn plus the assistant's report.** A turn of yours and the assistant's last message before your
+next turn form one unit. That last message is the report of what was done. It is shown nested under your request and
+does not take a result slot of its own. The assistant's intermediate messages ("running the tests now…") are
+progress and are not searched.
+
+**Main line + periphery.** `recall` first searches by the question itself (dense retrieval with e5; a turn is scored
+by its best sentence). That is the **main line**: it comes first and is never displaced. The assistant also passes
+1–3 short **reasoning steps**, such as "an earlier decision about this component" or "a constraint the user stated".
+Turns found only through those steps form the **periphery**. They are added after the main line, without duplicates,
+only in the space left in the block. The periphery is how a memory that looks unrelated to the question still turns
+up: a constraint you mentioned once, three weeks ago, in another context.
+
+**Statuses and chronology.** Every remembered sentence has a status, found by rules (no LLM):
+
+- your sentences with decision cues are decisions: *do*, *not do*, or *on hold*;
+- the assistant's sentences are *done* when they report finished work (a commit, "fixed", "published"), and
+  *proposal, not applied* when they offer or draft something.
+
+Results are shown oldest first, each with its date and status, so a later decision that changed an earlier one comes
+after it. `decisions` lists the chronology newest first. A
+decision is followed by the report that carried it out (date, commit), when one is found. A decision on hold is
+followed by its later confirmation and execution.
+
+**Pinned rules.** Standing rules you state ("always…", "never…", "by default…", "keys only in `.env`") are pinned and
+shown at the top of every recall result, whatever the question. You can also pin or unpin rules by hand.
+
+**Short confirmations.** A short reply of yours (up to three words, not a question) has no content of its own, for
+example "yes", "go ahead", "not now" or "done". It is read as an answer to the assistant's previous message. "Yes" /
+"go ahead" confirm the assistant's proposal, "no" rejects it, "later" defers it, and "done" closes a request the
+assistant made to you. The result is shown on that message ("proposal → confirmed by the user on 2026-11-18"). The
+short reply gets no search slot of its own, and the report that follows it belongs to it.
+
+## Graph view
+
+`ctxgraph view` writes one self-contained HTML file into the project's memory folder and opens it. The page needs
+no network: the graph libraries are vendored.
+
+- **Topics** are communities of concepts. A concept shared by several topics is drawn in their colours.
+- **Per topic**, the page shows what `recall` returns for it (the same block the assistant gets) and the decisions
+  about it.
+- **The decisions journal** lists all decisions by date: do / not do / on hold.
+- **2D / 3D**: switch in the sidebar, or open in 3D with `ctxgraph view --3d`. 2D uses
+  [force-graph](https://github.com/vasturiano/force-graph) and 3D uses
+  [3d-force-graph](https://github.com/vasturiano/3d-force-graph) (both MIT).
+
+### Code from Graphify
+
+[Graphify](https://github.com/Graphify-Labs/graphify) (Apache-2.0) builds a graph of a codebase from its syntax tree
+and writes `graphify-out/graph.json`. To show your code next to your conversations:
+
+```bash
+ctxgraph import-graphify path/to/repo/graphify-out
+```
+
+Every edge then has an **origin label**:
+
+- `conversation`: between concepts of your conversations (round nodes, topic colours);
+- `code`: extracted from the code by Graphify (square nodes, slate colour);
+- `inferred`: guessed rather than extracted. Graphify's own INFERRED / AMBIGUOUS edges are drawn as a grey dashed
+  line. Links between a conversation concept and a code node are drawn as a yellow dashed line. ctxgraph makes such a
+  link only when a file path or identifier said in the chat exactly matches a file or symbol in the graph. It does not
+  match by similarity, and it skips generic names such as `main` or `utils`.
+
+Layers can be switched on and off in the sidebar. Clicking a code node shows its file and line, its code relations,
+and the conversation concepts and decisions that mention it. Re-importing replaces the code layer.
+
+## Privacy
+
+- Everything stays on your machine. Each project has its own store: `~/.ctxgraph/<project>/graph.sqlite`.
+- Only what people said is imported: your prompts and the assistant's visible prose. Tool calls and their output,
+  thinking, system reminders, subagent sidechains, code blocks, command lines and log output are dropped.
+- **Secrets and personal data are scrubbed before storage**, by pattern: API keys and tokens, private keys,
+  passwords and secrets in assignments, credentials inside URLs, e-mail addresses and phone numbers. A match is
+  replaced with `[REDACTED:<kind>]` before the text reaches the database. Pattern matching can miss secrets of
+  unusual formats.
+- After the one-time model download, nothing goes to the network.
+- The graph view embeds quotes from your conversations. Treat the HTML file as private, like the store itself.
+- `forget` hides a turn from recall. To remove a project's memory completely, delete its folder in `~/.ctxgraph`.
+
+## Limits
+
+- **Rules, not an LLM.** Statuses, decisions, reports and confirmations are found by cue words and structure, tuned
+  on Russian and English conversations. They miss some decisions and mislabel others. The decisions list says so.
+- **Recall searches conversations, not code.** The Graphify layer is shown in the graph view only.
+- **Name links are exact.** A code symbol is linked only when the chat names it exactly as written. Only concepts
+  frequent enough to appear in the view get links drawn.
+- **Size and speed.** The encoder is about 1.1 GB plus PyTorch. Loading takes 20–40 s on a CPU, and the MCP server
+  starts loading in the background as soon as Claude Code connects. Importing a long history takes minutes.
+- **Claude Code first.** Automatic recording relies on the Claude Code Stop hook. Cursor works through the
+  `remember` tool only. Chats from claude.ai can be imported from a data export with `ctxgraph import-claude-ai`.
+- **Tested on Windows.** Linux and macOS should work, but have not been checked yet.
+
+## Research
+
+ctxgraph grew out of a research project on retrieval for conversational memory. Experiments, pre-registrations and
+results: [docs/research_README.md](docs/research_README.md) (the `main` branch of this repository).
+
+## License
+
+Apache-2.0. Vendored libraries keep their own licenses (`ctxgraph/vendor/*.LICENSE`).

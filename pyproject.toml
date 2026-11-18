@@ -1,7 +1,7 @@
 [project]
 name = "think-to-recall"
-version = "0.1.0"
-description = "Graph memory for LLMs, built without a generative model (research prototype)"
+version = "0.2.0"
+description = "ctxgraph: local decision memory for AI coding assistants (MCP server for Claude Code)"
 requires-python = ">=3.11"
 dependencies = [
     "pymorphy3>=2.0",
@@ -14,8 +14,14 @@ dependencies = [
     "mcp>=1.0",
 ]
 
+[project.scripts]
+ctxgraph = "ctxgraph.cli:main"
+ctxgraph-mcp = "ctxgraph.memory_mcp:main"
+
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
+memory = ["spacy>=3.7,<4", "sentence-transformers>=3", "scipy>=1.11", "networkx>=3", "huggingface_hub>=0.23",
+          "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"]
 bench = ["spacy>=3.7,<4", "sentence-transformers>=3", "scipy>=1.11", "pyarrow>=15", "huggingface_hub>=0.23",
          "python-dotenv>=1", "rank-bm25>=0.2", "everalgo-core==0.2.0", "everalgo-rank==0.3.0",
          "everalgo-clustering==0.2.1"]
@@ -26,6 +32,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["ctxgraph*"]
+
+[tool.setuptools.package-data]
+ctxgraph = ["viewer_template.html", "vendor/*"]
 
 [tool.ruff]
 line-length = 100
