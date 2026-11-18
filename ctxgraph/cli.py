@@ -121,9 +121,9 @@ def cmd_setup(a) -> None:
     S.run(Path(a.project or Path.cwd()), a.home or os.environ.get("CTXGRAPH_HOME"), True if a.yes else None,
           model=not a.no_model, history=not a.no_import)
     if a.print_cursor:
-        e = S.mcp_entry(Path(a.project or Path.cwd()).resolve(), a.home or os.environ.get("CTXGRAPH_HOME"))
+        e = S.mcp_entry()
         print("\nCursor - .cursor/mcp.json of the project (no hooks there: turns are saved via the remember tool):\n"
-              + json.dumps({"mcpServers": {"ctxgraph": {k: e[k] for k in ("command", "args", "env")}}}, indent=2))
+              + json.dumps({"mcpServers": {"ctxgraph": {k: e[k] for k in ("command", "args")}}}, indent=2))
 
 
 def cmd_import_graphify(a) -> None:
@@ -189,7 +189,16 @@ def main(argv=None) -> None:
     a = ap.parse_args(argv)
     if a.home:  # before ctxgraph.memory is imported: its HOME is read once
         os.environ["CTXGRAPH_HOME"] = a.home
-    a.f(a)
+    from ctxgraph.model import DownloadFailed, ModelMissing
+
+    try:
+        a.f(a)
+    except (ModelMissing, DownloadFailed) as e:  # a message for people, not a traceback
+        sys.exit(f"ctxgraph: {e}")
+    except RuntimeError as e:
+        if type(e).__name__ != "EncoderMismatch":
+            raise
+        sys.exit(f"ctxgraph: {e}")
 
 
 if __name__ == "__main__":

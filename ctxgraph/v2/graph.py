@@ -16,7 +16,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import numpy as np
-from scipy import sparse
 
 from ctxgraph import text as T
 from ctxgraph.e1b import replaces as R
@@ -324,6 +323,8 @@ class Graph:
             v = w.get(rel, lambda x: x)(wt)
             data[(ix[a], ix[b])] += v
             data[(ix[b], ix[a])] += v
+        from scipy import sparse  # only the PPR graph needs scipy; the decision memory never builds it
+
         n = len(nodes)
         if not n:
             adj = (nodes, ix, sparse.csr_matrix((0, 0)))

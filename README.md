@@ -19,32 +19,58 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall[memory] @ git+https://github.com/egor-ml-research/think-to-recall@launch" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@launch" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall[memory] @ git+https://github.com/egor-ml-research/think-to-recall@launch" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@launch" && ctxgraph setup
 ```
 
-The package is not on PyPI yet; both commands install this branch from GitHub.
+The package is not on PyPI yet; both commands install this branch from GitHub. No PyTorch: the encoder runs as int8
+ONNX on onnxruntime. The install is about 200 MB, plus about 300 MB for the model that `ctxgraph setup` downloads.
+For finer English concepts in the graph view (spaCy parser, WordNet), install `think-to-recall[english]` instead;
+recall does not need it.
 
 `setup` does four things, and asks before the two that need your consent:
 
-1. Adds the `ctxgraph` server to the project's `.mcp.json`. Other servers in that file are kept.
-2. Adds a Claude Code **Stop hook** to `.claude/settings.local.json`. After every turn it queues the session
-   transcript. The hook is fast: it only appends a path, and the server reads the transcript later. Other hooks and
-   settings are kept, and an earlier ctxgraph hook is replaced. `settings.local.json` is per-user and not committed.
-3. **Asks before downloading** the sentence encoder
-   ([intfloat/multilingual-e5-base](https://huggingface.co/intfloat/multilingual-e5-base), MIT, about 1.1 GB, a pinned
-   revision). The download happens once. After that every ctxgraph process runs with the Hugging Face hub in offline
-   mode, and the memory never touches the network. The MCP server will not start a download nobody agreed to: without
-   the model it answers "run `ctxgraph setup`".
+1. Registers the `ctxgraph` MCP server **without any path that could end up in git**. With the `claude` CLI on
+   PATH it runs `claude mcp add --scope local ctxgraph -- ctxgraph-mcp`: the entry is kept in your own Claude Code
+   config for this project, not in the repository. Without the CLI it adds to the project's `.mcp.json` only
+   `{"command": "ctxgraph-mcp"}` (no home folder, no Python path, no project path); other servers in that file are
+   kept. The server takes the project from the folder Claude Code starts it in.
+2. Adds a Claude Code **Stop hook** `ctxgraph hook-stop` to `.claude/settings.local.json`. After every turn it queues
+   the session transcript; the project comes from the hook's input. The hook is fast: it only appends a path, and the
+   server reads the transcript later. Other hooks and settings are kept, and an earlier ctxgraph hook is replaced.
+3. **Asks before downloading** the sentence encoder: multilingual-e5-base as int8 ONNX
+   ([Xenova/multilingual-e5-base](https://huggingface.co/Xenova/multilingual-e5-base), an export of
+   [intfloat/multilingual-e5-base](https://huggingface.co/intfloat/multilingual-e5-base), MIT; about 300 MB, a
+   pinned revision), run by onnxruntime on the CPU. No PyTorch. The download happens once. After that every ctxgraph
+   process runs with the Hugging Face hub in offline mode, and the memory never touches the network. The MCP server
+   will not start a download nobody agreed to: without the model it answers "run `ctxgraph setup`". If the download
+   fails (no network, proxy), setup says what was not downloaded, from where, and to rerun `ctxgraph setup`; a
+   partial download resumes.
 4. **Asks before importing** the project's earlier Claude Code sessions (`~/.claude/projects/<project>/*.jsonl`).
    It then prints the **decision chronology**, so you see what the memory knows straight away.
 
 Restart Claude Code in the project folder and approve the `ctxgraph` server when it asks.
+
+### Recommended `.gitignore`
+
+The memory itself lives outside the project (`~/.ctxgraph/<project>/`), and `setup` writes no paths into shared
+files. Still, keep the per-user and generated files out of the repository:
+
+```gitignore
+# ctxgraph: per-user Claude Code settings (the Stop hook) and local data
+.claude/settings.local.json
+.ctxgraph/
+```
+
+`.ctxgraph/` matters if you point `--home` / `CTXGRAPH_HOME` inside the project. `ctxgraph view` writes its HTML
+into the memory folder; if you pass `--out` inside the project, ignore that file too: it embeds quotes from your
+conversations. If your team does not use ctxgraph, keep the `ctxgraph` entry out of a shared `.mcp.json`
+(with the `claude` CLI, setup does not write it there at all).
 
 Options: `--yes` agrees to both questions (for scripts), `--no-model` only writes the config files, `--no-import`
 skips the history, `--home DIR` keeps the stores somewhere other than `~/.ctxgraph`, and `--print-cursor` prints a
@@ -174,8 +200,10 @@ and the conversation concepts and decisions that mention it. Re-importing replac
 - **Recall searches conversations, not code.** The Graphify layer is shown in the graph view only.
 - **Name links are exact.** A code symbol is linked only when the chat names it exactly as written. Only concepts
   frequent enough to appear in the view get links drawn.
-- **Size and speed.** The encoder is about 1.1 GB plus PyTorch. Loading takes 20–40 s on a CPU, and the MCP server
-  starts loading in the background as soon as Claude Code connects. Importing a long history takes minutes.
+- **Size and speed.** The encoder is about 300 MB (int8 ONNX, onnxruntime; no PyTorch). The MCP server starts
+  loading it in the background as soon as Claude Code connects. Importing a long history takes minutes. int8
+  vectors are close to the full-precision model (cosine 0.98–0.99), not identical: a store keeps the name of the
+  encoder that built it and refuses vectors of another one (`ctxgraph import` into a fresh folder rebuilds it).
 - **Claude Code first.** Automatic recording relies on the Claude Code Stop hook. Cursor works through the
   `remember` tool only. Chats from claude.ai can be imported from a data export with `ctxgraph import-claude-ai`.
 - **Tested on Windows.** Linux and macOS should work, but have not been checked yet.

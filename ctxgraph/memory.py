@@ -179,6 +179,10 @@ def rrf(*ranks: list[str], k: int = 60) -> list[str]:
     return [x for x, _ in sorted(sc.items(), key=lambda t: (-t[1], t[0]))]
 
 
+class EncoderMismatch(RuntimeError):
+    pass
+
+
 @dataclass
 class Hit:
     episode: str
@@ -209,15 +213,24 @@ class ProjectMemory:
         self.db_path = self.dir / "graph.sqlite"
         if encoder is None:
             # model already downloaded -> no network at all (the memory holds private conversations);
-            # not downloaded -> a clear error instead of a silent 1 GB download (`ctxgraph setup` asks first)
+            # not downloaded -> a clear error instead of a silent download (`ctxgraph setup` asks first)
             from ctxgraph import model as M
 
             M.prepare()
-            from ctxgraph.e1b.backends import E5Encoder
-
-            encoder = E5Encoder(M.REPO, device="cpu", revision=M.REVISION)
+            encoder = M.OnnxE5Encoder()
         self.g = Graph(Store(self.db_path), encoder, config=Config())
         self.s = self.g.s
+        # the encoder that made this store's vectors: vectors of different encoders must not be mixed
+        self.s.db.execute("CREATE TABLE IF NOT EXISTS memory_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        name = getattr(encoder, "name", type(encoder).__name__)
+        had = self.s.q("SELECT value FROM memory_meta WHERE key='encoder'")
+        n_frag = self.s.q("SELECT COUNT(*) FROM fragments")[0][0]
+        built = had[0][0] if had else ("an earlier encoder (multilingual-e5-base on PyTorch, before 0.2.1)" if n_frag else "")
+        if built and built != name:
+            raise EncoderMismatch(f"The memory in {self.db_path} was built with {built}, not {name}: their vectors "
+                                  f"do not mix. Move that folder away and run `ctxgraph import` to rebuild it.")  # fmt: skip
+        if not had and n_frag == 0:
+            self.s.db.execute("INSERT OR REPLACE INTO memory_meta VALUES('encoder', ?)", (name,))
         self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_meta (episode TEXT PRIMARY KEY, ts TEXT NOT NULL, "
                           "session TEXT NOT NULL, origin TEXT NOT NULL DEFAULT '')")  # fmt: skip
         self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_flags (episode TEXT PRIMARY KEY, after_summary INTEGER NOT NULL)")

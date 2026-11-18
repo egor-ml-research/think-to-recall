@@ -42,13 +42,15 @@ def _warm() -> None:
 def tool(fn):
     """`server.tool()`, but a missing encoder model is returned as text the user can act on ("run ctxgraph setup")
     instead of a bare "Error executing tool"."""
-    from ctxgraph.model import ModelMissing
+    from ctxgraph.model import DownloadFailed, ModelMissing
 
     @functools.wraps(fn)
     def run(*a, **kw):
+        from ctxgraph.memory import EncoderMismatch
+
         try:
             return fn(*a, **kw)
-        except ModelMissing as e:
+        except (ModelMissing, DownloadFailed, EncoderMismatch) as e:
             return f"ctxgraph memory is not ready: {e}"
 
     return server.tool()(run)

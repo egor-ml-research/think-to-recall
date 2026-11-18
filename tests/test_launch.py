@@ -20,14 +20,21 @@ def test_setup_merges_mcp_json_and_hook(tmp_path):
                               {"hooks": [{"type": "command", "command": "echo other"}]}]},
            "permissions": {"allow": ["Bash(ls)"]}}  # fmt: skip
     (proj / ".claude" / "settings.local.json").write_text(json.dumps(old), "utf-8")
-    p, st = S.write_mcp(proj, str(tmp_path / "home"))
+    S.shutil.which = lambda name, _w=S.shutil.which: None if name == "claude" else _w(name)  # no claude CLI here
+    try:
+        p, st = S.write_mcp(proj, str(tmp_path / "home"))
+        assert S.write_mcp(proj, str(tmp_path / "home"))[1] == "unchanged"
+    finally:
+        import shutil as _sh
+
+        S.shutil.which = _sh.which
     assert st == "added"
-    d = json.loads(p.read_text("utf-8"))
+    raw = p.read_text("utf-8")
+    d = json.loads(raw)
     assert d["mcpServers"]["other"] == {"command": "x"}
-    e = d["mcpServers"]["ctxgraph"]
-    assert e["args"] == ["-m", "ctxgraph.memory_mcp"] and e["env"]["CTXGRAPH_PROJECT"] == proj.as_posix()
-    assert e["env"]["CTXGRAPH_HOME"] == (tmp_path / "home").as_posix()
-    assert S.write_mcp(proj, str(tmp_path / "home"))[1] == "unchanged"
+    # a shared, committable file: a command name only - no home folder, no Python path, no project path
+    assert d["mcpServers"]["ctxgraph"] == {"type": "stdio", "command": "ctxgraph-mcp", "args": []}
+    assert str(tmp_path) not in raw and tmp_path.as_posix() not in raw and "python" not in raw.lower()
     p, st = S.write_hook(proj, str(tmp_path / "home"))
     assert st == "updated"
     d = json.loads(p.read_text("utf-8"))
@@ -35,7 +42,8 @@ def test_setup_merges_mcp_json_and_hook(tmp_path):
     assert "echo other" in cmds and sum("hook-stop" in c for c in cmds) == 1
     assert d["permissions"] == old["permissions"]
     ours = next(c for c in cmds if "hook-stop" in c)
-    assert "--project" in ours and "--home" in ours and "CTXGRAPH_HOME=" not in ours
+    assert ours.startswith("ctxgraph --home ") and ours.endswith(" hook-stop") and "--project" not in ours
+    assert "python" not in ours.lower()
     assert S.write_hook(proj, str(tmp_path / "home"))[1] == "unchanged"
 
 
@@ -47,7 +55,8 @@ def test_hook_command_runs_with_home(tmp_path, monkeypatch):
     proj.mkdir()
     cmd = S.hook_command(proj, str(tmp_path / "home"))
     payload = json.dumps({"transcript_path": "C:/t/x.jsonl", "cwd": str(proj)})
-    argv = [sys.executable, "-m", "ctxgraph.cli", "--project", str(proj), "--home", str(tmp_path / "home"), "hook-stop"]
+    # the hook as written (`ctxgraph --home H hook-stop`), run through this Python; the project comes from `cwd`
+    argv = [sys.executable, "-m", "ctxgraph.cli", "--home", str(tmp_path / "home"), "hook-stop"]
     assert cmd.endswith("hook-stop")
     subprocess.run(argv, input=payload, text=True, check=True, timeout=60)
     q = list((tmp_path / "home").glob("*/pending.txt"))
@@ -62,7 +71,8 @@ def test_model_guard_refuses_silent_download(tmp_path, monkeypatch):
         M.prepare()
     snap = M.snapshot_dir()
     snap.mkdir(parents=True)
-    for f in ("model.safetensors", "config.json", "modules.json", "tokenizer.json"):
+    for f in M.FILES:
+        (snap / f).parent.mkdir(parents=True, exist_ok=True)
         (snap / f).write_text("x")
     monkeypatch.delenv("HF_HUB_OFFLINE", raising=False)
     M.prepare()
@@ -159,3 +169,58 @@ def test_viewer_embeds_both_libs_and_code_layer(tmp_path):
     assert data["mode"] == "3d"
     assert {n["origin"] for n in data["nodes"]} >= {"code"}
     assert all(lk["origin"] in ("conversation", "code", "inferred") for lk in data["links"])
+
+
+def test_setup_registers_locally_with_the_claude_cli(tmp_path, monkeypatch):
+    """With the `claude` CLI: `claude mcp add --scope local`, nothing in the repository; an old .mcp.json entry with
+    absolute paths (written by an earlier version) is removed."""
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    old = {"mcpServers": {"ctxgraph": {"command": "C:/x/python.exe", "args": ["-m", "ctxgraph.memory_mcp"]},
+                          "other": {"command": "y"}}}
+    (proj / ".mcp.json").write_text(json.dumps(old), "utf-8")
+    calls = []
+
+    class R:
+        returncode, stdout, stderr = 0, "", ""
+
+    monkeypatch.setattr(S.shutil, "which", lambda name: "/usr/bin/claude" if name == "claude" else None)
+    monkeypatch.setattr(S.subprocess, "run", lambda argv, **kw: calls.append((argv, kw.get("cwd"))) or R())
+    where, st = S.write_mcp(proj, None)
+    assert st == "added" and "local" in where
+    add = next(a for a, _ in calls if a[1:3] == ["mcp", "add"])
+    assert add == ["/usr/bin/claude", "mcp", "add", "--scope", "local", "ctxgraph", "--", "ctxgraph-mcp"]
+    assert all(cwd == proj for _, cwd in calls)
+    assert json.loads((proj / ".mcp.json").read_text("utf-8")) == {"mcpServers": {"other": {"command": "y"}}}
+
+
+def test_download_failure_is_a_message_not_a_traceback(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("HF_HUB_CACHE", str(tmp_path / "hub"))
+    import huggingface_hub
+
+    def fail(*a, **k):
+        raise ConnectionError("Failed to resolve 'huggingface.co' ([Errno 11001] getaddrinfo failed)")
+
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", fail)
+    with pytest.raises(M.DownloadFailed) as e:
+        M.download()
+    msg = str(e.value)
+    assert M.REPO in msg and "huggingface.co" in msg and "ctxgraph setup" in msg and "getaddrinfo" in msg
+    assert e.value.__cause__ is None and e.value.__suppress_context__  # no chained traceback
+    assert S.ensure_model(True) is False  # setup prints the message and goes on
+    out = capsys.readouterr().out
+    assert "Could not download the encoder model" in out and "Traceback" not in out
+
+
+def test_store_refuses_vectors_of_another_encoder(tmp_path):
+    from ctxgraph.embed import HashingEncoder
+    from ctxgraph.memory import EncoderMismatch, ProjectMemory
+
+    m = ProjectMemory(tmp_path / "proj", encoder=HashingEncoder(), home=tmp_path / "home")
+    m.remember("Для базы данных используем PostgreSQL.")
+
+    other = HashingEncoder()
+    other.name = "other-encoder"
+    with pytest.raises(EncoderMismatch, match="do not mix"):
+        ProjectMemory(tmp_path / "proj", encoder=other, home=tmp_path / "home")
+    ProjectMemory(tmp_path / "proj", encoder=HashingEncoder(), home=tmp_path / "home")  # the same encoder: fine

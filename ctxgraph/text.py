@@ -411,7 +411,7 @@ def en_noun_ok(word: str) -> bool:
         from ctxgraph.sources.wordnet import _wn
 
         wn = _wn()
-    except LookupError:  # данных WordNet нет — не фильтруем
+    except (LookupError, ImportError):  # нет данных WordNet или самого nltk — не фильтруем
         return True
     w = word.lower()
     scores = {}

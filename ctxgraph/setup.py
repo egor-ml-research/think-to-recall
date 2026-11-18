@@ -1,9 +1,12 @@
 """`ctxgraph setup`: connect the memory to the project in the current directory, in one command.
 
-1. `.mcp.json` of the project: the `ctxgraph` MCP server (this Python, absolute path; merged into an existing file).
-2. `.claude/settings.local.json`: the Claude Code Stop hook that queues each finished turn (merged; an earlier
-   ctxgraph hook is replaced, other hooks are kept). `settings.local.json` is per-user and not committed.
-3. The encoder model (multilingual-e5-base, ~1.1 GB): downloaded once, after the user agrees; then offline.
+1. The `ctxgraph` MCP server, registered without any path that could leak into git: with the `claude` CLI -
+   `claude mcp add --scope local` (stored in the user's Claude Code config, not in the repository); without it - the
+   project's `.mcp.json` gets only the command `ctxgraph-mcp` (no paths, no env). The server takes the project from
+   its working directory.
+2. `.claude/settings.local.json`: the Claude Code Stop hook `ctxgraph hook-stop` (the project comes from the hook's
+   input; merged, an earlier ctxgraph hook is replaced, other hooks are kept). `settings.local.json` is per-user.
+3. The encoder model (multilingual-e5-base, int8 ONNX, ~300 MB): downloaded once, after the user agrees; then offline.
 4. On first connection: import of this project's earlier Claude Code sessions (asks first), and the decision
    chronology as the first result.
 """
@@ -13,6 +16,8 @@ from __future__ import annotations
 import json
 import os
 import shlex
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -48,28 +53,64 @@ def _write_json(p: Path, data: dict) -> None:
     p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", "utf-8")
 
 
-def mcp_entry(project: Path, home: str | None) -> dict:
-    env = {"PYTHONUTF8": "1", "CTXGRAPH_PROJECT": project.as_posix()}
-    if home:
-        env["CTXGRAPH_HOME"] = Path(home).as_posix()
-    return {"type": "stdio", "command": Path(sys.executable).as_posix(), "args": ["-m", "ctxgraph.memory_mcp"], "env": env}
+SERVER = "ctxgraph-mcp"  # console script of the package; the server takes the project from its working directory
 
 
-def hook_command(project: Path, home: str | None) -> str:
-    cmd = f"{_q(Path(sys.executable).as_posix())} -m ctxgraph.cli --project {_q(project.as_posix())}"
-    if home:
-        cmd += f" --home {_q(Path(home).as_posix())}"
-    return cmd + " hook-stop"
+def mcp_entry(project: Path | None = None, home: str | None = None) -> dict:
+    """The server entry for a shared config (.mcp.json, Cursor): a command name only - no paths, no env."""
+    return {"type": "stdio", "command": SERVER, "args": []}
 
 
-def write_mcp(project: Path, home: str | None) -> tuple[Path, str]:
+def hook_command(project: Path | None = None, home: str | None = None) -> str:
+    """The Stop hook: `ctxgraph hook-stop`; the project comes from the hook's input (`cwd`), the stores from --home,
+    CTXGRAPH_HOME or ~/.ctxgraph. A --home path lives in settings.local.json, which is per-user and not committed."""
+    return "ctxgraph" + (f" --home {_q(Path(home).as_posix())}" if home else "") + " hook-stop"
+
+
+def _ours(entry: dict) -> bool:
+    c = " ".join([str(entry.get("command", "")), *map(str, entry.get("args", []))])
+    return "ctxgraph.memory_mcp" in c or SERVER in c
+
+
+def register_local(project: Path, home: str | None, claude: str) -> tuple[str, str]:
+    """`claude mcp add --scope local`: the entry lives in the user's Claude Code config for this project only."""
+    cmd = shutil.which(SERVER) or SERVER  # local scope may hold a path: it never reaches the repository
+    env = ["-e", f"CTXGRAPH_HOME={Path(home).as_posix()}"] if home else []
+    subprocess.run([claude, "mcp", "remove", "--scope", "local", "ctxgraph"], cwd=project, capture_output=True)
+    r = subprocess.run([claude, "mcp", "add", "--scope", "local", *env, "ctxgraph", "--", cmd], cwd=project,
+                       capture_output=True, text=True)  # fmt: skip
+    if r.returncode != 0:
+        raise RuntimeError((r.stderr or r.stdout or "claude mcp add failed").strip()[:300])
+    return "claude mcp add --scope local (your Claude Code config, not the repository)", "added"
+
+
+def write_mcp(project: Path, home: str | None) -> tuple[Path | str, str]:
+    """Local registration when the `claude` CLI is there; otherwise a path-free entry in `.mcp.json`. An entry that an
+    earlier version wrote into `.mcp.json` (with absolute paths) is removed once the local one is in place."""
     p = project / ".mcp.json"
+    claude = shutil.which("claude")
+    if claude:
+        try:
+            where, state = register_local(project, home, claude)
+        except (OSError, RuntimeError) as e:
+            print(f"  `claude mcp add` failed ({e}); writing a path-free entry to .mcp.json instead.")
+        else:
+            data = _read_json(p)
+            if _ours(data.get("mcpServers", {}).get("ctxgraph", {})):
+                del data["mcpServers"]["ctxgraph"]
+                _write_json(p, data)
+                print(f"  Removed the old ctxgraph entry from {p}.")
+            return where, state
     data = _read_json(p)
     servers = data.setdefault("mcpServers", {})
-    new = mcp_entry(project, home)
+    new = mcp_entry()
     state = "unchanged" if servers.get("ctxgraph") == new else "updated" if "ctxgraph" in servers else "added"
     servers["ctxgraph"] = new
     _write_json(p, data)
+    if home:
+        print(f"  Note: .mcp.json holds no paths; set CTXGRAPH_HOME={Path(home).as_posix()} in your environment.")
+    if not shutil.which(SERVER):
+        print(f"  Note: `{SERVER}` is not on PATH here; install with uv/pipx (see README) so Claude Code can start it.")
     return p, state
 
 
@@ -99,12 +140,17 @@ def ensure_model(assume: bool | None) -> bool:
     if M.is_cached():
         print(f"Model: {M.REPO} is already downloaded ({M.snapshot_dir()}); the memory runs offline.")
         return True
-    print(f"Model: the memory needs the sentence encoder {M.REPO} (MIT), about {M.SIZE_MB / 1000:.1f} GB, "
-          "downloaded once from huggingface.co into the Hugging Face cache. After that nothing goes to the network.")  # fmt: skip
+    print(f"Model: the memory needs the sentence encoder {M.REPO} (multilingual-e5-base, int8 ONNX, MIT), about "
+          f"{M.SIZE_MB} MB, downloaded once from huggingface.co into the Hugging Face cache. After that nothing goes "
+          "to the network.")  # fmt: skip
     if not _ask("Download it now?", assume):
         print("  Skipped. The memory will not work until the model is downloaded: rerun `ctxgraph setup`.")
         return False
-    p = M.download()
+    try:
+        p = M.download()
+    except M.DownloadFailed as e:
+        print("  " + str(e).replace("\n", "\n  "))
+        return False
     print(f"  Downloaded to {p}")
     return True
 
@@ -113,8 +159,8 @@ def check_spacy() -> None:
     from ctxgraph.v2 import english
 
     if not english.available():
-        print("Note: the spaCy model en_core_web_sm is not installed; English sentences use the rules fallback "
-              "(install with the `memory` extra to get it).")  # fmt: skip
+        print("Note: spaCy (en_core_web_sm) is not installed; English concepts in the graph view use the rules "
+              "fallback. Recall does not need it. For finer English concepts install the `english` extra.")  # fmt: skip
 
 
 def first_import(project: Path, assume: bool | None, limit: int = 15) -> None:
@@ -148,7 +194,7 @@ def run(project: Path, home: str | None, assume: bool | None, model: bool = True
     project = project.resolve()
     print(f"Project: {project}\n")
     p, st = write_mcp(project, home)
-    print(f"MCP server: {st} in {p}")
+    print(f"MCP server: {st} via {p}")
     p, st = write_hook(project, home)
     print(f"Stop hook: {st} in {p}")
     print("  Restart Claude Code in this folder and approve the `ctxgraph` server when it asks.\n")
