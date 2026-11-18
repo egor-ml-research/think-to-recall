@@ -13,12 +13,12 @@
   --edge: rgba(214,214,219,0.07); --label: rgba(214,214,219,0.9);
   --code: #7f97ad; --code-edge: rgba(127,151,173,0.28); --inferred: #d8a64f;
 }
-@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+:root[data-theme="light"] {
   --canvas: #fbfbfa; --side: #f3f3f1; --raise: #ffffff; --hover: #ebebe8; --line: #e2e2de; --line2: #d4d4cf;
   --text: #24242a; --dim: #5f5f67; --faint: #8c8c94; --accent: #6a58d6; --yes: #2f8a64; --no: #b5534a;
   --edge: rgba(36,36,42,0.08); --label: rgba(36,36,42,0.88);
   --code: #4f6f8c; --code-edge: rgba(79,111,140,0.3); --inferred: #b37a14;
-} }
+}
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--canvas); color: var(--text);
   font: 13px/1.5 -apple-system, "Segoe UI", Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
@@ -98,7 +98,8 @@ mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: in
     <div class="sec">
       <input class="search" id="q" type="search" placeholder="Найти понятие" autocomplete="off">
       <div class="toggle"><button id="vAll" class="on">Все понятия</button><button id="vShared">Общие для тем</button></div>
-      <div class="toggle"><button id="m2d" class="on">2D</button><button id="m3d">3D</button></div>
+      <div class="toggle"><button data-mode="2d" class="on">2D</button><button data-mode="3d">3D</button><button data-mode="cosmos">Космос</button></div>
+      <div class="toggle"><button data-theme-set="dark" class="on">Тёмная</button><button data-theme-set="light">Светлая</button></div>
     </div>
     <div class="sec" id="layers" hidden><div class="lbl">Слои</div>
       <label class="chk"><input type="checkbox" id="lConv" checked>Разговор <span class="ct" id="nConv"></span></label>
@@ -118,6 +119,8 @@ mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: in
   <div class="insp" id="insp"></div>
 </div>
 <script>
+// dark by default; the light theme is a remembered choice in the sidebar
+try { if (localStorage.getItem("ctxgraph.theme") === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}
 const DATA = /*__DATA__*/null;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -226,21 +229,25 @@ function make3d() {
 }
 function refresh3d() { if (fg3) fg3.nodeColor(fg3.nodeColor()).linkColor(fg3.linkColor()).linkWidth(fg3.linkWidth()); }
 function setMode(m) {
-  mode = m; $("#stage").classList.toggle("d3", m === "3d");
-  $("#m2d").classList.toggle("on", m === "2d"); $("#m3d").classList.toggle("on", m === "3d");
+  mode = m; try { localStorage.setItem("ctxgraph.mode", m); } catch (e) {}
+  $("#stage").classList.toggle("d3", m === "3d"); $("#app").classList.toggle("cos", m === "cosmos");
+  document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  if (m === "cosmos") { fg.pauseAnimation(); if (fg3) fg3.pauseAnimation(); COS.start(); return; }
+  if (window.COS) COS.stop();
   if (m === "3d") { fg.pauseAnimation(); if (!fg3) make3d(); else fg3.resumeAnimation(); resize(); }
   else { if (fg3) fg3.pauseAnimation(); fg.resumeAnimation(); resize();
     if (!fitted) { fitted = true; setTimeout(() => fg.zoomToFit(400, 60), 50); } }
 }
 const cur = () => mode === "3d" ? fg3 : fg;
 function focusNode(id) {
+  if (mode === "cosmos") return COS.flyNode(id);
   const n = cur().graphData().nodes.find(x => x.id === id); if (!n) return null;
   if (mode === "3d") { const d = 120, h = Math.hypot(n.x, n.y, n.z) || 1, r = 1 + d / h;
     fg3.cameraPosition({ x: n.x * r, y: n.y * r, z: n.z * r }, n, 700); }
   else fg.centerAt(n.x, n.y, 500);
   return n;
 }
-function fitTo(filter, ms = 500, pad = 60) { mode === "3d" ? fg3.zoomToFit(ms, 30, filter) : fg.zoomToFit(ms, pad, filter); }
+function fitTo(filter, ms = 500, pad = 60) { if (mode === "cosmos") return COS.flyTopic(topicSel); mode === "3d" ? fg3.zoomToFit(ms, 30, filter) : fg.zoomToFit(ms, pad, filter); }
 function redraw() { fg.nodeVisibility(vis).linkVisibility(lvis); if (fg3) { fg3.nodeVisibility(vis).linkVisibility(lvis); refresh3d(); } }
 
 $("#zin").onclick = () => { if (mode === "3d") { const p = fg3.cameraPosition(); fg3.cameraPosition({ x: p.x / 1.4, y: p.y / 1.4, z: p.z / 1.4 }, undefined, 250); } else fg.zoom(fg.zoom() * 1.4, 250); };
@@ -352,11 +359,18 @@ $("#vShared").onclick = () => { sharedOnly = true; $("#vShared").classList.add("
 $("#lConv").onchange = e => { showConv = e.target.checked; redraw(); };
 $("#lCode").onchange = e => { showCode = e.target.checked; redraw(); };
 $("#lInf").onchange = e => { showInf = e.target.checked; redraw(); };
-$("#m2d").onclick = () => setMode("2d");
-$("#m3d").onclick = () => setMode("3d");
+document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => setMode(b.dataset.mode));
+function setTheme(t) {
+  if (t === "light") document.documentElement.dataset.theme = "light"; else delete document.documentElement.dataset.theme;
+  try { localStorage.setItem("ctxgraph.theme", t); } catch (e) {}
+  document.querySelectorAll("[data-theme-set]").forEach(b => b.classList.toggle("on", b.dataset.themeSet === t));
+  fg.backgroundColor(css("--canvas")); if (fg3) { fg3.backgroundColor(css("--canvas")); refresh3d(); }
+}
+document.querySelectorAll("[data-theme-set]").forEach(b => b.onclick = () => setTheme(b.dataset.themeSet));
+if (document.documentElement.dataset.theme === "light") setTheme("light");
 addEventListener("resize", resize);
 resize();
-if (DATA.mode === "3d") setMode("3d");
 </script>
+<script>/*__COSMOS__*/</script>
 </body>
 </html>

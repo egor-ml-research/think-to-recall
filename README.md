@@ -165,6 +165,10 @@ no network: the graph libraries are vendored.
 - **2D / 3D**: switch in the sidebar, or open in 3D with `ctxgraph view --3d`. 2D uses
   [force-graph](https://github.com/vasturiano/force-graph) and 3D uses
   [3d-force-graph](https://github.com/vasturiano/3d-force-graph) (both MIT).
+- **Cosmos**: `ctxgraph view --cosmos` (or the «Космос» switch) draws the project as a galaxy on plain Canvas 2D:
+  the core is the project, topics are constellations, concepts are stars. It has a greeting card with what changed
+  since your last visit and a dashboard («Панель») with activity, topics, most connected concepts, recent decisions
+  and search. Without a flag, the page opens in the mode you used last.
 
 ### Code from Graphify
 

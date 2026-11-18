@@ -171,6 +171,20 @@ def test_viewer_embeds_both_libs_and_code_layer(tmp_path):
     assert all(lk["origin"] in ("conversation", "code", "inferred") for lk in data["links"])
 
 
+
+def test_viewer_cosmos_mode(tmp_path):
+    """--cosmos: the cosmic mode script is inlined and the page opens in it; without a mode the page uses its last one."""
+    pytest.importorskip("networkx")
+    from ctxgraph.viewer import export_html
+
+    m = _mem_with_chat(tmp_path)
+    get = lambda h: json.loads(h.split("const DATA = ", 1)[1].split(";\nconst $", 1)[0].replace("<\\/", "</"))  # noqa: E731
+    html = export_html(m, out=tmp_path / "c.html", mode="cosmos").read_text("utf-8")
+    assert "/*__COSMOS__*/" not in html and "const COS = " in html and 'data-mode="cosmos"' in html
+    data = get(html)
+    assert data["mode"] == "cosmos" and isinstance(data["daily"], dict)
+    assert get(export_html(m, out=tmp_path / "d.html").read_text("utf-8"))["mode"] == ""
+
 def test_setup_registers_locally_with_the_claude_cli(tmp_path, monkeypatch):
     """With the `claude` CLI: `claude mcp add --scope local`, nothing in the repository; an old .mcp.json entry with
     absolute paths (written by an earlier version) is removed."""

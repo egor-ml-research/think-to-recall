@@ -38,7 +38,7 @@ build-backend = "setuptools.build_meta"
 include = ["ctxgraph*"]
 
 [tool.setuptools.package-data]
-ctxgraph = ["viewer_template.html", "vendor/*"]
+ctxgraph = ["viewer_template.html", "viewer_cosmos.js", "vendor/*"]
 
 [tool.ruff]
 line-length = 100

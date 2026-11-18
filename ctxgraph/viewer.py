@@ -25,7 +25,8 @@ PALETTE = ["#8b7fd6", "#4fa58a", "#d39a4a", "#c96a62", "#5b9ac7", "#b878a8", "#9
 
 
 
-def export_html(mem, top: int = 320, out: Path | None = None, mode: str = "2d") -> Path:
+def export_html(mem, top: int = 320, out: Path | None = None, mode: str | None = None) -> Path:
+    """mode: "2d" / "3d" / "cosmos", or None to open the mode last used in the page (localStorage)."""
     import networkx as nx
 
     s = mem.s
@@ -126,17 +127,19 @@ def export_html(mem, top: int = 320, out: Path | None = None, mode: str = "2d") 
         tp["recall"] = [{"ts": h.ts[:10], "role": h.role, "t": h.sentence[:260], "ep": h.episode[:8]} for h in hits]
         tp["n_mentions"] = sum(G.nodes[n]["n"] for n in comms[tp["id"]])
     counts = s.counts()
-    data = {"name": name, "topics": topics, "nodes": nodes, "links": links, "decisions": decisions, "mode": mode,
+    data = {"name": name, "topics": topics, "nodes": nodes, "links": links, "decisions": decisions, "mode": mode or "",
             "code": code["meta"],
             "stats": {"turns": len(meta), "sentences": n_frag, "concepts": counts.get("concepts"),
                       "shown": len(nodes) - len(code["nodes"]), "bridges": sum(x.get("bridge", False) for x in nodes),
                       "from": min((v["ts"] for v in meta.values() if v["ts"]), default="")[:10],
-                      "to": max((v["ts"] for v in meta.values() if v["ts"]), default="")[:10]}}  # fmt: skip
+                      "to": max((v["ts"] for v in meta.values() if v["ts"]), default="")[:10]},
+            "daily": dict(sorted(Counter(v["ts"][:10] for v in meta.values() if v["ts"]).items()))}  # fmt: skip
     here = Path(__file__).parent
     lib = (here / "vendor" / "force-graph.min.js").read_text("utf-8")  # MIT, vendor/force-graph.LICENSE; works offline
     lib3d = (here / "vendor" / "3d-force-graph.min.js").read_text("utf-8")  # MIT, vendor/3d-force-graph.LICENSE
     html = (here / "viewer_template.html").read_text("utf-8").replace("/*__FORCE_GRAPH__*/", lib)
     html = html.replace("/*__FORCE_GRAPH_3D__*/", lib3d)
+    html = html.replace("/*__COSMOS__*/", (here / "viewer_cosmos.js").read_text("utf-8"))  # the cosmic mode, plain Canvas 2D
     html = html.replace("/*__DATA__*/null", json.dumps(data, ensure_ascii=False).replace("</", r"<\/"))
     out = Path(out) if out else mem.dir / "graph.html"
     out.write_text(html, "utf-8")

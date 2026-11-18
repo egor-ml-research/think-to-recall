@@ -4,7 +4,7 @@
     ctxgraph import                 # import this project's earlier Claude Code sessions (asks for consent)
     ctxgraph recall "question" [--step "..."]...
     ctxgraph decisions | rules | status
-    ctxgraph view [--3d]            # local HTML graph of the memory (2D or 3D)
+    ctxgraph view [--3d|--cosmos]  # local HTML graph of the memory (2D, 3D or cosmic)
     ctxgraph import-graphify PATH   # add a Graphify code graph (graph.json) to the view
     ctxgraph mcp                    # MCP server (stdio) for Claude Code / Cursor
     ctxgraph hook-stop              # Claude Code Stop hook: queues the transcript (fast, no model load)
@@ -98,7 +98,7 @@ def cmd_view(a) -> None:
 
     from ctxgraph.viewer import export_html
 
-    p = export_html(_mem(a.project), out=a.out, mode="3d" if a.three_d else "2d")
+    p = export_html(_mem(a.project), out=a.out, mode="cosmos" if a.cosmos else "3d" if a.three_d else None)
     print(p)
     if not a.no_open:
         webbrowser.open(p.as_uri())
@@ -174,6 +174,7 @@ def main(argv=None) -> None:
     p.add_argument("--no-open", action="store_true")
     p.add_argument("--out", help="write the HTML here instead of the memory folder")
     p.add_argument("--3d", dest="three_d", action="store_true", help="open in the 3D view (2D/3D toggle in the page)")
+    p.add_argument("--cosmos", action="store_true", help="open in the cosmic view (default: the mode last used in the page)")
     p.set_defaults(f=cmd_view)
     p = sub.add_parser("import-graphify", help="add a Graphify code graph (graphify-out/graph.json) to the view")
     p.add_argument("path", help="graph.json, or the folder with it (graphify-out/ or the repo root)")
