@@ -27,13 +27,13 @@ Code. Перед ответом ассистент может спросить �
 Одна строка (Python 3.11+ и [uv](https://docs.astral.sh/uv/)), из папки проекта, который хотите подключить:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.0" && ctxgraph setup
 ```
 
 С [pipx](https://pipx.pypa.io/) вместо uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.0" && ctxgraph setup
 ```
 
 **Работает сразу, без загрузки модели.** Поиск — BM25 по вашим разговорам; установка около 125 МБ. Режим качества —
@@ -41,14 +41,25 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 ещё несколько ответов, сформулированных иначе, чем вопрос:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.0" && ctxgraph setup --quality
 ```
 
-Пакета пока нет в PyPI; команды ставят релиз v0.4.1 с GitHub. Установка также предложит скачать данные WordNet
-(~10 МБ) для названий тем в `expand`; Enter — согласие. Для более точных английских понятий на карте графа добавьте
-набор `english`.
+Пакета пока нет в PyPI; команды ставят релиз v0.5.0 с GitHub. Для более точных английских понятий на карте графа
+добавьте набор `english`. **Ставите через ИИ-ассистента?** Дайте ему [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
-`setup` делает четыре вещи и спрашивает перед импортом истории:
+`setup` задаёт все вопросы один раз, до начала работы; Enter выбирает ответ по умолчанию:
+
+| вопрос | по умолчанию | флаг |
+|---|---|---|
+| импортировать прежние сессии Claude Code проекта | да | `--import-history yes\|no` |
+| построить граф кода через Graphify (только если найден код; ставит `graphifyy`, ~150 МБ, локальный AST, без LLM) | нет | `--graphify yes\|no` |
+| скачать данные WordNet для названий тем в `expand` (~10 МБ) | да | `--wordnet yes\|no` |
+
+`-y` берёт ответы по умолчанию. **Без терминала** (setup запускает ассистент) ничего не импортируется, не ставится и
+не скачивается, если флаг не сказал иного: пишутся только сервер и хук, а в конце — список пропущенного с командой
+для каждого пункта.
+
+Затем он делает четыре вещи:
 
 1. Регистрирует MCP-сервер `ctxgraph` **без путей, которые могли бы попасть в git**. Если на PATH есть `claude`, он
    выполняет `claude mcp add --scope local ctxgraph -- ctxgraph-mcp`: запись хранится в ваших собственных настройках
@@ -68,7 +79,7 @@ uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/e
    собранная в режиме по умолчанию, откладывается в сторону и пересобирается (закреплённые правила сохраняются). Если
    загрузка не удалась (нет сети, прокси), setup говорит, что не скачалось, откуда и что запустить снова; частичная
    загрузка продолжается с места остановки.
-4. **Спрашивает перед импортом** прежних сессий Claude Code проекта (`~/.claude/projects/<проект>/*.jsonl`). Затем
+4. Импортирует прежние сессии Claude Code проекта (`~/.claude/projects/<проект>/*.jsonl`), если вы согласились, и
    печатает **хронологию решений**, чтобы сразу было видно, что знает память.
 
 Перезапустите Claude Code в папке проекта и подтвердите сервер `ctxgraph`, когда он спросит.

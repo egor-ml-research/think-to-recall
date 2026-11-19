@@ -1,0 +1,30 @@
+# think-to-recall (ctxgraph)
+
+> A local decision memory for AI coding assistants: a Claude Code MCP server and CLI that remembers what you decided, refused and postponed in earlier chats, with dates and reports, and gives it back to a new chat. No cloud, no LLM calls.
+
+## Docs
+
+- [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md): step-by-step install for an AI assistant (ask the user, then `ctxgraph setup` with flags)
+- [README.md](README.md): what it does, install, tools, how recall works, privacy, limits
+- [README.ru.md](README.ru.md): the same in Russian
+
+## MCP tools
+
+- recall(question, steps, k, detail): earlier turns relevant to the question and reasoning steps; detail full / brief / mixed
+- expand(record_id): one record in full plus its thread by date
+- decisions(limit): decision chronology with confirmations and reports
+- rules, pin_rule(text), unpin_rule(id): standing project rules
+- remember(text, role): save one statement explicitly
+- import_history: import earlier Claude Code sessions (on request)
+- forget(episode): hide a turn from recall
+- memory_status, show_graph: what is stored; the graph view path
+
+## Setup flags
+
+- --import-history yes|no, --graphify yes|no, --wordnet yes|no: answers without a terminal; -y takes the defaults
+- --quality: BM25 + multilingual-e5-base (int8 ONNX, ~300 MB)
+- --lang en|ru (global): language of the labels
+
+## Optional
+
+- [docs/research_README.md](docs/research_README.md): the research behind it (benchmarks, negative results)

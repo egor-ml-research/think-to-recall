@@ -9,8 +9,12 @@
 3. Nothing to download by default: recall is BM25 over the stored sentences. `--quality` adds multilingual-e5-base
    (int8 ONNX, ~300 MB, downloaded once after the user agrees; then offline) and fuses it with BM25 by RRF; an
    existing default store is rebuilt for it (pinned rules are kept).
-4. On first connection: import of this project's earlier Claude Code sessions (asks first), and the decision
-   chronology as the first result.
+4. All questions come first, once, with defaults on Enter: import this project's earlier Claude Code sessions (yes),
+   build a code graph with Graphify when code is found (no), download WordNet data for topic names (yes); with
+   `--quality`, download the model (yes). Flags answer them without asking (`--import-history yes|no`,
+   `--graphify yes|no`, `--wordnet yes|no`; `-y` takes the defaults). Without a terminal nothing is imported,
+   installed or downloaded: only the server and the hook are written, and the end lists what was skipped with the
+   commands to do it.
 """
 
 from __future__ import annotations
@@ -195,7 +199,7 @@ def ensure_wordnet(assume: bool | None) -> bool:
     return ok
 
 
-def first_import(project: Path, assume: bool | None, limit: int = 15) -> None:
+def first_import(project: Path, assume: bool | None, limit: int = 15, ask: bool = True) -> None:
     from ctxgraph.memory import ProjectMemory, claude_project_dir, format_decisions
 
     src = claude_project_dir(project)
@@ -212,7 +216,7 @@ def first_import(project: Path, assume: bool | None, limit: int = 15) -> None:
         print(f"History: {len(files)} earlier Claude Code session file(s) of this project in {src}.\n"
               "  Only your prompts and the assistant's visible replies are stored (no tool calls, no thinking); "
               "secrets are filtered before storage. Everything stays on this machine.")  # fmt: skip
-        if not _ask("Import them into the project memory?", assume):
+        if not (_ask("Import them into the project memory?", assume) if ask else assume):
             print("  Skipped. Import later with `ctxgraph import`.")
             return
         r = m.import_claude_code(src, progress=lambda i, k: print(f"\r  {i}/{k}", end="", flush=True))
@@ -271,9 +275,156 @@ def _carry_rules(old: Path, new: Path) -> None:
     con.close()
 
 
+CODE_EXT = {".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".go", ".rs", ".java", ".kt", ".cs", ".cpp", ".cc", ".c",
+            ".h", ".hpp", ".rb", ".php", ".swift", ".scala", ".lua", ".dart", ".ex", ".zig"}
+SKIP_DIRS = {".git", ".venv", "venv", "env", "node_modules", "dist", "build", "__pycache__", ".tox", ".mypy_cache",
+             "graphify-out", "site-packages", ".next", "target", "vendor"}
+GRAPHIFY_MB = 150
+
+
+def code_files(project: Path, limit: int = 2000) -> int:
+    """How many source files the project has (outside dependencies and build output; minified files are not code)."""
+    n = 0
+    for _root, dirs, files in os.walk(project):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith(".")]
+        n += sum(1 for f in files if Path(f).suffix in CODE_EXT and ".min." not in f)
+        if n >= limit:
+            break
+    return n
+
+
+def _graphify_cmd() -> list[str] | None:
+    exe = shutil.which("graphify")
+    if exe:
+        return [exe]
+    try:
+        import graphify  # noqa: F401  (graphifyy installed next to ctxgraph)
+
+        return [sys.executable, "-m", "graphify"]
+    except ImportError:
+        return None
+
+
+def _install_graphify() -> bool:
+    """`graphifyy` into ctxgraph's own environment: pip, or `uv pip` for a uv tool environment (no pip there)."""
+    has_pip = subprocess.run([sys.executable, "-m", "pip", "--version"], capture_output=True).returncode == 0
+    if has_pip:
+        argv = [sys.executable, "-m", "pip", "install", "-q", "graphifyy"]
+    elif shutil.which("uv"):
+        argv = ["uv", "pip", "install", "-q", "--python", sys.executable, "graphifyy"]
+    else:
+        return False
+    print("  Installing Graphify (graphifyy, Apache-2.0)...", flush=True)
+    return subprocess.run(argv).returncode == 0
+
+
+def build_code_graph(project: Path) -> bool:
+    """Graphify's local AST extraction (no LLM, no key) into `<project>/graphify-out/graph.json`, then import."""
+    from ctxgraph import graphify as GF
+    from ctxgraph.memory import ProjectMemory
+
+    cmd = _graphify_cmd()
+    if cmd is None and _install_graphify():
+        import importlib
+
+        importlib.invalidate_caches()
+        cmd = _graphify_cmd()
+    if cmd is None:
+        print("  Could not install Graphify here. Install it (`pip install graphifyy`), then run "
+              "`ctxgraph setup --graphify yes`.")  # fmt: skip
+        return False
+    print("  Building the code graph (local AST, no LLM)...", flush=True)
+    r = subprocess.run(cmd + ["extract", str(project), "--code-only"], cwd=project, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=1800)  # fmt: skip
+    out = project / "graphify-out" / "graph.json"
+    if r.returncode != 0 or not out.exists():
+        tail = (r.stderr or r.stdout or "").strip().splitlines()[-1:] or ["no output"]
+        print(f"  Graphify failed: {tail[0]}")
+        return False
+    g = GF.import_graph(ProjectMemory(project).db_path, out)
+    print(f"  Code graph: {g['nodes']} nodes, {g['edges']} edges; {g['links']} links to conversation concepts. "
+          "Graphify wrote `graphify-out/` in the project - add it to .gitignore if you do not want it committed.")
+    return True
+
+
+def _has_code_graph(project: Path) -> bool:
+    import sqlite3
+
+    from ctxgraph.memory import ProjectMemory
+
+    try:
+        con = sqlite3.connect(ProjectMemory(project).db_path)
+        try:
+            return con.execute("SELECT COUNT(*) FROM code_nodes").fetchone()[0] > 0
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return False
+
+
+def _history_todo(project: Path) -> int:
+    """Earlier session files to import (0 when there are none or the store already has turns)."""
+    from ctxgraph.memory import ProjectMemory, claude_project_dir
+
+    src = claude_project_dir(project)
+    files = sorted(src.glob("*.jsonl")) if src.is_dir() else []
+    if not files or ProjectMemory(project).s.q("SELECT COUNT(*) FROM turn_meta")[0][0]:
+        return 0
+    return len(files)
+
+
+def questionnaire(project: Path, assume: bool | None, flags: dict, quality: bool) -> dict:
+    """Every question once, before any work: {step: True / False} for the steps that apply here. A flag answers
+    without asking, `-y` takes the default, a terminal asks (Enter = default), no terminal means no."""
+    from ctxgraph.sources import wordnet as W
+
+    qs = []  # (step, question, default)
+    n_hist = _history_todo(project)
+    if n_hist:
+        qs.append(("import", f"Import {n_hist} earlier Claude Code session file(s) of this project? (your prompts and "
+                             "the assistant's visible replies; secrets filtered; stays on this machine)", True))
+    n_code = code_files(project)
+    if n_code and not _has_code_graph(project):
+        qs.append(("graphify", f"Found {n_code}{'+' if n_code >= 2000 else ''} source files. Build a code graph with "
+                               f"Graphify (installs `graphifyy`, ~{GRAPHIFY_MB} MB, local AST, no LLM)?", False))
+    try:
+        import nltk  # noqa: F401
+
+        if not W.ready():
+            qs.append(("wordnet", f"Download data for topic names (WordNet, ~{W.SIZE_MB} MB)?", True))
+    except ImportError:
+        pass
+    if quality:
+        from ctxgraph import model as M
+
+        if not M.is_cached():
+            qs.append(("model", f"Download the quality model ({M.REPO}, ~{M.SIZE_MB} MB)?", True))
+    tty = bool(sys.stdin) and sys.stdin.isatty()
+    ans, why = {}, {}
+    for key, q, default in qs:
+        if flags.get(key) is not None:
+            ans[key], why[key] = flags[key], "flag"
+        elif assume:
+            ans[key], why[key] = default, "default, -y"
+        elif tty:
+            ans[key], why[key] = _ask(q, None, default), "answer"
+        else:
+            ans[key], why[key] = False, "no terminal"
+    if ans:
+        print("Setup plan: " + "; ".join(f"{k} - {'yes' if v else 'no'} ({why[k]})" for k, v in ans.items()) + "\n")
+    return ans
+
+
+SKIP_HINT = {"import": "ctxgraph setup --import-history yes", "graphify": "ctxgraph setup --graphify yes",
+             "wordnet": "ctxgraph setup --wordnet yes", "model": "ctxgraph setup --quality -y"}
+
+
 def run(project: Path, home: str | None, assume: bool | None, model: bool = True, history: bool = True,
-        quality: bool = False) -> None:  # fmt: skip
+        quality: bool = False, flags: dict | None = None) -> dict:  # fmt: skip
     project = project.resolve()
+    flags = dict(flags or {})
+    if not history:
+        flags["import"] = False
     print(f"Project: {project}\n")
     p, st = write_mcp(project, home)
     print(f"MCP server: {st} via {p}")
@@ -281,16 +432,25 @@ def run(project: Path, home: str | None, assume: bool | None, model: bool = True
     print(f"Stop hook: {st} in {p}")
     print("  Restart Claude Code in this folder and approve the `ctxgraph` server when it asks.\n")
     if not model:
-        return
+        return {}
+    ans = questionnaire(project, assume, flags, quality)
     ok = True
     if quality:
-        ok = enable_quality(project, home, assume)
+        ok = enable_quality(project, home, ans.get("model", True))
     else:
         print("Recall: BM25 over your conversations - works right away, nothing to download. "
               "`ctxgraph setup --quality` adds a 300 MB model for better recall (optional).")  # fmt: skip
     check_spacy()
-    ensure_wordnet(assume)
-    if ok and history:
+    if ans.get("wordnet"):
+        ans["wordnet"] = ensure_wordnet(True)
+    if ok:
         print()
-        first_import(project, assume)
+        first_import(project, bool(ans.get("import")), ask=False)
+    if ans.get("graphify"):
+        print("\nCode graph:")
+        ans["graphify"] = build_code_graph(project)
     print("\nGraph view: `ctxgraph view` (add `--3d` for the 3D view).")
+    skipped = [k for k, v in ans.items() if not v]
+    if skipped:
+        print("\nSkipped - to do it later:\n" + "\n".join(f"  {k}: {SKIP_HINT[k]}" for k in skipped))
+    return ans

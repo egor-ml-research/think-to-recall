@@ -345,3 +345,103 @@ def test_expand_without_wordnet_gives_a_hint_not_a_dash(tmp_path, monkeypatch):
     assert "Topic: -" not in x and "`ctxgraph setup` downloads it" in x
     monkeypatch.setattr(W, "ready", lambda: True)  # the data is there: an unnamed topic is just unnamed
     assert "Topic: -" in m.expand("t2")
+
+
+def _setup_env(tmp_path, monkeypatch, tty, answers=()):
+    """A project with code and one earlier session; no `claude` CLI; WordNet missing; Graphify and the WordNet
+    download recorded instead of run."""
+    import ctxgraph.memory as MM
+    from ctxgraph.sources import wordnet as W
+
+    proj, src = tmp_path / "proj", tmp_path / "transcripts"
+    (proj / "app").mkdir(parents=True)
+    (proj / "app" / "main.py").write_text("def main():\n    pass\n", "utf-8")
+    src.mkdir()
+    rec = {"type": "user", "uuid": "u1", "timestamp": "2026-11-01T10:00:00Z", "sessionId": "s1",
+           "message": {"role": "user", "content": "For the database we will use Postgres."}}
+    (src / "s1.jsonl").write_text(json.dumps(rec) + "\n", "utf-8")
+    monkeypatch.setattr(MM, "HOME", tmp_path / "home")
+    monkeypatch.setattr(MM, "claude_project_dir", lambda p: src)
+    monkeypatch.setattr(S.shutil, "which", lambda name: None)
+    calls = []
+    monkeypatch.setattr(W, "ready", lambda: "wordnet" in calls)
+    monkeypatch.setattr(W, "download", lambda: calls.append("wordnet") or True)
+    monkeypatch.setattr(S, "build_code_graph", lambda p: calls.append("graphify") or True)
+
+    class In:
+        def isatty(self):
+            return tty
+
+    monkeypatch.setattr(S.sys, "stdin", In())
+    it = iter(answers)
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(it))
+    return proj, calls
+
+
+def _turns(proj):
+    return ProjectMemory(proj).s.q("SELECT COUNT(*) FROM turn_meta")[0][0]
+
+
+def test_setup_without_terminal_only_registers_and_lists_the_skipped(tmp_path, monkeypatch, capsys):
+    proj, calls = _setup_env(tmp_path, monkeypatch, tty=False)
+    ans = S.run(proj, None, None)
+    out = capsys.readouterr().out
+    assert ans == {"import": False, "graphify": False, "wordnet": False} and calls == [] and _turns(proj) == 0
+    assert (proj / ".mcp.json").exists() and (proj / ".claude" / "settings.local.json").exists()
+    for cmd in ("--import-history yes", "--graphify yes", "--wordnet yes"):
+        assert f"ctxgraph setup {cmd}" in out
+
+
+def test_setup_flags_answer_without_a_terminal(tmp_path, monkeypatch):
+    proj, calls = _setup_env(tmp_path, monkeypatch, tty=False)
+    ans = S.run(proj, None, None, flags={"import": True, "graphify": True, "wordnet": False})
+    assert ans == {"import": True, "graphify": True, "wordnet": False}
+    assert calls == ["graphify"] and _turns(proj) == 1
+
+
+def test_setup_yes_takes_the_defaults(tmp_path, monkeypatch):
+    proj, calls = _setup_env(tmp_path, monkeypatch, tty=False)
+    ans = S.run(proj, None, True)
+    assert ans == {"import": True, "graphify": False, "wordnet": True} and calls == ["wordnet"] and _turns(proj) == 1
+
+
+def test_setup_asks_everything_first_and_enter_takes_the_defaults(tmp_path, monkeypatch, capsys):
+    proj, calls = _setup_env(tmp_path, monkeypatch, tty=True, answers=["", "", ""])
+    ans = S.run(proj, None, None)
+    out = capsys.readouterr().out
+    assert ans == {"import": True, "graphify": False, "wordnet": True} and _turns(proj) == 1
+    assert out.index("Setup plan:") < out.index("Imported")  # all questions before any work
+    assert "import - yes (answer); graphify - no (answer); wordnet - yes (answer)" in out
+
+
+def test_code_files_skips_dependencies_and_minified(tmp_path):
+    (tmp_path / "node_modules" / "x").mkdir(parents=True)
+    (tmp_path / "node_modules" / "x" / "a.js").write_text("x", "utf-8")
+    (tmp_path / "static").mkdir()
+    (tmp_path / "static" / "lib.min.js").write_text("x", "utf-8")
+    assert S.code_files(tmp_path) == 0
+    (tmp_path / "app.ts").write_text("x", "utf-8")
+    assert S.code_files(tmp_path) == 1
+
+
+def test_install_for_ai_flags_exist_in_setup_help():
+    """INSTALL_FOR_AI.md (public repo root) must not name a flag the CLI does not have."""
+    import re
+    from pathlib import Path
+
+    doc = Path(__file__).resolve().parents[1] / "INSTALL_FOR_AI.md"
+    if not doc.exists():
+        pytest.skip("INSTALL_FOR_AI.md lives in the public repository")
+    from ctxgraph import cli
+
+    text = doc.read_text("utf-8")
+    flags = set(re.findall(r"(?<![\w-])(--[a-z][a-z-]+)", text))
+    import contextlib
+    import io
+
+    buf = io.StringIO()
+    for cmd in ("setup", "decisions"):  # the commands the document runs
+        with contextlib.redirect_stdout(buf), contextlib.suppress(SystemExit):
+            cli.main([cmd, "--help"])
+    known = set(re.findall(r"--[a-z][a-z-]+", buf.getvalue())) | {"--lang", "--scope"}
+    assert flags <= known, flags - known

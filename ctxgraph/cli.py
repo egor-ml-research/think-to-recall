@@ -133,8 +133,10 @@ def cmd_hook_stop(a) -> None:
 def cmd_setup(a) -> None:
     from ctxgraph import setup as S
 
+    yn = {"yes": True, "no": False, None: None}
+    flags = {"import": yn[a.import_history], "graphify": yn[a.graphify], "wordnet": yn[a.wordnet]}
     S.run(Path(a.project or Path.cwd()), a.home or os.environ.get("CTXGRAPH_HOME"), True if a.yes else None,
-          model=not a.no_model, history=not a.no_import, quality=a.quality)
+          model=not a.no_model, history=not a.no_import, quality=a.quality, flags=flags)
     if a.print_cursor:
         e = S.mcp_entry()
         print("\nCursor - .cursor/mcp.json of the project (no hooks there: turns are saved via the remember tool):\n"
@@ -203,12 +205,17 @@ def main(argv=None) -> None:
     p.set_defaults(f=cmd_import_graphify)
     sub.add_parser("mcp").set_defaults(f=lambda a: __import__("ctxgraph.memory_mcp", fromlist=["main"]).main())
     sub.add_parser("hook-stop").set_defaults(f=cmd_hook_stop)
-    p = sub.add_parser("setup", help="connect this project: MCP server, Stop hook, first import (--quality: + model)")
-    p.add_argument("-y", "--yes", action="store_true", help="agree to the history import (and the model download with --quality)")
+    p = sub.add_parser("setup", help="connect this project: MCP server, Stop hook; then the questions once (history, "
+                                     "code graph, WordNet; --quality: + model)")
+    p.add_argument("-y", "--yes", action="store_true",
+                   help="take the default answers without asking (import history: yes, Graphify: no, WordNet: yes)")
+    p.add_argument("--import-history", choices=["yes", "no"], help="import this project's earlier Claude Code sessions")
+    p.add_argument("--graphify", choices=["yes", "no"], help="build a code graph with Graphify when code is found")
+    p.add_argument("--wordnet", choices=["yes", "no"], help="download WordNet data for topic names (~10 MB)")
     p.add_argument("--no-model", action="store_true", help="only write the config files")
     p.add_argument("--quality", action="store_true",
                    help="better recall: BM25 + multilingual-e5-base (int8 ONNX, ~300 MB download, needs the `quality` extra)")
-    p.add_argument("--no-import", action="store_true", help="do not import earlier sessions")
+    p.add_argument("--no-import", action="store_true", help="same as --import-history no")
     p.add_argument("--print-cursor", action="store_true", help="also print the Cursor MCP config")
     p.set_defaults(f=cmd_setup)
     a = ap.parse_args(argv)

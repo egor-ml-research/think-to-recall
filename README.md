@@ -26,13 +26,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.0" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.0" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -40,14 +40,26 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.0" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.4.1 from GitHub. Setup also offers to download WordNet
-data (~10 MB) that names the topics in `expand`; Enter agrees. For finer English concepts in the graph view, add the
-`english` extra.
+The package is not on PyPI yet; the commands install release v0.5.0 from GitHub. For finer English concepts in the
+graph view, add the `english` extra. **Installing through an AI assistant?** Point it to
+[INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
-`setup` does four things, and asks before importing your history:
+`setup` asks all its questions once, before doing anything, and Enter takes the default:
+
+| question | default | flag |
+|---|---|---|
+| import this project's earlier Claude Code sessions | yes | `--import-history yes\|no` |
+| build a code graph with Graphify (only when code is found; installs `graphifyy`, ~150 MB, local AST, no LLM) | no | `--graphify yes\|no` |
+| download WordNet data that names the topics in `expand` (~10 MB) | yes | `--wordnet yes\|no` |
+
+`-y` takes the defaults. **Without a terminal** (an assistant running setup for you) nothing is imported, installed
+or downloaded unless a flag says so: only the server and the hook are written, and the end lists what was skipped,
+with the command for each.
+
+Then it does four things:
 
 1. Registers the `ctxgraph` MCP server **without any path that could end up in git**. With the `claude` CLI on
    PATH it runs `claude mcp add --scope local ctxgraph -- ctxgraph-mcp`: the entry is kept in your own Claude Code
@@ -66,8 +78,8 @@ data (~10 MB) that names the topics in `expand`; Enter agrees. For finer English
    download happens once; after that every ctxgraph process runs with the Hugging Face hub offline. A memory built
    in the default mode is moved aside and rebuilt (pinned rules are kept). If the download fails (no network, proxy),
    setup says what was not downloaded, from where, and to rerun it; a partial download resumes.
-4. **Asks before importing** the project's earlier Claude Code sessions (`~/.claude/projects/<project>/*.jsonl`).
-   It then prints the **decision chronology**, so you see what the memory knows straight away.
+4. Imports the project's earlier Claude Code sessions (`~/.claude/projects/<project>/*.jsonl`) if you agreed, and
+   prints the **decision chronology**, so you see what the memory knows straight away.
 
 Restart Claude Code in the project folder and approve the `ctxgraph` server when it asks.
 
