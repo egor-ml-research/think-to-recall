@@ -292,3 +292,18 @@ def test_import_without_a_terminal_says_to_use_y(tmp_path):
                         str(tmp_path / "proj"), "import", "--source", str(src)], input="", capture_output=True,
                        text=True, timeout=120)  # fmt: skip
     assert r.returncode != 0 and "-y" in r.stderr and "EOFError" not in r.stderr + r.stdout
+
+
+def test_setup_question_without_input_is_no_not_a_crash(monkeypatch, capsys):
+    class TTY:
+        def isatty(self):
+            return True
+
+    monkeypatch.setattr(S.sys, "stdin", TTY())
+
+    def eof(prompt=""):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", eof)
+    assert S._ask("Import them into the project memory?", None) is False
+    assert "--yes" in capsys.readouterr().out

@@ -33,7 +33,11 @@ def _ask(question: str, assume: bool | None) -> bool:
     if not sys.stdin or not sys.stdin.isatty():
         print(f"{question} [n] (no terminal to ask; rerun with --yes to agree)")
         return False
-    return input(f"{question} [y/N] ").strip().lower() in YES
+    try:
+        return input(f"{question} [y/N] ").strip().lower() in YES
+    except EOFError:  # a terminal that gives no input (Git Bash / mintty pipes): no answer means no
+        print("\n  No answer (no input from the terminal); rerun with --yes to agree.")
+        return False
 
 
 def _q(s: str) -> str:
