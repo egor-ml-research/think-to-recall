@@ -26,13 +26,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.3.1" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.0" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.3.1" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.0" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -40,10 +40,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.3.1" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.0" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.3.1 from GitHub. For finer English concepts in the
+The package is not on PyPI yet; the commands install release v0.4.0 from GitHub. For finer English concepts in the
 graph view, add the `english` extra.
 
 `setup` does four things, and asks before importing your history:
@@ -235,11 +235,12 @@ and the conversation concepts and decisions that mention it. Re-importing replac
   a minute. The quality mode adds about 300 MB and makes the first import several times slower (291 s against 69 s
   for 775 turns on a laptop CPU). A store remembers its mode; switching to `--quality` rebuilds it.
 - **Lexical by default.** BM25 finds what shares words with your question. On our check of 29 questions about past
-  decisions it was correct on 19 (e5 alone: 18, BM25 + e5: 21) and never showed an outdated answer as current, but
+  decisions it was correct on 19 (e5 alone: 18, BM25 + e5: 21; measured on 784 turns, later turns move these by about one
+  question) and never showed an outdated answer as current, but
   it misses answers worded differently from the question (for example, "DB" for "database"); `--quality` recovers
   some of them.
-- **Labels in Russian.** The status labels in recall output (решение, сделано, коммит…) are in Russian in this
-  version. English conversations work, but fewer English decision phrases are recognized as decisions.
+- **Two languages.** Status labels follow the project's language (the language of most of your messages);
+  `ctxgraph --lang en|ru …` or `CTXGRAPH_LANG` sets it. Cue words exist for English and Russian only.
 - **Claude Code first.** Automatic recording relies on the Claude Code Stop hook. Cursor works through the
   `remember` tool only. Chats from claude.ai can be imported from a data export with `ctxgraph import-claude-ai`.
 - **Tested on Windows and on a clean Linux install.** macOS has not been checked yet.

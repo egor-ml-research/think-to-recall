@@ -58,16 +58,21 @@ def _concepts_doc(doc) -> list[tuple[str, str, str]]:
             continue
         # the possessive marker is not part of a name: «Maria Lopez's» -> «maria lopez»
         toks = [t for t in ent if t.pos_ not in ("DET", "PUNCT") and t.dep_ != "case"]
-        if toks:
-            add(" ".join(t.lemma_ for t in toks), ent.text, f"ent:{ent.label_}")
+        if toks:  # a name is not lemmatized: spaCy gives «Postgres» -> «postgre» in some contexts only
+            add(" ".join(t.text for t in toks), ent.text, f"ent:{ent.label_}")
     for ch in doc.noun_chunks:
         # a possessor is its own concept (entity / chunk), not part of the possessed one:
         # «Maria Lopez's pottery workshop» -> «pottery workshop»
         poss = {d.i for t in ch if t.dep_ == "poss" for d in t.subtree}
         own = [t for t in ch if t.i in poss and t.pos_ not in _DROP_POS and not t.is_stop and t.dep_ != "case"]
         if own:
-            add(" ".join(t.lemma_ for t in own), " ".join(t.text for t in own), "np")
+            add(" ".join(_key(t) for t in own), " ".join(t.text for t in own), "np")
         toks = [t for t in ch if t.pos_ not in _DROP_POS and not t.is_stop and t.i not in poss and t.dep_ != "case"]
         if toks:
-            add(" ".join(t.lemma_ for t in toks), ch.text, "np")
+            add(" ".join(_key(t) for t in toks), ch.text, "np")
     return out
+
+
+def _key(t) -> str:
+    """The identity of a word in a concept: its lemma, but a proper noun as written (names are not inflected)."""
+    return t.text if t.pos_ == "PROPN" else t.lemma_

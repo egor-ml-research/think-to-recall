@@ -157,6 +157,8 @@ def cmd_import_graphify(a) -> None:
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="ctxgraph", description=__doc__.split("\n")[0])
     ap.add_argument("--project", default=None, help="project directory (default: current)")
+    ap.add_argument("--lang", choices=["en", "ru"], default=None,
+                    help="language of the labels in recall / decisions / expand (default: the project's language)")
     ap.add_argument("--home", default=None, help="memory store folder (default: ~/.ctxgraph or CTXGRAPH_HOME)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("import")
@@ -212,6 +214,8 @@ def main(argv=None) -> None:
     a = ap.parse_args(argv)
     if a.home:  # before ctxgraph.memory is imported: its HOME is read once
         os.environ["CTXGRAPH_HOME"] = a.home
+    if a.lang:
+        os.environ["CTXGRAPH_LANG"] = a.lang
     from ctxgraph.model import DownloadFailed, ModelMissing
 
     try:

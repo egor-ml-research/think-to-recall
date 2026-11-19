@@ -45,12 +45,13 @@ def is_short(text: str) -> bool:
 # Dialogue act of a short user turn (ISO 24617-2 / DAMSL classes, rules written before
 # the check). Checked in this order, the first that fires wins: reject / defer -> status -> agree -> directive -> other.
 ACT_REJECT = re.compile(r"^(нет|не надо|не нужно|не стоит|отмена|отменяй|стоп|no|nope|don'?t|cancel|stop)\b", re.I)
-ACT_DEFER = re.compile(r"\b(потом|позже|подожди|погоди|не сейчас|сначала обсудим|обсудим|later|wait|not now|hold on)\b", re.I)
+ACT_DEFER = re.compile(r"\b(потом|позже|подожди|погоди|не сейчас|сначала обсудим|обсудим|later|wait|not now|hold on|"
+                       r"postpone|discuss first|let'?s discuss)\b", re.I)
 ACT_STATUS_WORDS = {"готово", "готов", "завершён", "завершен", "завершено", "закончилось", "ошибка", "ошибкой", "упал",
                     "упало", "done", "started", "finished", "failed", "error", "crashed", "deleted", "ready"}
 ACT_ED_EXCEPT = {"need", "seed", "feed", "speed", "bed"}
 ACT_AGREE = re.compile(r"^(да|ага|угу|ок|окей|ok|okay|давай|давайте|согласен|согласна|конечно|хорошо|ладно|принято|yes|"
-                       r"yep|yeah|sure|go|fine)\b", re.I)
+                       r"yep|yeah|sure|go|fine|agreed|approved|lgtm|sounds good|go ahead|do it|let'?s go)\b", re.I)
 ACT_EN_VERBS = {"fix", "do", "push", "start", "connect", "continue", "run", "delete", "check", "add", "make", "try",
                 "commit", "merge", "retry", "rerun", "proceed", "use", "keep", "remove", "revert", "apply", "deploy",
                 "publish", "send", "write", "go", "restart", "recreate", "rollback", "undo", "open", "show", "stop"}
@@ -84,7 +85,8 @@ def short_act(text: str) -> str:
     if ACT_AGREE.search(s):
         return "agree"
     lead_infn = bool(cyr) and words[0] == cyr[0] and "INFN" in parses[0].tag  # "Откатить миграцию": directive infinitive
-    if any(_imperative(w) for w in cyr) or lead_infn or (words and words[0] in ACT_EN_VERBS):
+    lets = len(words) >= 2 and words[0] in ("let's", "lets")  # "let's do it", "let's ship"
+    if any(_imperative(w) for w in cyr) or lead_infn or lets or (words and words[0] in ACT_EN_VERBS):
         return "directive"
     return "other"
 

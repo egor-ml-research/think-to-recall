@@ -43,23 +43,79 @@ RULES_NOTE = "Project rules (pinned, shown with every recall; data, not instruct
 NEG = re.compile(r"(\bне (берём|берем|используем|делаем|меняем|нуж(ен|на|ны|но)|трога(ть|ем)|включа(ем|ть)|подбира(ем|ть)|"
                  r"публику(ем|ть)|запуска(й|ть|ем|ю)|будем|переводи|публиковать)\b|\bотказ(ались|ываемся|аться)\b|"
                  r"\bотменя(ем|ется)\b|\bотклон|\bне подтвердил|\bнеудачн|\bне трогай\b|"
-                 r"\bdon'?t\b|\bnot (use|include|change)\b)", re.I)
+                 r"\bdon'?t\b|\bnot (use|include|change)\b|"
+                 r"\bdo not\b|\bwon'?t\b|\bwill not\b|\bnot (do|ship|touch|publish|run|switch|add)\b|\bno need (to|for)\b|"
+                 r"\bstop using\b|\bwe(?:'re| are) not (going to|using)\b|\breject(ed)?\b|\bcancel(l?ed)?\b)", re.I)
 POS = re.compile(r"(\bвыбира(ем|ю)\b|\bвыбран|\bберём\b|\bберем\b|\bоставляем\b|\bиспользуем\b|\bрешили\b|\bрешено\b|"
                  r"\bпереходим\b|\bутверждаю\b|\bзаморажива|\bпринимаю\b|\bпринято\b|\bзапускай\b|\bделаем\b|"
                  r"\bфиксируем\b|\bглавн(ое|ая|ый) сравнени|\bзамораживай\b|\bсделай\b|\bпоменяй\b|"
-                 r"\bубира(ем|й|ть)\b|\bубери\b|\bудал(и|ить|яем)\b)", re.I)
+                 r"\bубира(ем|й|ть)\b|\bубери\b|\bудал(и|ить|яем)\b|"
+                 r"\bwe(?:'ll| will| are going to)? (use|go with|take|pick|choose|keep|adopt)\b|"
+                 r"\b(switch(ing)?|mov(e|ing)|migrat(e|ing)) to\b|\blet'?s \w+|\bgo with\b|\bwe decided\b|\bdecided to\b|"
+                 r"\bdecision:|\bapproved?\b|\bship it\b|\bfreeze it\b|\b(drop|remove|delete)\b|"
+                 # a change of decision is a "do" (the cue dictionary, written before the code)
+                 r"\bswitch(ed|ing)? (from [^.;!?]{1,60}? )?to\b|\bmoved to\b|\bmigrated to\b|"
+                 r"\breplac(e|ing) [^.;!?]{1,60}? with\b|\bsettle on\b|\bin favou?r of\b|"
+                 r"\bпереходим на\b|\bменяем [^.;!?]{1,60}? на\b|\bвместо [^.;!?]{1,60}? бер[её]м\b)", re.I)
+# a sentence starting with an English imperative of the dictionary is a decision to do / an instruction
+EN_IMPER = re.compile(r"^\W*(use|add|remove|drop|delete|rename|switch|migrate|move|keep|fix|update|check|send|stop|find|"
+                      r"restart|run|write|make|replace|save|mark|prepare|commit|push|create|revert|deploy|publish|merge|"
+                      r"ship|freeze|start|try|build|test|document|translate)\b", re.I)
 # a hold / caveat: "пока не трогай", "решаю отдельно", "после моего «да»" - not a refusal and not a go
 HOLD = re.compile(r"(\bпока не\b|\bрешаю отдельно\b|\bреш(у|им) (позже|потом|отдельно)\b|«потом»|\bотлож(и|ить|им|ено)\b|"
-                  r"\bпосле (моего|твоего|сброса)\b|\bне сейчас\b)", re.I)
+                  r"\bпосле (моего|твоего|сброса)\b|\bне сейчас\b|"
+                  r"\bnot now\b|\blater\b|\bpostpone(d)?\b|\bdefer(red)?\b|\bhold off\b|\bon hold\b|"
+                  r"\bwait (until|for|with)\b|\bafter (my|your) (ok|go|approval|yes|go-ahead)\b|\buntil I (say|confirm|approve)\b|"
+                  r"\blet'?s wait\b|\bfor now,? (don'?t|do not|not)\b)", re.I)
 # one sentence can hold several decisions: "X убираем, а Y пока не трогай — решаю отдельно"
-CLAUSE = re.compile(r"\s+[—–]\s+|;\s+|,\s+(?=(?:а|но|однако)\s)")
-KIND = {"yes": "делать", "no": "не делать", "hold": "отложено"}
+CLAUSE = re.compile(r"\s+[—–]\s+|;\s+|,\s+(?=(?:а|но|однако|but)\s)")
+TEXTS = {
+    "ru": {"decision": "решение", "rule": "правило", "said": "пользователь", "report": "итоговый отчёт ассистента",
+           "applied": "ассистент: сделано", "info": "ассистент", "progress": "ход работы",
+           "confirm": "решение: подтверждено пользователем", "event": "пользователь: сообщение о состоянии",
+           "resume": "пользователь: продолжение работы", "proposal": "предложение ассистента, не применено",
+           "yes": "делать", "no": "не делать", "hold": "отложено", "commit": "коммит", "confirmed": "подтверждено",
+           "rejected": "отклонено", "deferred": "отложено", "done_user": "выполнено", "by_user": "пользователем",
+           "done": "сделано", "answer": "ответ ассистента", "request": "просьба ассистента",
+           "proposal_of": "предложение ассистента", "on": "на", "same_entity": "та же сущность", "topic": "тема",
+           "done_by_user": "выполнено пользователем", "ref_reply": "справка — отчёт в ответе", "ref": "справка — отчёт"},
+    "en": {"decision": "decision", "rule": "rule", "said": "user", "report": "assistant's final report",
+           "applied": "assistant: done", "info": "assistant", "progress": "progress",
+           "confirm": "decision: confirmed by the user", "event": "user: status message", "resume": "user: continue",
+           "proposal": "assistant's proposal, not applied", "yes": "do", "no": "not do", "hold": "on hold",
+           "commit": "commit", "confirmed": "confirmed", "rejected": "rejected", "deferred": "deferred",
+           "done_user": "done", "by_user": "by the user", "done": "done", "answer": "assistant's answer",
+           "request": "assistant's request", "proposal_of": "assistant's proposal", "on": "on",
+           "same_entity": "same entity", "topic": "topic", "done_by_user": "done by the user",
+           "ref_reply": "for reference - the report in the reply", "ref": "for reference - the report"},
+}
+_LANG = ["ru"]  # the language of the labels being rendered (set by ProjectMemory from its project's language)
+
+
+def L(key: str) -> str:
+    return TEXTS[_LANG[0]].get(key, TEXTS["ru"].get(key, key))
+
+
+def _closed_verb(status: str, ref: str) -> str:
+    return L("confirmed") if status == "confirm" else {"no": L("rejected"), "done": L("done_user")}.get(ref, L("deferred"))
+
+
+class _Kind(dict):
+    def get(self, k, default=None):  # noqa: D401 - KIND.get(...) follows the label language
+        return L(k) if k in ("yes", "no", "hold") else default
+
+
+KIND = _Kind()
 APPLIED = re.compile(r"((коммит|commit)\s*`?[0-9a-f]{7}|закоммич|запушен|опубликован|на GitHub|применен|исправил|исправлено|"
                      r"совпал|совпадают|проверил|выполнен|обновил|обновлен|запушил|удалён|удален|создан|"
-                     r"заморожен|переименова|удалил|перенёс|перенес|сделано|готово[.:]|работает[.:]|done\b|committed|pushed)", re.I)
+                     r"заморожен|переименова|удалил|перенёс|перенес|сделано|готово[.:]|работает[.:]|done\b|committed|pushed|"
+                     r"\b(merged|fixed|created|added|removed|deleted|renamed|updated|switched|migrated|deployed|published|"
+                     r"rewritten|moved)\b|\btests? (pass|passed)\b)", re.I)
 PROPOSAL = re.compile(r"(черновик|предлага|предлож|если хочешь|можно (сделать|перенести|запустить)|вариант|не применен|"
                       r"не запуска|без (твоего|вашего) «да»|оценк|план\b|draft|не трогал|не делал|пока не|могу |стоит |"
-                      r"лучше |рекоменд|ждёт|жду)", re.I)
+                      r"лучше |рекоменд|ждёт|жду|"
+                      r"\bpropos|\bsuggest|\bI could\b|\bwe could\b|\bmight\b|\boption\b|\bif you want\b|\bshould I\b|"
+                      r"\bI can\b|\bplan\b|\bwould you like\b|\brecommend|\bwaiting for\b)", re.I)
 COMMIT = re.compile(r"\b[0-9a-f]{7}\b")
 # assistant turns rank below the user's (V6 used 0.6); unapplied proposals lower still
 WEIGHT = {"decision": 1.0, "rule": 1.0, "report": 1.0, "said": 1.0, "applied": 0.6, "info": 0.6, "proposal": 0.45,
@@ -69,23 +125,32 @@ WEIGHT = {"decision": 1.0, "rule": 1.0, "report": 1.0, "said": 1.0, "applied": 0
 # earlier message of the turn ("сейчас…", "перезапускаю…", "жду…") is "progress" and is not searched.
 # "applied" that is not a report of done work: "не сделано", "выполнено ли", "по памяти не видно"
 NOT_DONE = re.compile(r"(\bне (сделано|сделал|выполнен|делал|проверял|трогал|видно)|\bли\b|\?\s*$|"
-                      r"\bв памяти (нет|не)|\bпо памяти)", re.I)
-LABEL = {"decision": "решение", "rule": "правило", "said": "пользователь", "report": "итоговый отчёт ассистента",
-         "applied": "ассистент: сделано", "info": "ассистент", "progress": "ход работы", "confirm": "решение: подтверждено пользователем",
-         "event": "пользователь: сообщение о состоянии", "resume": "пользователь: продолжение работы",
-         "proposal": "предложение ассистента, не применено"}
+                      r"\bв памяти (нет|не)|\bпо памяти|\bnot done\b|\bdidn'?t\b|\bdid not\b|\bhaven'?t\b|\bnot yet\b)", re.I)
+class _Label(dict):
+    def get(self, k, default=None):
+        return L(k) if k in TEXTS["ru"] else default
+
+    def __getitem__(self, k):
+        return L(k)
+
+
+LABEL = _Label()
 # standing rules of the project in the user's own words (core memory in Letta, preferences in Mem0): pinned, no search
 RULE = re.compile(r"(\bвсегда\b|\bникогда\b|\bпо умолчанию\b|\bвпредь\b|\bна будущее\b|\bв дальнейшем\b|"
                   r"\bправило\s*:|\bбез (моего|твоего|вашего) «?да»?|\bничего не (запуска\w*|делай|меняй|публику\w*)\b|"
                   r"\bключ\w*[^.]{0,40}\bтолько\b|\bтолько в `?\.env|\bперед (запуском|отправкой|публикацией)\b[^.]{0,80}"
-                  r"\b(спрашива\w*|спроси)|\balways\b|\bnever\b|\bby default\b)", re.I)
+                  r"\b(спрашива\w*|спроси)|\balways\b|\bnever\b|\bby default\b|\bfrom now on\b|\bgoing forward\b|"
+                  r"\brule:|\bonly in `?\.env|\bkeys?\b[^.]{0,40}\bonly\b|\bwithout my (ok|approval|go-ahead|yes)\b|"
+                  r"\bask (me )?before\b)", re.I)
 # a question or a remark is not a decision, even with a cue word ("почему я не вижу, что было выбрано")
 QUESTION = re.compile(r"^\W*(?:(?:ок|ok|а|и|ну|так|кстати|слушай),?\s+)?(почему|зачем|как|что|где|когда|сколько|кто|"
                       r"какой|какая|какие|каким|чем|разве|можно ли|нужно ли|надо ли)\b|\bли\b|"
-                      r"\b(не вижу|не понимаю|не понял|не поняла|странно|непонятно)\b", re.I)
+                      r"\b(не вижу|не понимаю|не понял|не поняла|странно|непонятно)\b|"
+                      r"^\W*(?:(?:ok|so|and|but),?\s+)?(?:(?:why|what|how|where|when|which|who)\b|(?:is|are|does|did|can|could|"
+                      r"should|would|will)\s|do\s(?!not\b))|\bI don'?t (see|understand)\b|\b(strange|weird)\b", re.I)
 # a short confirmation of an earlier conditional decision ("после моего «да»" -> "Yes, recreate")
 CONFIRM = re.compile(r"^\W*(да|yes|ок|ok|давай|подтверждаю|согласен|утверждаю|можно|go ahead|делай|запускай|"
-                     r"удалил|deleted)\b", re.I)
+                     r"удалил|deleted|yep|yeah|sure|okay|agreed|approved|lgtm|sounds good|do it)\b", re.I)
 LIST_ITEM = re.compile(r"^\s*(\d+[.)]|[*•\-–])\s+")
 MAX_RULES = 15
 # Follow-up step "the same entity" (as V6's same-entity step; rule fixed before the checks, 2026-11-19): from the turns
@@ -116,11 +181,23 @@ def classify(role: str, text: str) -> tuple[str, str]:
     return ("info", "")
 
 
+# A subordinate clause: a negation in it ("…so we do not pay for a server", "…чтобы не платить")
+# is not a refusal; the refusal status is read from the main clause only.
+_SUB = r"(?:because|so|since|as|which|that|потому что|чтобы|так как|котор\w*)"
+SUB_LEAD = re.compile(rf"^\W*{_SUB}\b[^,]*,\s*", re.I)
+SUB_TAIL = re.compile(rf"(?:^|[\s,]){_SUB}\b.*$", re.I | re.S)
+
+
+def main_clause(c: str) -> str:
+    return SUB_TAIL.sub("", SUB_LEAD.sub("", c))
+
+
 def clause_kinds(text: str) -> list[str]:
     """Decision kinds of a user's sentence, clause by clause, in order and without repeats ("yes", "no", "hold")."""
     out: list[str] = []
     for c in CLAUSE.split(text):
-        k = "hold" if HOLD.search(c) else "no" if NEG.search(c) else "yes" if POS.search(c) else ""
+        k = "hold" if HOLD.search(c) else "no" if NEG.search(main_clause(c)) else \
+            "yes" if POS.search(c) or EN_IMPER.match(c) else ""
         if k and k not in out:
             out.append(k)
     return out
@@ -167,17 +244,17 @@ def status_label(status: str, ref: str) -> str:
     if status == "decision":
         kinds = [k for k in ref.split("+") if k]
         if kinds == ["hold"]:
-            return "отложено"
-        return "решение: " + kind_label(ref)
+            return L("hold")
+        return L("decision") + ": " + kind_label(ref)
     if status in ("applied", "report") and ref:
-        return f"{LABEL[status]}, коммит {ref}"
+        return f"{LABEL[status]}, {L('commit')} {ref}"
     if status == "closed":
-        return "решение: " + {"no": "отклонено", "done": "выполнено"}.get(ref, "отложено") + " пользователем"
+        return L("decision") + ": " + _closed_verb(status, ref) + " " + L("by_user")
     return LABEL.get(status, status)
 
 
 def kind_label(ref: str) -> str:
-    return " + ".join(KIND.get(k, k) for k in ref.split("+") if k) or "делать"
+    return " + ".join(KIND.get(k, k) for k in ref.split("+") if k) or L("yes")
 
 
 def project_slug(path: str | Path) -> str:
@@ -315,6 +392,31 @@ class ProjectMemory:
         self._final_cache: dict[str, tuple[str | None, str]] | None = None
         self._confirm_cache: dict[str, str] = {}
         self._act_cache: dict[str, str] = {}
+
+    @property
+    def lang(self) -> str:
+        """The label language: CTXGRAPH_LANG (`--lang`), else "lang" in <home>/config.json, else the language of most
+        of the project's user turns (Russian if more than half of their letters are Cyrillic), English for a new store."""
+        v = os.environ.get("CTXGRAPH_LANG", "").lower()
+        if v in TEXTS:
+            return v
+        import json
+
+        cfg = self.dir.parent / "config.json"
+        try:
+            v = str(json.loads(cfg.read_text("utf-8")).get("lang", "")).lower() if cfg.exists() else ""
+        except (OSError, ValueError):
+            v = ""
+        if v in TEXTS:
+            return v
+        rows = self.s.q("SELECT text FROM episodes WHERE role='user' AND t_expired IS NULL ORDER BY rowid DESC LIMIT 400")
+        text = " ".join(t for (t,) in rows)
+        cyr = len(re.findall(r"[а-яёА-ЯЁ]", text))
+        lat = len(re.findall(r"[a-zA-Z]", text))
+        return "ru" if cyr > lat else "en"
+
+    def _use_lang(self) -> None:
+        _LANG[0] = self.lang
 
     def _finals(self) -> dict[str, tuple[str | None, str]]:
         """Report episode -> (the user turn it closes, session). Every assistant message belongs to the user's latest
@@ -721,6 +823,7 @@ class ProjectMemory:
         the space left). A unit is a user turn together with the assistant's report that closed it (found through
         either, shown as the turn with the report nested under it), or a report whose user turn is not in memory."""
         self.ingest_pending()
+        self._use_lang()
         expired = {r[0] for r in self.s.q("SELECT id FROM episodes WHERE t_expired IS NOT NULL")}
         report_of = {u: r for r, (u, _) in self._finals().items() if u and u not in expired and r not in expired}
         unit_of = {r: u for u, r in report_of.items()}
@@ -812,8 +915,7 @@ class ProjectMemory:
                 if h.report is not None and r in confirmed_by:
                     c = self.s.q("SELECT ts FROM turn_meta WHERE episode=?", (confirmed_by[r],))
                     st = self._short_status(confirmed_by[r]) or ("confirm", "yes")
-                    verb = "подтверждено" if st[0] == "confirm" else {"no": "отклонено", "done": "выполнено"}.get(st[1], "отложено")
-                    h.report.confirmed = f"{verb} пользователем {c[0][0][:10] if c else '?'}"
+                    h.report.confirmed = f"{_closed_verb(*st)} {L('by_user')} {c[0][0][:10] if c else '?'}"
             out.append(h)
         return sorted(out, key=lambda h: (h.ts, h.episode))  # chronological: the latest decision is seen last
 
@@ -863,12 +965,11 @@ class ProjectMemory:
 
     def _line(self, h: Hit) -> str:
         src = " · claude.ai" if h.origin == "claude.ai" else ""
-        via = f" · та же сущность: {h.via}" if h.via else ""
+        via = f" · {L('same_entity')}: {h.via}" if h.via else ""
         topic = self._topic_name(self._record_eps(h))
-        head = f"- {h.ts[:10] or '?'} · {status_label(h.status, h.ref)}{src}" + (f" · тема: {topic}" if topic else "") + via
+        head = f"- {h.ts[:10] or '?'} · {status_label(h.status, h.ref)}{src}" + (f" · {L('topic')}: {topic}" if topic else "") + via
         if h.status in ("confirm", "closed") and h.proposal is not None:
-            verb = "подтверждено" if h.status == "confirm" else {"no": "отклонено", "done": "выполнено"}.get(h.ref, "отложено")
-            body = f"«{h.text.strip()}» ({verb}) на: {self._gist(h.proposal)}"
+            body = f"«{h.text.strip()}» ({_closed_verb(h.status, h.ref)}) {L('on')}: {self._gist(h.proposal)}"
         else:
             body = self._gist(h)
         line = f"{head} · #{h.episode[:8]}: {body}"
@@ -876,9 +977,8 @@ class ProjectMemory:
             r = h.report
             commit = next((m.group(0) for m in [COMMIT.search(r.text)] if m and re.search(r"(коммит|commit|закоммич)",
                                                                                            r.text, re.I)), "")  # fmt: skip
-            verb = ("сделано" if APPLIED.search(r.text) else
-                    "предложение ассистента, не применено" if PROPOSAL.search(r.text) else "ответ ассистента")
-            line += (f"\n    → {verb} {r.ts[:10] or '?'}" + (f", коммит {commit}" if commit else "")
+            verb = L("done") if APPLIED.search(r.text) else L("proposal") if PROPOSAL.search(r.text) else L("answer")
+            line += (f"\n    → {verb} {r.ts[:10] or '?'}" + (f", {L('commit')} {commit}" if commit else "")
                      + f" (#{r.episode[:8]}): {self._gist(r)}")
             if r.confirmed:
                 line += f"\n    → {r.confirmed}"
@@ -938,6 +1038,7 @@ class ProjectMemory:
         """The whole record (the user's turn, the report that closed it, a confirmed proposal, commits and numbers in
         full) and the chain of its topic: records of the same topic and records sharing a rare entity with it, by date
         - how it started, what changed, the reports."""
+        self._use_lang()
         rid = record.strip().lstrip("#")
         rows = self.s.q("SELECT id, role FROM episodes WHERE id LIKE ? AND t_expired IS NULL", (rid + "%",)) if rid else []
         if not rows:
@@ -1014,6 +1115,7 @@ class ProjectMemory:
         when it is too long, the windows shrink instead. A user's turn up to 900 chars is shown whole; a window never
         cuts the matched sentence. Periphery: after the main line, in the smallest windows, one by one while the block
         stays within `max_chars`; it never shrinks or removes the main line."""
+        self._use_lang()
         if detail in ("brief", "short"):
             return self._render_short(hits, max_chars)
         if detail == "mixed":
@@ -1052,21 +1154,20 @@ class ProjectMemory:
             if h.status in ("confirm", "closed") and h.proposal is not None:
                 pr = h.proposal
                 pb = pr.text if len(pr.text) <= asst_n else _window(pr.text, pr.sentence, asst_n)
-                verb = "подтверждено" if h.status == "confirm" else {"no": "отклонено", "done": "выполнено"}.get(h.ref, "отложено")
-                what = "просьба ассистента" if h.ref == "done" else "предложение ассистента"
+                verb = _closed_verb(h.status, h.ref)
+                what = L("request") if h.ref == "done" else L("proposal_of")
                 body = (f"{what} ({pr.ts[:10] or '?'}, #{pr.episode[:8]}): {pb}\n"
-                        f"→ {verb} пользователем {h.ts[:10] or '?'}: «{h.text.strip()}»")
+                        f"→ {verb} {L('by_user')} {h.ts[:10] or '?'}: «{h.text.strip()}»")
             src = " · claude.ai" if h.origin == "claude.ai" else ""
-            via = f" · та же сущность: {h.via}" if h.via else ""
+            via = f" · {L('same_entity')}: {h.via}" if h.via else ""
             item = f"\n[{h.ts[:10] or '?'} · {status_label(h.status, h.ref)}{src}{via} · #{h.episode[:8]}]\n{body}"
             if h.report is not None:
                 r = h.report
                 rb = r.text if len(r.text) <= asst_n else _window(r.text, r.sentence, asst_n)
                 commit = next((m.group(0) for m in [COMMIT.search(r.text)] if m and re.search(r"(коммит|commit|закоммич)",
                                                                                                r.text, re.I)), "")  # fmt: skip
-                verb = ("сделано" if APPLIED.search(r.text) else
-                        "предложение ассистента, не применено" if PROPOSAL.search(r.text) else "ответ ассистента")
-                item += (f"\n  → {verb} {r.ts[:10] or '?'}" + (f", коммит {commit}" if commit else "")
+                verb = L("done") if APPLIED.search(r.text) else L("proposal") if PROPOSAL.search(r.text) else L("answer")
+                item += (f"\n  → {verb} {r.ts[:10] or '?'}" + (f", {L('commit')} {commit}" if commit else "")
                          + f" (#{r.episode[:8]}): " + rb.replace("\n", "\n    "))
                 if r.confirmed:
                     item += f"\n  → {r.confirmed}"
@@ -1078,6 +1179,7 @@ class ProjectMemory:
         rows = self.s.q("SELECT f.text, s.ref, COALESCE(m.ts,''), f.id FROM frag_status s JOIN fragments f ON f.id=s.fragment "
                         "JOIN episodes e ON e.id=f.episode_id LEFT JOIN turn_meta m ON m.episode=e.id "
                         "WHERE s.status='decision' AND e.t_expired IS NULL ORDER BY m.ts DESC, f.episode_id, f.idx")  # fmt: skip
+        self._use_lang()
         out, seen, inside = [], set(), ""
         conf = self._confirms()
         rows = list(rows)
@@ -1087,10 +1189,10 @@ class ProjectMemory:
             prt = self.s.q("SELECT m.ts, e.text FROM turn_meta m JOIN episodes e ON e.id=m.episode WHERE m.episode=?", (pr,))
             st = self._short_status(c)
             if meta and meta[0][1] is None and prt and st and st[0] in ("confirm", "closed"):
-                verb = "подтверждено" if st[0] == "confirm" else {"no": "отклонено", "done": "выполнено"}.get(st[1], "отложено")
-                what = "просьба ассистента" if st[1] == "done" else "предложение ассистента"
+                verb = _closed_verb(*st)
+                what = L("request") if st[1] == "done" else L("proposal_of")
                 text = (f"{what} ({prt[0][0][:10]}): {_short(prt[0][1], 220)} → {verb} "
-                        f"пользователем {meta[0][0][:10]} («{meta[0][2].strip()}»)")
+                        f"{L('by_user')} {meta[0][0][:10]} («{meta[0][2].strip()}»)")
                 rows.append((text, st[1], meta[0][0], f"confirm:{c}:0"))
         rows.sort(key=lambda r: r[2], reverse=True)
         for text, ref, ts, fid in rows:
@@ -1105,7 +1207,7 @@ class ProjectMemory:
                 whole = list_block(raw, text) or whole
                 inside = whole
             kinds = [x for x in ref.split("+") if x]
-            ck = {"yes": "подтверждено", "no": "отклонено", "hold": "отложено", "done": "выполнено пользователем"}
+            ck = {"yes": L("confirmed"), "no": L("rejected"), "hold": L("deferred"), "done": L("done_by_user")}
             row = {"date": ts[:10], "decision": whole, "kind": ck.get(ref, ref) if fid.startswith("confirm:") else kind_label(ref),
                    "done": None, "resolved": None}
             if "yes" in kinds:
@@ -1165,7 +1267,9 @@ def _window(text: str, sentence: str, n: int) -> str:
 
 
 # the user's instructions (imperatives) - a report of done work answers them as it answers a "делать" decision
-INSTR = re.compile(r"(?<![а-яё])(обнови|проверь|добавь|пришли|останови|собери|найди|перезапусти|запусти|напиши|перенеси|"
+INSTR = re.compile(r"(?<![a-z])(update|check|add|send|stop|collect|find|restart|run|write|move|delete|make|remove|replace|"
+                   r"fix|save|count|describe|mark|prepare|commit|push|rename|create|revert|migrate|deploy)(?![a-z])|"
+                   r"(?<![а-яё])(обнови|проверь|добавь|пришли|останови|собери|найди|перезапусти|запусти|напиши|перенеси|"
                    r"удали|сделай|убери|замени|исправь|сохрани|посчитай|опиши|отметь|внеси|подготовь|закоммить|запушь|"
                    r"переименуй|создай|допиши|поставь|верни|откати|откатить|почисти|заморозь|разметь|положи|"
                    r"прогони|пересчитай|переведи|оформи)(те)?(?![а-яё])", re.I)
@@ -1201,15 +1305,15 @@ def format_decisions(rows: list[dict]) -> str:
         kind = r["kind"]
         if r.get("resolved"):
             z = r["resolved"]
-            kind += (f" → подтверждено {z['confirmed']}" if z["confirmed"] else "") + f" → выполнено {z['date']}"
+            kind += (f" → {L('confirmed')} {z['confirmed']}" if z["confirmed"] else "") + f" → {L('done_user')} {z['date']}"
         line = f"- {r['date'] or '?'} [{kind}]: " + r["decision"].replace("\n", "\n    ")
         if r.get("done"):
             d = r["done"]
-            line += (f"\n    справка — отчёт в ответе {d['date']}" + (f", коммит {d['commit']}" if d["commit"] else "")
+            line += (f"\n    {L('ref_reply')} {d['date']}" + (f", {L('commit')} {d['commit']}" if d["commit"] else "")
                      + f": {_short(d['report'], 160)}")
         elif r.get("resolved"):
             z = r["resolved"]
-            line += (f"\n    справка — отчёт {z['date']}" + (f", коммит {z['commit']}" if z["commit"] else "")
+            line += (f"\n    {L('ref')} {z['date']}" + (f", {L('commit')} {z['commit']}" if z["commit"] else "")
                      + f": {_short(z['report'], 160)}")
         out.append(line)
     return "\n".join(out)
