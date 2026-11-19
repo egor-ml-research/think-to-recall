@@ -13,6 +13,7 @@
 - recall(question, steps, k, detail): earlier turns relevant to the question and reasoning steps; detail full / brief / mixed
 - expand(record_id): one record in full plus its thread by date
 - decisions(limit): decision chronology with confirmations and reports
+- later(limit): open "later" items (on hold, answered "later", deferred Beads issues read from .beads/*.jsonl)
 - rules, pin_rule(text), unpin_rule(id): standing project rules
 - remember(text, role): save one statement explicitly
 - import_history: import earlier Claude Code sessions (on request)

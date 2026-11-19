@@ -8,6 +8,8 @@
     ctxgraph import-graphify PATH   # add a Graphify code graph (graph.json) to the view
     ctxgraph mcp                    # MCP server (stdio) for Claude Code / Cursor
     ctxgraph hook-stop              # Claude Code Stop hook: queues the transcript (fast, no model load)
+    ctxgraph hook-start             # Claude Code SessionStart hook: one line of open "later" items
+    ctxgraph later                  # open "later" items (chat + .beads/*.jsonl, read-only)
 
 All commands work on the project in the current directory (or --project / CTXGRAPH_PROJECT).
 """
@@ -130,6 +132,32 @@ def cmd_hook_stop(a) -> None:
         queue_transcript(data.get("cwd") or a.project or Path.cwd(), data["transcript_path"])
 
 
+def cmd_hook_start(a) -> None:
+    """Claude Code SessionStart hook: one line of open "later" items for the new session (nothing when none)."""
+    try:
+        data = json.load(sys.stdin)
+    except (json.JSONDecodeError, ValueError):
+        data = {}
+    try:
+        from ctxgraph.memory import ProjectMemory, project_slug, HOME
+
+        project = Path(data.get("cwd") or a.project or Path.cwd())
+        if not (HOME / project_slug(project.resolve()) / "graph.sqlite").exists():
+            return
+        line = ProjectMemory(project).later_line()
+        if line:  # Claude Code reads hook output as UTF-8 (a Windows pipe would get the console code page)
+            sys.stdout.buffer.write((line + "\n").encode("utf-8"))
+            sys.stdout.flush()
+    except Exception:  # noqa: BLE001 - a hook never fails the session
+        pass
+
+
+def cmd_later(a) -> None:
+    from ctxgraph.memory import format_later
+
+    print(format_later(_mem(a.project).later(a.limit)))
+
+
 def cmd_setup(a) -> None:
     from ctxgraph import setup as S
 
@@ -205,6 +233,10 @@ def main(argv=None) -> None:
     p.set_defaults(f=cmd_import_graphify)
     sub.add_parser("mcp").set_defaults(f=lambda a: __import__("ctxgraph.memory_mcp", fromlist=["main"]).main())
     sub.add_parser("hook-stop").set_defaults(f=cmd_hook_stop)
+    sub.add_parser("hook-start").set_defaults(f=cmd_hook_start)
+    p = sub.add_parser("later", help="open 'later' items: deferred decisions, 'later' answers, deferred Beads issues")
+    p.add_argument("--limit", type=int, default=50)
+    p.set_defaults(f=cmd_later)
     p = sub.add_parser("setup", help="connect this project: MCP server, Stop hook; then the questions once (history, "
                                      "code graph, WordNet; --quality: + model)")
     p.add_argument("-y", "--yes", action="store_true",

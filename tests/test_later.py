@@ -1,0 +1,122 @@
+"""'Later' items (rules written before the code): cues, the user's "later" to a proposal, auto-close by a report,
+the session line, the note next to recall, Beads read-only. Synthetic projects only."""
+
+import json
+import subprocess
+import sys
+
+from ctxgraph import beads
+from ctxgraph.memory import ProjectMemory, classify, format_later
+
+
+def _t(i, role, text, ts, session="s1"):
+    return {"id": f"l{i}", "session": session, "role": role, "ts": ts, "text": text, "source": "transcript"}
+
+
+RU = [
+    _t(1, "user", "Кэширование ответов через Redis оставим на потом.", "2026-11-10T10:00:00Z"),
+    _t(2, "assistant", "Хорошо, кэш пока не делаю.", "2026-11-10T10:01:00Z"),
+    _t(3, "user", "Сначала миграции базы, потом тесты.", "2026-11-11T10:00:00Z"),
+    _t(4, "assistant", "Миграции и тесты готовы, коммит 2b3c4d5.", "2026-11-11T11:00:00Z"),
+    _t(5, "user", "Сделай повторные попытки для очереди задач.", "2026-11-12T10:00:00Z"),
+    _t(6, "assistant", "Повторные попытки готовы. Добавить экспорт отчётов в CSV?", "2026-11-12T11:00:00Z"),
+    _t(7, "user", "потом", "2026-11-12T11:01:00Z"),
+]
+DONE = [
+    _t(8, "user", "Теперь займись кэшированием.", "2026-11-14T10:00:00Z", "s2"),
+    _t(9, "assistant", "Кэширование ответов через Redis готово, коммит 7e8f9a0.", "2026-11-14T11:00:00Z", "s2"),
+]
+
+
+def _mem(tmp_path, monkeypatch, turns):
+    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    monkeypatch.setenv("CTXGRAPH_LANG", "ru")
+    m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
+    m.import_turns(turns)
+    return m
+
+
+def test_cues():
+    assert classify("user", "Кэширование ответов через Redis оставим на потом.") == ("decision", "hold")
+    assert "hold" not in classify("user", "Сначала миграции базы, потом тесты.")[1]
+    assert classify("user", "TODO: add rate limiting to the booking API.")[1] == "hold"
+    assert classify("user", "Let's leave the Redis cache for later.")[1] == "hold"
+    assert classify("user", "Вернёмся к этому позже, когда будет нагрузка.")[1] == "hold"
+
+
+def test_open_items_and_session_line(tmp_path, monkeypatch):
+    m = _mem(tmp_path, monkeypatch, RU)
+    items = m.later()
+    texts = [i["text"] for i in items]
+    assert any("Redis оставим на потом" in t for t in texts)
+    assert any("экспорт отчётов в CSV" in t for t in texts)  # the user's "потом" to a proposal
+    assert not any("миграции базы" in t for t in texts)  # "сначала X, потом Y" is an order, not a deferral
+    line = m.later_line()
+    assert line.startswith("На потом — открытых пунктов: 2;") and "CSV" in line  # the newest first
+    out = format_later(items)
+    assert "#l7" in out and "#l1" in out
+
+
+def test_report_closes_an_item_only_with_three_shared_stems(tmp_path, monkeypatch):
+    m = _mem(tmp_path, monkeypatch, RU + DONE)
+    texts = [i["text"] for i in m.later()]
+    assert not any("Redis" in t for t in texts) and any("CSV" in t for t in texts)
+    weak = [_t(8, "user", "Посмотри Redis.", "2026-11-14T10:00:00Z", "s2"),
+            _t(9, "assistant", "Redis ответов не хранит, коммит 7e8f9a0.", "2026-11-14T11:00:00Z", "s2")]
+    m2 = _mem(tmp_path / "b", monkeypatch, RU + weak)
+    assert any("Redis" in i["text"] for i in m2.later())  # 2 shared stems (redis, ответ) do not close it
+
+
+def test_note_next_to_recall(tmp_path, monkeypatch):
+    m = _mem(tmp_path, monkeypatch, RU)
+    hits = m.recall("Что с повторными попытками очереди?", k=6)
+    m._last_query = "кэширование ответов и повторные попытки"
+    note = m._later_note(hits)
+    assert note.startswith("на потом по этой теме:") and "Redis" in note
+
+
+def test_beads_read_only(tmp_path, monkeypatch):
+    proj = tmp_path / "proj"
+    (proj / ".beads").mkdir(parents=True)
+    lines = [
+        {"_type": "issue", "id": "bd-a1", "title": "Rate limiting for the booking API", "status": "deferred",
+         "updated_at": "2026-11-15T09:00:00Z"},
+        {"_type": "issue", "id": "bd-a2", "title": "Nightly backup", "status": "open", "defer_until": "2026-12-01"},
+        {"_type": "issue", "id": "bd-a3", "title": "Old idea", "status": "closed", "labels": ["later"]},
+        {"_type": "issue", "id": "bd-a4", "title": "Fix login", "status": "open"},
+        {"_type": "memory", "id": "m1", "title": "not an issue", "status": "deferred"},
+    ]
+    body = "\n".join(json.dumps(x) for x in lines) + "\n{broken line\n"
+    (proj / ".beads" / "issues.jsonl").write_text(body, "utf-8")
+    before = (proj / ".beads" / "issues.jsonl").read_bytes()
+    assert [b["id"] for b in beads.deferred(proj)] == ["bd-a1", "bd-a2"]
+    m = _mem(tmp_path, monkeypatch, RU)
+    ids = [i["id"] for i in m.later()]
+    assert "bd-a1" in ids and "bd-a2" in ids and "bd-a3" not in ids and "bd-a4" not in ids
+    assert (proj / ".beads" / "issues.jsonl").read_bytes() == before  # never written
+    assert beads.deferred(tmp_path / "nothing") == []
+
+
+def test_session_start_hook_prints_one_line(tmp_path, monkeypatch):
+    m = _mem(tmp_path, monkeypatch, RU)
+    m.s.db.close()
+    argv = [sys.executable, "-m", "ctxgraph.cli", "--home", str(tmp_path / "home"), "hook-start"]
+    r = subprocess.run(argv, input=json.dumps({"cwd": str(tmp_path / "proj")}), capture_output=True, text=True,
+                       encoding="utf-8", timeout=120, env={**__import__("os").environ, "CTXGRAPH_LANG": "ru"})
+    assert r.returncode == 0 and r.stdout.strip().startswith("На потом — открытых пунктов: 2;")
+    r = subprocess.run(argv, input=json.dumps({"cwd": str(tmp_path / "other")}), capture_output=True, text=True,
+                       timeout=120)  # fmt: skip
+    assert r.returncode == 0 and r.stdout.strip() == ""  # no store for this project: nothing
+
+
+def test_setup_writes_the_session_start_hook_once(tmp_path):
+    from ctxgraph import setup as S
+
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    for _ in range(2):
+        p, _st = S.write_hook(proj, None)
+    data = json.loads(p.read_text("utf-8"))
+    start = [h["command"] for g in data["hooks"]["SessionStart"] for h in g["hooks"]]
+    stop = [h["command"] for g in data["hooks"]["Stop"] for h in g["hooks"]]
+    assert start == ["ctxgraph hook-start"] and stop == ["ctxgraph hook-stop"]

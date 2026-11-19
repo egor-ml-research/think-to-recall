@@ -66,7 +66,11 @@ HOLD = re.compile(r"(\bпока не\b|\bрешаю отдельно\b|\bреш(
                   r"\bпосле (моего|твоего|сброса)\b|\bне сейчас\b|"
                   r"\bnot now\b|\blater\b|\bpostpone(d)?\b|\bdefer(red)?\b|\bhold off\b|\bon hold\b|"
                   r"\bwait (until|for|with)\b|\bafter (my|your) (ok|go|approval|yes|go-ahead)\b|\buntil I (say|confirm|approve)\b|"
-                  r"\blet'?s wait\b|\bfor now,? (don'?t|do not|not)\b)", re.I)
+                  r"\blet'?s wait\b|\bfor now,? (don'?t|do not|not)\b|"
+                  # "на потом" items (rules written before the code)
+                  r"\bна потом\b|\bв бэклог|\bв список на потом\b|\b(вернём(ся)?|вернусь) к (этому|нему|ней) (позже|потом)\b|"
+                  r"\bпотом (сделаем|решим|посмотрим|вернёмся)\b|\bTODO\b|\bfor later\b|\bbacklog\b|\bnext time\b|"
+                  r"\brevisit (it|this|later)\b|\bparking lot\b|\bcome back to (it|this)\b)", re.I)
 # one sentence can hold several decisions: "X убираем, а Y пока не трогай — решаю отдельно"
 CLAUSE = re.compile(r"\s+[—–]\s+|;\s+|,\s+(?=(?:а|но|однако|but)\s)")
 TEXTS = {
@@ -77,7 +81,7 @@ TEXTS = {
            "yes": "делать", "no": "не делать", "hold": "отложено", "commit": "коммит", "confirmed": "подтверждено",
            "rejected": "отклонено", "deferred": "отложено", "done_user": "выполнено", "by_user": "пользователем",
            "done": "сделано", "answer": "ответ ассистента", "request": "просьба ассистента",
-           "proposal_of": "предложение ассистента", "on": "на", "same_entity": "та же сущность", "topic": "тема", "topic_hint": "без названия: нет данных WordNet, `ctxgraph setup` скачает их (~10 МБ)",
+           "proposal_of": "предложение ассистента", "on": "на", "same_entity": "та же сущность", "topic": "тема", "later": "на потом", "later_topic": "на потом по этой теме", "later_line": "На потом — открытых пунктов: {n}; последний: «{text}» ({date}). `later` — список.", "later_none": "На потом: открытых пунктов нет.", "beads": "Beads", "chat": "чат", "topic_hint": "без названия: нет данных WordNet, `ctxgraph setup` скачает их (~10 МБ)",
            "done_by_user": "выполнено пользователем", "ref_reply": "справка — отчёт в ответе", "ref": "справка — отчёт"},
     "en": {"decision": "decision", "rule": "rule", "said": "user", "report": "assistant's final report",
            "applied": "assistant: done", "info": "assistant", "progress": "progress",
@@ -86,7 +90,7 @@ TEXTS = {
            "commit": "commit", "confirmed": "confirmed", "rejected": "rejected", "deferred": "deferred",
            "done_user": "done", "by_user": "by the user", "done": "done", "answer": "assistant's answer",
            "request": "assistant's request", "proposal_of": "assistant's proposal", "on": "on",
-           "same_entity": "same entity", "topic": "topic", "topic_hint": "unnamed: WordNet data is missing, `ctxgraph setup` downloads it (~10 MB)", "done_by_user": "done by the user",
+           "same_entity": "same entity", "topic": "topic", "later": "later", "later_topic": "later, on this topic", "later_line": "Later — open items: {n}; newest: «{text}» ({date}). `later` lists them.", "later_none": "Later: nothing open.", "beads": "Beads", "chat": "chat", "topic_hint": "unnamed: WordNet data is missing, `ctxgraph setup` downloads it (~10 MB)", "done_by_user": "done by the user",
            "ref_reply": "for reference - the report in the reply", "ref": "for reference - the report"},
 }
 _LANG = ["ru"]  # the language of the labels being rendered (set by ProjectMemory from its project's language)
@@ -818,6 +822,7 @@ class ProjectMemory:
         return best
 
     def recall(self, query: str, steps: list[str] | str | None = None, k: int = 6) -> list[Hit]:
+        self._last_query = query
         """Main line: the top `k` units for the question, oldest first - never displaced by the steps. Periphery: up to
         `k` more units for the joined steps that the main line does not have, after it (the block shows them only in
         the space left). A unit is a user turn together with the assistant's report that closed it (found through
@@ -1111,6 +1116,11 @@ class ProjectMemory:
         return out
 
     def render(self, hits: list[Hit], max_chars: int = 4500, detail: str = "full") -> str:
+        out = self._render_body(hits, max_chars, detail)
+        note = self._later_note(hits)
+        return out + ("\n\n" + note if note else "")
+
+    def _render_body(self, hits: list[Hit], max_chars: int = 4500, detail: str = "full") -> str:
         """detail="full" (default): the windows below. "brief": one line per record (date, status, topic, the gist in
         one sentence, #id) - more records in the same budget; `expand(id)` gives a record in full. "mixed": the
         MIXED_FULL best-ranked records of the main line in full windows, the rest one line each.
@@ -1177,6 +1187,89 @@ class ProjectMemory:
                     item += f"\n  → {r.confirmed}"
             items.append(item)
         return items
+
+    def later(self, limit: int = 50) -> list[dict]:
+        """Open "later" items, newest first (rules written before the code): held user decisions with no closing,
+        the user's "later" to an assistant's proposal, and deferred Beads issues (read-only). A chat item is closed by
+        `resolve_hold` or by a later report sentence sharing >= 3 content stems with it (all, when it has fewer)."""
+        self._use_lang()
+        items = []
+        rows = self.s.q("SELECT f.text, s.ref, COALESCE(m.ts,''), f.episode_id FROM frag_status s JOIN fragments f ON "
+                        "f.id=s.fragment JOIN episodes e ON e.id=f.episode_id LEFT JOIN turn_meta m ON m.episode=e.id "
+                        "WHERE s.status='decision' AND e.t_expired IS NULL")  # fmt: skip
+        for text, ref, ts, ep in rows:
+            if "hold" in ref.split("+") and len(text.strip()) >= 8:
+                items.append({"id": ep[:8], "episode": ep, "date": ts[:10], "ts": ts, "source": "chat",
+                              "text": text.strip()})  # fmt: skip
+        for c, pr in self._confirms().items():
+            if self._short_status(c) != ("closed", "hold"):
+                continue
+            meta = self.s.q("SELECT m.ts, e.t_expired FROM turn_meta m JOIN episodes e ON e.id=m.episode WHERE m.episode=?",
+                            (c,))  # fmt: skip
+            prt = self.s.q("SELECT text FROM episodes WHERE id=?", (pr,))
+            st = self._status()
+            prop = [t for f, t in self.s.q("SELECT id, text FROM fragments WHERE episode_id=? AND kind='sentence' ORDER BY idx",
+                                           (pr,)) if st.get(f, ("", ""))[0] == "proposal" or t.rstrip().endswith("?")]  # fmt: skip
+            if meta and meta[0][1] is None and prt:
+                items.append({"id": c[:8], "episode": c, "date": meta[0][0][:10], "ts": meta[0][0], "source": "chat",
+                              "text": f"{L('proposal_of')}: {_short(prop[-1] if prop else prt[0][0], 220)}"})  # fmt: skip
+        reps = [(ts, _stems(t)) for t, ts in self.s.q(
+            "SELECT f.text, COALESCE(m.ts,'') FROM frag_status s JOIN fragments f ON f.id=s.fragment JOIN episodes e ON "
+            "e.id=f.episode_id LEFT JOIN turn_meta m ON m.episode=e.id WHERE s.status IN ('report','applied') AND "
+            "e.t_expired IS NULL")]  # fmt: skip
+        out, seen = [], set()
+        for it in sorted(items, key=lambda x: x["ts"], reverse=True):
+            key = re.sub(r"\W+", " ", it["text"]).strip().lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            want = _stems(it["text"])
+            need = min(3, len(want))
+            if need and any(ts > it["ts"] and len(want & st) >= need for ts, st in reps):
+                continue
+            if it["text"].startswith(L("proposal_of")) is False and self.resolve_hold(it["episode"], it["text"]):
+                continue
+            out.append(it)
+        from ctxgraph import beads
+
+        for b in beads.deferred(self.project):
+            out.append({"id": b["id"], "episode": "", "date": b["date"], "ts": b["date"], "source": "beads",
+                        "text": b["text"]})  # fmt: skip
+        out.sort(key=lambda x: x["ts"], reverse=True)
+        return out[:limit]
+
+    def later_line(self) -> str:
+        """One line for the start of a session; "" when nothing is open."""
+        items = self.later()
+        if not items:
+            return ""
+        return L("later_line").format(n=len(items), text=_short(items[0]["text"], 90), date=items[0]["date"] or "?")
+
+    def _later_note(self, hits: list[Hit]) -> str:
+        """1-2 open "later" items next to the recall block: same Leiden topic as a main-line record, or >= 2 content
+        stems shared with the question."""
+        main = [h for h in hits if h.line in ("main", "follow")]
+        if not main:
+            return ""
+        items = [it for it in self.later() if it["source"] == "chat"]
+        if not items:
+            return ""
+        t = self._topics()
+        topics = {t.of_record(self._record_eps(h)) for h in main} - {None}
+        q = _stems(getattr(self, "_last_query", "") or "")
+        shown = {h.episode for h in main}
+        pick = []
+        for it in items:
+            if it["episode"] in shown:
+                continue
+            same_topic = t.of_record([it["episode"]]) in topics if topics else False
+            if same_topic or len(q & _stems(it["text"])) >= 2:
+                pick.append(it)
+            if len(pick) == 2:
+                break
+        if not pick:
+            return ""
+        return f"{L('later_topic')}:\n" + "\n".join(f"- {it['date']} · #{it['id']}: {_short(it['text'], 200)}" for it in pick)
 
     def decisions(self, limit: int = 30) -> list[dict]:
         """The user's own decisions (sentences with decision cues), newest first, without repeats. Rules, no LLM."""
@@ -1297,6 +1390,12 @@ def _days(a: str, b: str) -> float:
 def _short(t: str, n: int) -> str:
     t = " ".join(t.split())
     return t if len(t) <= n else t[:n].rstrip() + "…"
+
+
+def format_later(rows: list[dict]) -> str:
+    if not rows:
+        return L("later_none")
+    return "\n".join(f"- {r['date'] or '?'} · {L(r['source'])} · #{r['id']}: {_short(r['text'], 300)}" for r in rows)
 
 
 def format_decisions(rows: list[dict]) -> str:

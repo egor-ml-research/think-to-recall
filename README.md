@@ -26,13 +26,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.0" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.1" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.0" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.1" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -40,10 +40,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.0" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.1" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.5.0 from GitHub. For finer English concepts in the
+The package is not on PyPI yet; the commands install release v0.5.1 from GitHub. For finer English concepts in the
 graph view, add the `english` extra. **Installing through an AI assistant?** Point it to
 [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
@@ -69,6 +69,8 @@ Then it does four things:
 2. Adds a Claude Code **Stop hook** `ctxgraph hook-stop` to `.claude/settings.local.json`. After every turn it queues
    the session transcript; the project comes from the hook's input. The hook is fast: it only appends a path, and the
    server reads the transcript later. Other hooks and settings are kept, and an earlier ctxgraph hook is replaced.
+   A **SessionStart hook** `ctxgraph hook-start` puts one line into each new session when something is open "for
+   later" (see `later` below); nothing when nothing is open.
 3. **Downloads nothing by default.** Recall works on BM25 over the stored sentences (Russian words lemmatized with
    pymorphy3, whose dictionaries ship with the package). With `--quality` setup **asks before downloading** the
    sentence encoder multilingual-e5-base as int8 ONNX
@@ -112,6 +114,7 @@ In Claude Code the assistant gets these tools:
 | `recall(question, steps, detail)` | finds earlier turns relevant to the question and to the assistant's reasoning steps; `detail="brief"` gives one line per record (date, status, topic, gist, `#id`), `"mixed"` the best records in full and the rest as lines |
 | `expand(id)` | one record in full (exact wording, numbers, commits) and the thread of its topic by date: how it started, what changed, the reports |
 | `decisions(limit)` | the decision chronology, newest first, with confirmations and reports |
+| `later(limit)` | what was put off: decisions on hold ("later", "на потом", TODO), proposals you answered "later", and deferred [Beads](https://github.com/gastownhall/beads) issues from `.beads/*.jsonl` (read only). An item closes itself when a later report of done work matches it; recall adds a line of open items on the same topic |
 | `rules`, `pin_rule`, `unpin_rule` | the project's pinned standing rules |
 | `remember(text)` | save one statement explicitly |
 | `import_history` | import earlier sessions (only when you ask), then show the chronology |

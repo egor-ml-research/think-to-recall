@@ -127,9 +127,9 @@ def write_mcp(project: Path, home: str | None) -> tuple[Path | str, str]:
     return p, state
 
 
-def _is_ours(h: dict) -> bool:
+def _is_ours(h: dict, kind: str = "hook-stop") -> bool:
     c = str(h.get("command", ""))
-    return "hook-stop" in c and "ctxgraph" in c
+    return kind in c and "ctxgraph" in c
 
 
 def write_hook(project: Path, home: str | None) -> tuple[Path, str]:
@@ -143,6 +143,12 @@ def write_hook(project: Path, home: str | None) -> tuple[Path, str]:
         g["hooks"] = [h for h in g.get("hooks", []) if not _is_ours(h)]
     stop[:] = [g for g in stop if g.get("hooks")]
     stop.append({"hooks": [{"type": "command", "command": cmd, "timeout": 30}]})
+    # SessionStart: one line of open "later" items goes into the new session's context (nothing when none is open)
+    start = data["hooks"].setdefault("SessionStart", [])
+    for g in start:
+        g["hooks"] = [h for h in g.get("hooks", []) if not _is_ours(h, "hook-start")]
+    start[:] = [g for g in start if g.get("hooks")]
+    start.append({"hooks": [{"type": "command", "command": cmd.replace(" hook-stop", " hook-start"), "timeout": 15}]})
     _write_json(p, data)
     return p, "unchanged" if same else "updated" if had else "added"
 

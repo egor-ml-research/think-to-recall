@@ -25,10 +25,10 @@ not want any downloads, use `--wordnet no`.
 ## 3. Install
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.0"
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.1"
 ```
 
-Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.0"`.
+Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.1"`.
 
 Optional extras (only if the user asks):
 - `[quality]` - better recall: BM25 + multilingual-e5-base (int8 ONNX, about 300 MB, downloaded once). Install
@@ -45,7 +45,8 @@ ctxgraph setup --import-history yes --graphify no --wordnet yes
 
 What it does:
 - registers the MCP server `ctxgraph` (`claude mcp add --scope local`, or a path-free `.mcp.json`);
-- adds the Stop hook to `.claude/settings.local.json` (new turns are recorded after every reply);
+- adds the Stop hook to `.claude/settings.local.json` (new turns are recorded after every reply) and a
+  SessionStart hook (one line of open "later" items in each new session);
 - imports the history, builds the code graph and downloads WordNet according to the flags;
 - prints the decision chronology, and at the end a list of skipped steps with the commands to run them later.
 
@@ -73,6 +74,7 @@ After the restart, call the MCP tool `recall` with a question about an earlier d
 | `recall(question, steps, k=6, detail="full")` | before answering about earlier decisions, rules or work; `steps` are your reasoning steps; `detail="brief"` gives one line per record, `"mixed"` the best in full and the rest as lines |
 | `expand(record_id)` | a record from `recall` in full plus its thread by date (how it started, what changed, the reports) |
 | `decisions(limit)` | the decision chronology, newest first, with confirmations and reports |
+| `later(limit)` | open "later" items: decisions on hold, proposals answered "later", deferred Beads issues; call it when the user asks what was put off or the session line mentions open items |
 | `rules`, `pin_rule(text)`, `unpin_rule(id)` | standing project rules; they come first in every recall block |
 | `remember(text, role)` | save one statement explicitly (Cursor, or anything said outside Claude Code) |
 | `import_history` | import earlier sessions, only when the user asks |
