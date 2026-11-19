@@ -8,33 +8,38 @@
 <script>/*__FORCE_GRAPH_3D__*/</script>
 <style>
 :root {
-  --canvas: #141416; --side: #1a1a1d; --raise: #212125; --hover: #26262b; --line: #2b2b31; --line2: #35353c;
-  --text: #d6d6db; --dim: #9a9aa3; --faint: #6d6d76; --accent: #9d8fe8; --yes: #5fa889; --no: #c9736b;
-  --edge: rgba(214,214,219,0.07); --label: rgba(214,214,219,0.9);
+  --canvas: #030306; --side: rgba(14,14,20,.8); --solid: #0e0e15; --raise: rgba(255,255,255,.04); --hover: rgba(255,255,255,.07);
+  --line: rgba(255,255,255,.08); --line2: rgba(255,255,255,.13);
+  --text: #e6e6ec; --dim: #a6a6b0; --faint: #72727c; --accent: #b3a6f5; --yes: #66c29a; --no: #e08479;
+  --edge: rgba(200,200,235,0.08); --label: rgba(230,230,238,0.9); --shadow: 0 24px 70px rgba(0,0,0,.55);
   --code: #7f97ad; --code-edge: rgba(127,151,173,0.28); --inferred: #d8a64f;
 }
 :root[data-theme="light"] {
-  --canvas: #fbfbfa; --side: #f3f3f1; --raise: #ffffff; --hover: #ebebe8; --line: #e2e2de; --line2: #d4d4cf;
+  --canvas: #f4f4f1; --side: rgba(255,255,255,.86); --solid: #ffffff; --raise: #ffffff; --hover: #ebebe8; --line: #e2e2de; --line2: #d4d4cf;
   --text: #24242a; --dim: #5f5f67; --faint: #8c8c94; --accent: #6a58d6; --yes: #2f8a64; --no: #b5534a;
-  --edge: rgba(36,36,42,0.08); --label: rgba(36,36,42,0.88);
+  --edge: rgba(36,36,42,0.08); --label: rgba(36,36,42,0.88); --shadow: 0 16px 50px rgba(0,0,0,.12);
   --code: #4f6f8c; --code-edge: rgba(79,111,140,0.3); --inferred: #b37a14;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: var(--canvas); color: var(--text);
+html, body { margin: 0; height: 100%; background: var(--canvas); color: var(--text); overflow: hidden;
   font: 13px/1.5 -apple-system, "Segoe UI", Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-.app { display: grid; grid-template-columns: 272px 1fr 392px; height: 100vh; }
-.app.no-insp { grid-template-columns: 272px 1fr 0; }
-aside, .insp { background: var(--side); overflow: auto; min-width: 0; }
-aside { border-right: 1px solid var(--line); }
-.insp { border-left: 1px solid var(--line); }
-.stage { position: relative; min-width: 0; }
+/* one layout for every mode: the scene fills the window, panels float over it as glass */
+.app { height: 100vh; }
+.stage { position: fixed; inset: 0; min-width: 0; }
+#sky { position: absolute; inset: 0; width: 100%; height: 100%; }
+:root[data-theme="light"] #sky { display: none; }
+aside, .insp { position: fixed; z-index: 5; overflow: auto; background: var(--side); border: 1px solid var(--line2); border-radius: 14px;
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: var(--shadow); }
+aside { left: 16px; top: 16px; bottom: 16px; width: 272px; }
+.insp { right: 16px; top: 16px; bottom: 16px; width: 392px; max-width: calc(100vw - 32px); }
+.app.no-insp .insp { display: none; }
 #graph { position: absolute; inset: 0; }
 .hdr { padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
 .hdr .proj { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
 .hdr .sub { color: var(--faint); font-size: 12px; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .sec { padding: 12px 16px 4px; }
 .lbl { font-size: 11px; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px; }
-.search { width: 100%; height: 30px; padding: 0 10px; border: 1px solid var(--line2); border-radius: 6px; background: var(--raise);
+.search { width: 100%; height: 30px; padding: 0 10px; border: 1px solid var(--line2); border-radius: 10px; background: var(--raise);
   color: var(--text); font: inherit; outline: none; }
 .search:focus { border-color: var(--accent); }
 .row { display: flex; align-items: center; gap: 9px; padding: 5px 8px; margin: 0 -8px; border-radius: 5px; cursor: pointer; }
@@ -42,18 +47,19 @@ aside { border-right: 1px solid var(--line); }
 .row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .row .ct { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 .sw { width: 8px; height: 8px; border-radius: 2px; flex: none; }
-.toggle { display: flex; gap: 0; border: 1px solid var(--line2); border-radius: 6px; overflow: hidden; margin-top: 8px; }
-.toggle button { flex: 1; height: 28px; border: 0; background: var(--raise); color: var(--dim); font: inherit; font-size: 12px; cursor: pointer; }
-.toggle button + button { border-left: 1px solid var(--line2); } .toggle button.on { color: var(--text); background: var(--hover); }
+.toggle { display: flex; gap: 0; border: 1px solid var(--line2); border-radius: 15px; overflow: hidden; margin-top: 8px; background: var(--raise); }
+.toggle button { flex: 1; height: 28px; border: 0; background: none; color: var(--dim); font: inherit; font-size: 12px; cursor: pointer; }
+.toggle button.on { color: var(--text); background: rgba(255,255,255,.1); } :root[data-theme="light"] .toggle button.on { background: var(--hover); }
 .legend { color: var(--faint); font-size: 12px; padding: 12px 16px 16px; line-height: 1.55; }
 .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: -1px; margin-right: 4px;
   background: conic-gradient(#8b7fd6 0 50%, #d39a4a 0 100%); }
-.zoom { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; border: 1px solid var(--line2);
-  border-radius: 6px; overflow: hidden; background: var(--side); }
-.zoom button { width: 30px; height: 28px; border: 0; background: transparent; color: var(--dim); font: 15px/1 inherit; cursor: pointer; }
-.zoom button + button { border-top: 1px solid var(--line2); } .zoom button:hover { background: var(--hover); color: var(--text); }
+.zoom { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 2px; padding: 4px; border: 1px solid var(--line2); z-index: 3;
+  backdrop-filter: blur(12px); box-shadow: var(--shadow);
+  border-radius: 12px; overflow: hidden; background: var(--side); }
+.zoom button { width: 34px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--dim); font: 15px/1 inherit; cursor: pointer; }
+.zoom button:hover { background: var(--hover); color: var(--text); }
 /* inspector */
-.ih { padding: 16px 18px 14px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--side); z-index: 1; }
+.ih { padding: 16px 18px 14px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--solid); border-radius: 14px 14px 0 0; z-index: 1; }
 .ih .kind { font-size: 11px; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; display: flex; align-items: center; gap: 6px; }
 .ih h2 { font-size: 16px; line-height: 1.3; margin: 6px 0 4px; font-weight: 600; letter-spacing: -0.01em; }
 .ih .meta { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -87,8 +93,8 @@ mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: in
 .legend .sq { display: inline-block; width: 9px; height: 9px; border-radius: 1px; vertical-align: -1px; margin-right: 4px; background: var(--code); }
 .legend .dash { display: inline-block; width: 16px; border-top: 1.5px dashed var(--inferred); vertical-align: 3px; margin-right: 4px; }
 .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; color: var(--dim); word-break: break-all; }
-@media (max-width: 900px) { .app, .app.no-insp { grid-template-columns: 1fr; grid-template-rows: auto 55vh auto; height: auto; }
-  aside { border-right: 0; border-bottom: 1px solid var(--line); } .stage { height: 55vh; } .insp { border-left: 0; } }
+@media (max-width: 900px) { aside { left: 8px; right: 8px; width: auto; bottom: auto; max-height: 42vh; }
+  .insp { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; height: 52vh; } }
 </style>
 </head>
 <body>
@@ -109,11 +115,12 @@ mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: in
     <div class="sec"><div class="lbl">Темы</div><div id="topics"></div></div>
     <div class="sec"><div class="lbl">Журнал</div>
       <div class="row" id="openDec"><span class="sw" style="background:var(--yes)"></span><span class="nm">Все решения</span><span class="ct" id="decN"></span></div>
+      <div class="row" id="openDash"><span class="sw" style="background:var(--accent)"></span><span class="nm">Панель проекта</span></div>
     </div>
     <div class="legend">Цвет — тема. <i></i>Разноцветный узел — понятие, общее для нескольких тем. Размер — сколько раз упоминалось. Клик по теме или узлу открывает подробности.
       <span id="codeLegend" hidden><br><span class="sq"></span>Квадрат — код (из Graphify). <span class="dash"></span>Жёлтый пунктир — выведенная связь разговора с кодом: имя файла или символа из разговора совпало с кодом. Серый пунктир — связь в коде, которую Graphify вывел, а не извлёк.</span></div>
   </aside>
-  <div class="stage" id="stage"><div id="graph"></div><div id="graph3d"></div>
+  <div class="stage" id="stage"><canvas id="sky"></canvas><div id="graph"></div><div id="graph3d"></div>
     <div class="zoom"><button id="zin" title="Приблизить">+</button><button id="zout" title="Отдалить">−</button><button id="zfit" title="Весь граф">⤢</button></div>
   </div>
   <div class="insp" id="insp"></div>
@@ -167,8 +174,9 @@ function linkCol(l) {
   return css("--edge");
 }
 
+const bg = () => document.documentElement.dataset.theme === "light" ? css("--canvas") : "rgba(0,0,0,0)";
 const fg = ForceGraph()($("#graph"))
-  .backgroundColor(css("--canvas"))
+  .backgroundColor(bg())
   .graphData({ nodes: DATA.nodes.map(n => ({ ...n })), links: DATA.links.map(l => ({ ...l })) })
   .nodeId("id").nodeVal(n => R(n) ** 2 / 4).nodeLabel(() => "")
   .nodeVisibility(vis).linkVisibility(lvis)
@@ -211,7 +219,7 @@ let fitted = false; fg.onEngineStop(() => { if (!fitted) { fitted = true; fg.zoo
 function make3d() {
   const el = $("#graph3d");
   fg3 = ForceGraph3D()(el)
-    .backgroundColor(css("--canvas"))
+    .backgroundColor(bg())
     .graphData({ nodes: DATA.nodes.map(n => ({ ...n })), links: DATA.links.map(l => ({ ...l })) })
     .nodeId("id").nodeVal(n => R(n) ** 2 / 3).nodeRelSize(1.6).nodeOpacity(0.92).nodeResolution(10)
     .nodeColor(n => lit(n) ? colOf(n) : css("--line2"))
@@ -364,7 +372,7 @@ function setTheme(t) {
   if (t === "light") document.documentElement.dataset.theme = "light"; else delete document.documentElement.dataset.theme;
   try { localStorage.setItem("ctxgraph.theme", t); } catch (e) {}
   document.querySelectorAll("[data-theme-set]").forEach(b => b.classList.toggle("on", b.dataset.themeSet === t));
-  fg.backgroundColor(css("--canvas")); if (fg3) { fg3.backgroundColor(css("--canvas")); refresh3d(); }
+  fg.backgroundColor(bg()); if (fg3) { fg3.backgroundColor(bg()); refresh3d(); }
 }
 document.querySelectorAll("[data-theme-set]").forEach(b => b.onclick = () => setTheme(b.dataset.themeSet));
 if (document.documentElement.dataset.theme === "light") setTheme("light");

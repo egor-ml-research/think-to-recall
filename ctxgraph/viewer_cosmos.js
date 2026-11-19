@@ -9,7 +9,7 @@ const COS = (() => {
   --canvas: #030306; --side: rgba(13,13,19,.88); --raise: rgba(255,255,255,.04); --hover: rgba(255,255,255,.07);
   --line: rgba(255,255,255,.08); --line2: rgba(255,255,255,.13); --text: #e6e6ec; --dim: #a6a6b0; --faint: #72727c;
   --accent: #b3a6f5; --yes: #66c29a; --no: #e08479; }
-.app.cos aside, .app.cos #graph, .app.cos #graph3d, .app.cos .zoom { display: none !important; }
+.app.cos aside, .app.cos #graph, .app.cos #graph3d, .app.cos .zoom, .app.cos #sky { display: none !important; }
 .app.cos .stage { position: fixed; inset: 0; height: auto; background: #030306; }
 .app.cos #cosmos, .app.cos .cosui { display: block; }
 .app.cos .insp { position: fixed; right: 16px; top: 62px; bottom: 78px; width: 392px; max-width: calc(100vw - 32px); z-index: 6;
@@ -320,7 +320,15 @@ const COS = (() => {
     DPR = Math.min(2, window.devicePixelRatio || 1); W = stage.clientWidth || innerWidth; H = stage.clientHeight || innerHeight;
     cv.width = W * DPR; cv.height = H * DPR; F = Math.min(W, H) * 1.05; nebula();
   }
-  addEventListener("resize", () => { if (running) size(); });
+  // the same starfield and nebula, still, behind the 2D / 3D graphs
+  function drawSky() {
+    const c = $("#sky"); if (!c) return;
+    const w = stage.clientWidth || innerWidth, h = stage.clientHeight || innerHeight, d = Math.min(2, devicePixelRatio || 1);
+    c.width = w * d; c.height = h * d; const g = c.getContext("2d"); g.setTransform(d, 0, 0, d, 0, 0);
+    g.fillStyle = "#030306"; g.fillRect(0, 0, w, h); W = w; H = h; nebula(); g.drawImage(neb, 0, 0, w, h);
+    for (const st of stars) { g.globalAlpha = st.a * 0.85; g.fillStyle = st.c; g.fillRect((st.x * 0.5 + 0.5) * w, (st.z * 0.5 + 0.5) * h, st.s, st.s); }
+  }
+  addEventListener("resize", () => { if (running) size(); else drawSky(); });
 
   // ---------- interaction ----------
   let drag = null;
@@ -474,9 +482,11 @@ const COS = (() => {
   return {
     start() { if (running) return; running = true; size(); if (!greeted) { greeted = true; greeting(); } last = 0; raf = requestAnimationFrame(frame); },
     stop() { running = false; cancelAnimationFrame(raf); closeDash(); if (dq) { dq = ""; q = $("#q").value.trim().toLowerCase(); } },
-    flyTopic, flyNode, home, openDash, draw,
+    flyTopic, flyNode, home, openDash, draw, sky: drawSky,
   };
 })();
 window.COS = COS;
+COS.sky();
+$("#openDash").onclick = () => COS.openDash();
 { let m0 = DATA.mode; if (!m0) try { m0 = localStorage.getItem("ctxgraph.mode"); } catch (e) {}
   if (m0 === "3d" || m0 === "cosmos") setMode(m0); }

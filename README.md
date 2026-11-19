@@ -89,7 +89,8 @@ In Claude Code the assistant gets these tools:
 
 | tool | what it does |
 |---|---|
-| `recall(question, steps)` | finds earlier turns relevant to the question and to the assistant's reasoning steps |
+| `recall(question, steps, detail)` | finds earlier turns relevant to the question and to the assistant's reasoning steps; `detail="brief"` gives one line per record (date, status, topic, gist, `#id`), `"mixed"` the best records in full and the rest as lines |
+| `expand(id)` | one record in full (exact wording, numbers, commits) and the thread of its topic by date: how it started, what changed, the reports |
 | `decisions(limit)` | the decision chronology, newest first, with confirmations and reports |
 | `rules`, `pin_rule`, `unpin_rule` | the project's pinned standing rules |
 | `remember(text)` | save one statement explicitly |
@@ -105,6 +106,10 @@ ctxgraph decisions --limit 30
 
 ```bash
 ctxgraph recall "which encoder do we use" --step "an earlier decision about the model" --step "a size limit the user set"
+```
+
+```bash
+ctxgraph expand 1a2b3c4d   # a record id shown by recall
 ```
 
 ```bash
@@ -132,6 +137,14 @@ mode; a turn is scored by its best sentence). That is the **main line**: it come
 Turns found only through those steps form the **periphery**. They are added after the main line, without duplicates,
 only in the space left in the block. The periphery is how a memory that looks unrelated to the question still turns
 up: a constraint you mentioned once, three weeks ago, in another context.
+
+**The same entity.** A decision changed later in other words ("we switch from Postgres to SQLite") may share no word
+with the question ("which database did we choose?"). So from the turns found by the question recall takes their rare
+entities (concepts that occur in a few turns, not everywhere) and adds up to 3 later turns that mention them to the
+chronology, marked "same entity: Postgres". They never push out what the question found.
+
+**Topics.** Every record belongs to a topic: a community of the concept graph (Leiden), named by its most connected
+concepts. `expand(id)` shows the record in full and the other records of its topic and of its entities, by date.
 
 **Statuses and chronology.** Every remembered sentence has a status, found by rules (no LLM):
 

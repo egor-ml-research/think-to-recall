@@ -36,7 +36,7 @@ def cmd_import(a) -> None:
         sys.exit(f"No Claude Code transcripts in {src}")
     print(f"Will read {len(files)} local transcript file(s) from {src}\n"
           "Only your prompts and the assistant's visible replies are stored (secrets are filtered before storage).")  # fmt: skip
-    if not a.yes and input("Import into local memory? [y/N] ").strip().lower() not in ("y", "yes", "д", "да"):
+    if not a.yes and not _consent("Import into local memory? [y/N] "):
         sys.exit("Cancelled.")
     m = _mem(a.project)
     r = m.import_claude_code(src, progress=lambda i, n: print(f"  {i}/{n}", flush=True))
@@ -59,7 +59,7 @@ def cmd_import_claude_ai(a) -> None:
         return
     print("Only your messages and the assistant's visible text are stored (no thinking, tool calls, attachments); "
           "secrets are filtered before storage. Everything stays on this machine.")  # fmt: skip
-    if not a.yes and input("Import these into local memory? [y/N] ").strip().lower() not in ("y", "yes", "д", "да"):
+    if not a.yes and not _consent("Import these into local memory? [y/N] "):
         sys.exit("Cancelled.")
     m = _mem(a.project)
     r = m.import_claude_ai(a.export, progress=lambda i, n: print(f"  {i}/{n}", flush=True), **filters)
@@ -68,9 +68,24 @@ def cmd_import_claude_ai(a) -> None:
           f"Store: {m.db_path}")
 
 
+def _consent(question: str) -> bool:
+    """Ask in a terminal; without one (a script, a hook, CI) do not wait for input: say how to agree instead."""
+    if not sys.stdin or not sys.stdin.isatty():
+        sys.exit("No terminal to ask for consent. Run the same command with -y to agree.")
+    try:
+        return input(question).strip().lower() in ("y", "yes", "д", "да")
+    except EOFError:
+        sys.exit("No answer. Run the same command with -y to agree.")
+
+
 def cmd_recall(a) -> None:
     m = _mem(a.project)
-    print(m.render(m.recall(a.question, a.step or None, k=a.k)))
+    k = a.k or (12 if a.detail == "brief" else 6)
+    print(m.render(m.recall(a.question, a.step or None, k=k), detail=a.detail))
+
+
+def cmd_expand(a) -> None:
+    print(_mem(a.project).expand(a.id))
 
 
 def cmd_decisions(a) -> None:
@@ -160,8 +175,13 @@ def main(argv=None) -> None:
     p = sub.add_parser("recall")
     p.add_argument("question")
     p.add_argument("--step", action="append")
-    p.add_argument("-k", type=int, default=6)
+    p.add_argument("-k", type=int, default=None, help="records (default 6; 12 with --detail brief)")
+    p.add_argument("--detail", choices=["full", "brief", "mixed"], default="full",
+                   help="full: the records' text (default); brief: one line each with #id; mixed: the best in full")
     p.set_defaults(f=cmd_recall)
+    p = sub.add_parser("expand", help="a record in full and the thread of its topic")
+    p.add_argument("id", help="the record id shown by recall (#...)")
+    p.set_defaults(f=cmd_expand)
     p = sub.add_parser("decisions")
     p.add_argument("--limit", type=int, default=20)
     p.set_defaults(f=cmd_decisions)

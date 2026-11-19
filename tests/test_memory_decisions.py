@@ -329,3 +329,72 @@ def test_window_keeps_the_lead_line_of_a_long_list():
         "\n6. Веб-версию не трогать."
     out = _window(text, "Веб-версию не трогать.", 300)
     assert out.startswith("…Убираем модуль аналитики из приложения полностью:\n…\n6. Веб-версию не трогать.")
+
+
+def _db_change_turns():
+    return [
+        _turn(1, "user", "Для базы данных берём Postgres.", "2026-11-01T10:00:00Z"),
+        _turn(2, "assistant", "Схема в Postgres создана, коммит a1b2c3d.", "2026-11-01T10:05:00Z"),
+        _turn(3, "user", "Нет, передумал: переходим с Postgres на SQLite.", "2026-11-05T10:00:00Z"),
+        _turn(4, "assistant", "Перешли на SQLite: миграция готова, коммит e4f5a6b.", "2026-11-05T10:10:00Z"),
+    ]
+
+
+def _check_changed_decision_is_found(m, via=True):
+    out = m.render(m.recall("какую базу данных выбрали", k=6))
+    # the later decision shares no word with the question; the same-entity step brings it in, after the first one
+    # (in the quality mode the vectors may already find it by the question: then it needs no follow-up)
+    assert "переходим с Postgres на SQLite" in out and (not via or "та же сущность: Postgres" in out)
+    assert out.index("берём Postgres") < out.index("переходим с Postgres на SQLite")
+    assert "коммит e4f5a6b" in out
+
+
+def test_changed_decision_is_found_through_the_same_entity_bm25(tmp_path, monkeypatch):
+    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")  # the default mode
+    assert m.mode == "bm25"
+    m.import_turns(_db_change_turns())
+    _check_changed_decision_is_found(m)
+
+
+def test_changed_decision_is_found_through_the_same_entity_quality(tmp_path, monkeypatch):
+    import pytest
+
+    from ctxgraph import model as M
+
+    if not M.is_cached():
+        pytest.skip("the quality model is not downloaded here")
+    monkeypatch.setenv("CTXGRAPH_QUALITY", "1")
+    m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
+    assert m.mode == "hybrid"
+    m.import_turns(_db_change_turns())
+    _check_changed_decision_is_found(m, via=False)
+
+
+def test_follow_ups_never_displace_the_main_line(tmp_path, monkeypatch):
+    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
+    m.import_turns(_db_change_turns())
+    plain = [h.episode for h in m.recall("какую базу данных выбрали", k=1) if h.line == "main"]
+    assert plain == ["t1"]
+    out = m.render(m.recall("какую базу данных выбрали", k=1), max_chars=60)  # no room at all
+    assert "#t1" in out and "переходим с Postgres" not in out  # the follow-up goes, the main line stays
+
+
+def test_short_recall_lines_and_expand_shows_the_whole_chain(tmp_path, monkeypatch):
+    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
+    m.import_turns(_db_change_turns())
+    out = m.render(m.recall("какую базу данных выбрали", k=12), detail="brief")
+    lines = [ln for ln in out.splitlines() if ln.startswith("- 2026")]
+    assert len(lines) == 2 and all("#t" in ln for ln in lines)  # one line per record, with its id
+    assert "expand(id)" in out and "коммит e4f5a6b" in out and "тема:" in out
+    # expand from any record of the chain - the first decision, the change, or a report - shows the whole chain
+    for rid in ("t1", "t2", "t3", "t4"):
+        x = m.expand(rid)
+        assert "Для базы данных берём Postgres." in x and "переходим с Postgres на SQLite" in x, rid
+        chain = x.split("Records of this topic", 1)[1]  # the thread, by date
+        assert chain.index("берём Postgres") < chain.index("переходим с Postgres") and "<- this record" in chain
+    full = m.expand("t4")
+    assert full.startswith("Record #t3 in full") and "Перешли на SQLite: миграция готова, коммит e4f5a6b." in full
+    assert "No record" in m.expand("zzz")

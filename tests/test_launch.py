@@ -266,6 +266,7 @@ def test_setup_quality_moves_a_default_store_aside_and_keeps_rules(tmp_path, mon
     m = ProjectMemory(proj, home=home)
     rid = m.pin_rule("Ключи API — только в .env.")
     db = m.db_path
+    m.s.db.close()  # Windows: an open SQLite file cannot be renamed
     del m
     monkeypatch.setattr(S, "ensure_model", lambda assume: True)
     import ctxgraph.memory as MM
@@ -277,3 +278,17 @@ def test_setup_quality_moves_a_default_store_aside_and_keeps_rules(tmp_path, mon
     import sqlite3
 
     assert sqlite3.connect(db).execute("SELECT id FROM pinned_rules").fetchall() == [(rid,)]
+
+
+def test_import_without_a_terminal_says_to_use_y(tmp_path):
+    import subprocess
+
+    src = tmp_path / "transcripts"
+    src.mkdir()
+    (src / "s.jsonl").write_text(json.dumps({"type": "user", "uuid": "u1", "timestamp": "2026-11-01T10:00:00Z",
+                                             "sessionId": "s", "message": {"role": "user", "content": "Берём Postgres."}}),
+                                 "utf-8")  # fmt: skip
+    r = subprocess.run([sys.executable, "-m", "ctxgraph.cli", "--home", str(tmp_path / "home"), "--project",
+                        str(tmp_path / "proj"), "import", "--source", str(src)], input="", capture_output=True,
+                       text=True, timeout=120)  # fmt: skip
+    assert r.returncode != 0 and "-y" in r.stderr and "EOFError" not in r.stderr + r.stdout
