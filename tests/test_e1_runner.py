@@ -63,6 +63,10 @@ class FakeClient:
 
 @pytest.fixture
 def graphs(tmp_path):
+    from ctxgraph.sources import wordnet as W
+
+    if not W.ready():  # research graphs (E1) expand concepts through WordNet; a clean clone has no data
+        pytest.skip("WordNet data not found (`ctxgraph setup` downloads it)")
     db = tmp_path / "cache.sqlite"
     Store(db).close()
     return GraphFactory(db, HashingEncoder(), offline=True)

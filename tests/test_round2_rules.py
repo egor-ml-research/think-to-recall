@@ -137,6 +137,10 @@ def test_experience_requires_positive_pmi():
     ],
 )
 def test_english_part_of_speech(word, ok):
+    from ctxgraph.sources import wordnet as W
+
+    if not W.ready():  # without WordNet data every word passes as a noun (by design)
+        pytest.skip("WordNet data not found (`ctxgraph setup` downloads it)")
     assert T.en_noun_ok(word) is ok
 
 

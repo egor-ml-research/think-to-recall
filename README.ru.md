@@ -27,13 +27,13 @@ Code. Перед ответом ассистент может спросить �
 Одна строка (Python 3.11+ и [uv](https://docs.astral.sh/uv/)), из папки проекта, который хотите подключить:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.0" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup
 ```
 
 С [pipx](https://pipx.pypa.io/) вместо uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.0" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup
 ```
 
 **Работает сразу, без загрузки модели.** Поиск — BM25 по вашим разговорам; установка около 125 МБ. Режим качества —
@@ -41,11 +41,12 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 ещё несколько ответов, сформулированных иначе, чем вопрос:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.0" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup --quality
 ```
 
-Пакета пока нет в PyPI; команды ставят релиз v0.4.0 с GitHub. Для более точных английских понятий на карте графа
-добавьте набор `english`.
+Пакета пока нет в PyPI; команды ставят релиз v0.4.1 с GitHub. Установка также предложит скачать данные WordNet
+(~10 МБ) для названий тем в `expand`; Enter — согласие. Для более точных английских понятий на карте графа добавьте
+набор `english`.
 
 `setup` делает четыре вещи и спрашивает перед импортом истории:
 

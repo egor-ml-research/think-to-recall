@@ -307,3 +307,41 @@ def test_setup_question_without_input_is_no_not_a_crash(monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", eof)
     assert S._ask("Import them into the project memory?", None) is False
     assert "--yes" in capsys.readouterr().out
+
+
+def test_setup_enter_takes_the_default(monkeypatch):
+    class TTY:
+        def isatty(self):
+            return True
+
+    monkeypatch.setattr(S.sys, "stdin", TTY())
+    monkeypatch.setattr("builtins.input", lambda prompt="": "")
+    assert S._ask("Download data for topic names?", None, default=True) is True
+    assert S._ask("Import them?", None) is False
+
+
+def test_wordnet_step_downloads_on_yes_and_hints_on_no(monkeypatch, capsys):
+    from ctxgraph.sources import wordnet as W
+
+    state = {"ready": False}
+    monkeypatch.setattr(W, "ready", lambda: state["ready"])
+    monkeypatch.setattr(W, "download", lambda: state.update(ready=True) or True)
+    assert S.ensure_wordnet(False) is False and "rerun `ctxgraph setup`" in capsys.readouterr().out
+    assert S.ensure_wordnet(True) is True and state["ready"]
+    assert S.ensure_wordnet(None) is True  # already there: no question
+
+
+def test_expand_without_wordnet_gives_a_hint_not_a_dash(tmp_path, monkeypatch):
+    from ctxgraph.sources import wordnet as W
+    from tests.test_english import TURNS
+
+    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    monkeypatch.delenv("CTXGRAPH_LANG", raising=False)
+    monkeypatch.setattr(W, "ready", lambda: False)
+    m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
+    m.import_turns(TURNS)
+    monkeypatch.setattr(m._topics(), "name", {})  # a record whose topic has no name
+    x = m.expand("t2")
+    assert "Topic: -" not in x and "`ctxgraph setup` downloads it" in x
+    monkeypatch.setattr(W, "ready", lambda: True)  # the data is there: an unnamed topic is just unnamed
+    assert "Topic: -" in m.expand("t2")

@@ -26,13 +26,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.0" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.0" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -40,11 +40,12 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.0" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.4.1" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.4.0 from GitHub. For finer English concepts in the
-graph view, add the `english` extra.
+The package is not on PyPI yet; the commands install release v0.4.1 from GitHub. Setup also offers to download WordNet
+data (~10 MB) that names the topics in `expand`; Enter agrees. For finer English concepts in the graph view, add the
+`english` extra.
 
 `setup` does four things, and asks before importing your history:
 

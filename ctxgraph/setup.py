@@ -26,7 +26,9 @@ from pathlib import Path
 YES = ("y", "yes", "д", "да")
 
 
-def _ask(question: str, assume: bool | None) -> bool:
+def _ask(question: str, assume: bool | None, default: bool = False) -> bool:
+    """Yes / no. `assume` answers for the user (--yes); Enter takes `default`. Without a terminal nothing is downloaded
+    or imported: the answer is no."""
     if assume is not None:
         print(f"{question} [{'y' if assume else 'n'}]")
         return assume
@@ -34,7 +36,8 @@ def _ask(question: str, assume: bool | None) -> bool:
         print(f"{question} [n] (no terminal to ask; rerun with --yes to agree)")
         return False
     try:
-        return input(f"{question} [y/N] ").strip().lower() in YES
+        ans = input(f"{question} {'[Y/n]' if default else '[y/N]'} ").strip().lower()
+        return default if not ans else ans in YES
     except EOFError:  # a terminal that gives no input (Git Bash / mintty pipes): no answer means no
         print("\n  No answer (no input from the terminal); rerun with --yes to agree.")
         return False
@@ -169,6 +172,29 @@ def check_spacy() -> None:
               "fallback. Recall does not need it. For finer English concepts install the `english` extra.")  # fmt: skip
 
 
+def ensure_wordnet(assume: bool | None) -> bool:
+    """WordNet data names the topics of `expand` and filters English concepts; optional, about 10 MB."""
+    from ctxgraph.sources import wordnet as W
+
+    if W.ready():
+        return True
+    try:
+        import nltk  # noqa: F401
+    except ImportError:
+        print("Topic names: need nltk (`pip install nltk`), then rerun `ctxgraph setup`. Recall works without it.")
+        return False
+    if not _ask(f"Download data for topic names (WordNet, ~{W.SIZE_MB} MB)?", assume, default=True):
+        print("  Skipped. `expand` shows topics without names; rerun `ctxgraph setup` to download it later.")
+        return False
+    try:
+        ok = W.download()
+    except Exception as e:  # noqa: BLE001 - network / server errors: a hint, not a crash
+        print(f"  Download failed ({type(e).__name__}: {e}). Recall works without it; rerun `ctxgraph setup` later.")
+        return False
+    print(f"  Downloaded to {W.user_dir()}" if ok else "  Download did not complete; rerun `ctxgraph setup` later.")
+    return ok
+
+
 def first_import(project: Path, assume: bool | None, limit: int = 15) -> None:
     from ctxgraph.memory import ProjectMemory, claude_project_dir, format_decisions
 
@@ -263,6 +289,7 @@ def run(project: Path, home: str | None, assume: bool | None, model: bool = True
         print("Recall: BM25 over your conversations - works right away, nothing to download. "
               "`ctxgraph setup --quality` adds a 300 MB model for better recall (optional).")  # fmt: skip
     check_spacy()
+    ensure_wordnet(assume)
     if ok and history:
         print()
         first_import(project, assume)

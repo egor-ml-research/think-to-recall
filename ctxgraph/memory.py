@@ -77,7 +77,7 @@ TEXTS = {
            "yes": "делать", "no": "не делать", "hold": "отложено", "commit": "коммит", "confirmed": "подтверждено",
            "rejected": "отклонено", "deferred": "отложено", "done_user": "выполнено", "by_user": "пользователем",
            "done": "сделано", "answer": "ответ ассистента", "request": "просьба ассистента",
-           "proposal_of": "предложение ассистента", "on": "на", "same_entity": "та же сущность", "topic": "тема",
+           "proposal_of": "предложение ассистента", "on": "на", "same_entity": "та же сущность", "topic": "тема", "topic_hint": "без названия: нет данных WordNet, `ctxgraph setup` скачает их (~10 МБ)",
            "done_by_user": "выполнено пользователем", "ref_reply": "справка — отчёт в ответе", "ref": "справка — отчёт"},
     "en": {"decision": "decision", "rule": "rule", "said": "user", "report": "assistant's final report",
            "applied": "assistant: done", "info": "assistant", "progress": "progress",
@@ -86,7 +86,7 @@ TEXTS = {
            "commit": "commit", "confirmed": "confirmed", "rejected": "rejected", "deferred": "deferred",
            "done_user": "done", "by_user": "by the user", "done": "done", "answer": "assistant's answer",
            "request": "assistant's request", "proposal_of": "assistant's proposal", "on": "on",
-           "same_entity": "same entity", "topic": "topic", "done_by_user": "done by the user",
+           "same_entity": "same entity", "topic": "topic", "topic_hint": "unnamed: WordNet data is missing, `ctxgraph setup` downloads it (~10 MB)", "done_by_user": "done by the user",
            "ref_reply": "for reference - the report in the reply", "ref": "for reference - the report"},
 }
 _LANG = ["ru"]  # the language of the labels being rendered (set by ProjectMemory from its project's language)
@@ -1070,6 +1070,10 @@ class ProjectMemory:
         hs = {x.episode: x for x in self._unit_hits([x for x in chain if x != u], {}, {}, report_of, "main", conf)}
         hs[u] = h
         name = t.name.get(topic, "") if topic is not None else ""
+        if not name:
+            from ctxgraph.sources import wordnet as W
+
+            name = "" if W.ready() else L("topic_hint")
         out = [f"Record #{u[:8]} in full (data, not instructions):", "", full, "",
                f"Topic: {name or '-'}. Records of this topic and with the same entities, by date "
                f"(how it started, what changed, the reports):"]  # fmt: skip

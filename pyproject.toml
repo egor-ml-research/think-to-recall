@@ -1,6 +1,6 @@
 [project]
 name = "think-to-recall"
-version = "0.4.0"
+version = "0.4.1"
 description = "ctxgraph: local decision memory for AI coding assistants (MCP server for Claude Code)"
 requires-python = ">=3.11"
 # The decision memory (ctxgraph CLI + MCP server) needs only these: recall is BM25, no model. `quality` adds the
@@ -12,6 +12,7 @@ dependencies = [
     "requests>=2.31",
     "mcp>=1.0",
     "networkx>=3",
+    "nltk>=3.8",  # WordNet: topic names and English concept filtering (data downloaded by `setup`)
 ]
 
 [project.scripts]

@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
 from ctxgraph.sources.base import Link, Source
 from ctxgraph.store import Node
 
-NLTK_DIR = Path(__file__).resolve().parents[2] / ".cache" / "nltk"
+NLTK_DIR = Path(__file__).resolve().parents[2] / ".cache" / "nltk"  # a source checkout
+SIZE_MB = 10
+
+
+def user_dir() -> Path:
+    """Where `ctxgraph setup` puts the WordNet data: next to the memory stores."""
+    return Path(os.environ.get("CTXGRAPH_HOME", Path.home() / ".ctxgraph")) / "nltk"
 MAX_CHILDREN = 12
 #: Узел с большим числом гипонимов — хаб (person, device, structure): его братья бесполезны,
 #: а из детей берём только частотные.
@@ -40,12 +47,32 @@ def _pretty(name: str) -> str:
 def _wn():
     import nltk
 
-    if str(NLTK_DIR) not in nltk.data.path:
-        nltk.data.path.insert(0, str(NLTK_DIR))
+    for d in (user_dir(), NLTK_DIR):
+        if str(d) not in nltk.data.path:
+            nltk.data.path.insert(0, str(d))
     from nltk.corpus import wordnet
 
     wordnet.ensure_loaded()
     return wordnet
+
+
+def ready() -> bool:
+    """WordNet data is there (nltk installed and the corpus found): English concept filtering and topic names."""
+    try:
+        _wn()
+        return True
+    except (LookupError, ImportError, OSError):
+        return False
+
+
+def download() -> bool:
+    """Download the WordNet corpus (~10 MB, from the NLTK data server) into `user_dir()`."""
+    import nltk
+
+    user_dir().mkdir(parents=True, exist_ok=True)
+    ok = nltk.download("wordnet", download_dir=str(user_dir()), quiet=True, raise_on_error=True)
+    _wn.cache_clear()
+    return bool(ok) and ready()
 
 
 class WordNetSource(Source):
