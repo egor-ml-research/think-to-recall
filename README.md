@@ -1,11 +1,18 @@
 # ctxgraph — decision memory for AI coding assistants
 
+**English** · [Русский](README.ru.md)
+
 Your assistant forgets what you decided last week. ctxgraph remembers it.
 
 ctxgraph is a local memory of your conversations with Claude Code, organised around **decisions**: what you decided
 to do, what you decided not to do, what you put on hold, and when the assistant reported it done. It runs as an MCP
 server next to Claude Code. Before answering, the assistant can ask it what was decided earlier in the project. The
 answer comes with dates and statuses, and every turn is recorded automatically.
+
+![Before and after: in a new session, asked "which database did we choose?", the assistant without memory does not know; with ctxgraph it answers SQLite, with the change of decision and the commit](docs/media/before_after.en.gif)
+
+*A synthetic project. The memory block is the real output of `recall`; the answers are real answers of one model
+(Mistral Large 4) without memory and with that block.*
 
 - **Local only.** One SQLite file per project on your machine. No cloud, no account, no LLM calls to build the memory.
 - **Works on the history you already have.** On first connection it imports your earlier Claude Code sessions of the
@@ -229,15 +236,18 @@ and the conversation concepts and decisions that mention it. Re-importing replac
   for 775 turns on a laptop CPU). A store remembers its mode; switching to `--quality` rebuilds it.
 - **Lexical by default.** BM25 finds what shares words with your question. On our check of 29 questions about past
   decisions it was correct on 19 (e5 alone: 18, BM25 + e5: 21) and never showed an outdated answer as current, but
-  it misses answers worded differently from the question; `--quality` recovers some of them.
+  it misses answers worded differently from the question (for example, "DB" for "database"); `--quality` recovers
+  some of them.
+- **Labels in Russian.** The status labels in recall output (решение, сделано, коммит…) are in Russian in this
+  version. English conversations work, but fewer English decision phrases are recognized as decisions.
 - **Claude Code first.** Automatic recording relies on the Claude Code Stop hook. Cursor works through the
   `remember` tool only. Chats from claude.ai can be imported from a data export with `ctxgraph import-claude-ai`.
-- **Tested on Windows.** Linux and macOS should work, but have not been checked yet.
+- **Tested on Windows and on a clean Linux install.** macOS has not been checked yet.
 
 ## Research
 
 ctxgraph grew out of a research project on retrieval for conversational memory. Experiments, pre-registrations and
-results: [docs/research_README.md](docs/research_README.md) (the `main` branch of this repository).
+results: [docs/research_README.md](docs/research_README.md) (in this repository).
 
 ## License
 
