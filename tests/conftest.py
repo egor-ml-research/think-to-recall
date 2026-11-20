@@ -87,3 +87,10 @@ def make_engine(store):
         )
 
     return _make
+
+
+@pytest.fixture(autouse=True)
+def _economy_off_for_legacy_tests(monkeypatch, request):
+    """The token economy of recall (tests/test_economy.py) is off in the older tests: they pin the full labels."""
+    if "test_economy" not in request.node.nodeid:
+        monkeypatch.setenv("CTXGRAPH_ECONOMY", "off")

@@ -10,7 +10,7 @@
 
 ## MCP tools
 
-- recall(question, steps, k, detail): earlier turns relevant to the question and reasoning steps; detail full / brief / mixed
+- recall(question, steps, k, detail, fresh): earlier turns relevant to the question and reasoning steps; detail full / brief / mixed; one line when nothing is about the question; in brief, records already shown in the session are one-line stubs (fresh=True repeats them)
 - expand(record_id): one record in full plus its thread by date
 - decisions(limit): decision chronology with confirmations and reports
 - later(limit): open "later" items (on hold, answered "later", deferred Beads issues read from .beads/*.jsonl)
