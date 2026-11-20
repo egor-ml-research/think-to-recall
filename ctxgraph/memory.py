@@ -856,7 +856,14 @@ class ProjectMemory:
             out.append({"id": eid, "role": role, "text": text.strip(), "ts": ts, "session": f"chat:{title}",
                         "source": "chat"})  # fmt: skip
         r = self.import_turns(out)
+        self.s.db.execute("INSERT OR REPLACE INTO memory_meta VALUES('last_save_chat', ?)", (now.isoformat(),))
+        self.s.db.commit()
         return {"turns": len(turns or []), "new": r["new"], "skipped": skipped, "title": title}
+
+    def last_chat_save(self) -> "dt.datetime | None":
+        """When `save_chat` was last called for this project (any chat title), or None."""
+        row = self.s.q("SELECT value FROM memory_meta WHERE key='last_save_chat'")
+        return dt.datetime.fromisoformat(row[0][0]) if row else None
 
     def import_claude_code(self, transcript_dir: Path | None = None, files: list[Path] | None = None, progress=None) -> dict:
         from ctxgraph import cc_transcripts as CC

@@ -12,12 +12,20 @@ import threading
 from pathlib import Path
 
 try:  # mcp 2.x
-    from mcp.server.mcpserver import MCPServer
+    from mcp.server.mcpserver import Context, MCPServer
 except ImportError:  # mcp 1.x
+    from mcp.server.fastmcp import Context
     from mcp.server.fastmcp import FastMCP as MCPServer
 
 server = MCPServer("ctxgraph-memory")
 _mem = None
+# the reminder to save the current chat (rules written before the code): an MCP client without automatic recording,
+# no save_chat for REMIND_HOURS; once per server process until the next save_chat
+REMIND_HOURS = 12
+_reminded = False
+SAVE_HINT = ("In clients without automatic recording (Claude Desktop, Cursor; not Claude Code, whose hook records "
+             "every turn): whenever this conversation produced a decision, a refusal, a rule or a \"later\" item, call "
+             "save_chat at the end of your answer with the turns since the last save, verbatim.")
 _lock = threading.Lock()
 
 
@@ -32,6 +40,32 @@ def mem():
     return _mem
 
 
+def _client_name(ctx) -> str:
+    try:
+        p = ctx.session.client_params
+        info = getattr(p, "client_info", None) or getattr(p, "clientInfo", None)  # mcp 2.x / 1.x
+        return str(info.name or "")
+    except Exception:  # noqa: BLE001 - no request context (tests, an old SDK): the client is unknown
+        return ""
+
+
+def _save_reminder(m, client: str) -> str:
+    """One line suggesting to save the current chat, or ""."""
+    global _reminded
+    import datetime as dt
+
+    if _reminded or not client or "claude-code" in client.lower():
+        return ""
+    last = m.last_chat_save()
+    now = dt.datetime.now(dt.UTC)
+    if last and (now - last).total_seconds() < REMIND_HOURS * 3600:
+        return ""
+    _reminded = True
+    when = f"was last saved {int((now - last).total_seconds() // 3600)} h ago" if last else "has not been saved yet"
+    return (f"\n\n(ctxgraph: this project's chat memory {when}. If this chat has decisions, rules or \"later\" items, "
+            "save it with save_chat - the turns verbatim.)")
+
+
 def _warm() -> None:
     try:
         mem()
@@ -43,6 +77,8 @@ def tool(fn):
     """`server.tool()`, but a missing encoder model is returned as text the user can act on ("run ctxgraph setup")
     instead of a bare "Error executing tool"."""
     from ctxgraph.model import DownloadFailed, ModelMissing
+
+    fn.__doc__ = (fn.__doc__ or "").replace("SAVE_HINT", SAVE_HINT)
 
     @functools.wraps(fn)
     def run(*a, **kw):
@@ -58,7 +94,7 @@ def tool(fn):
 
 @tool
 def recall(question: str, steps: list[str] | None = None, k: int = 6, detail: str = "full",
-           fresh: bool = False) -> str:
+           fresh: bool = False, ctx: Context = None) -> str:
     """Search this project's earlier conversations (decisions, constraints, preferences, rejected options).
 
     Use BEFORE answering anything that may depend on what was decided or said earlier in the project.
@@ -76,6 +112,8 @@ def recall(question: str, steps: list[str] | None = None, k: int = 6, detail: st
     (shown earlier): date - gist" (expand(id) gives it in full); after a context compaction or in a new session every
     record is shown again, and fresh=True does the same now. When nothing in memory is about the question, the
     answer is one line instead of a block.
+
+    SAVE_HINT
     """
     m = mem()
     if m._shown is None:
@@ -84,7 +122,7 @@ def recall(question: str, steps: list[str] | None = None, k: int = 6, detail: st
     if fresh:
         m._shown = set()
     d = detail if detail in ("full", "brief", "mixed") else "full"
-    return m.render(m.recall(question, steps, k=max(1, min(int(k), 30))), detail=d)
+    return m.render(m.recall(question, steps, k=max(1, min(int(k), 30))), detail=d) + _save_reminder(m, _client_name(ctx))
 
 
 @tool
@@ -202,7 +240,12 @@ def save_chat(title: str, turns: list[dict], offset: int = 0) -> str:
     turn in the whole chat; call again with the next portion until the whole chat is sent.
     title: the same short title of this chat on every call (it names the chat in memory).
     Safe to repeat: turns already saved are skipped, so the same chat can be saved again later and only its new
-    turns are added. Nothing leaves the user's computer."""
+    turns are added. Nothing leaves the user's computer.
+
+    SAVE_HINT
+    """
+    global _reminded
+    _reminded = False
     turns = list(turns or [])
     r = mem().save_chat(title, turns[:SAVE_CHAT_PORTION], offset=max(0, int(offset)))
     msg = f"Saved {r['new']} new of {len(turns[:SAVE_CHAT_PORTION])} turns of the chat \u00ab{r['title']}\u00bb"
