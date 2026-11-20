@@ -11,24 +11,35 @@ order. Ask the user only where a step says so.
 
 ## 2. Ask the user first (in the chat)
 
-Setup has no terminal to ask in when you run it, so ask these two questions in the chat and pass the answers as
-flags:
+Setup has no terminal to ask in when you run it. Before running it, ask the user these short questions in ONE
+chat message, in the user's language, each with its default in brackets, and pass the answers as flags:
 
-1. "Import your earlier Claude Code sessions of this project into the memory? Only your prompts and my visible
-   replies are stored, secrets are filtered, everything stays on this machine." -> `--import-history yes|no`
-2. Only if the project has source code: "Build a code graph with Graphify (installs the `graphifyy` package,
-   about 150 MB, local AST, no LLM)?" -> `--graphify yes|no`
+1. "Import the history of your earlier conversations about this project, so the memory knows right away what you
+   decided? (no)" -> `--import-history yes|no`
+2. "Will you work with code in this project? (no)" - if yes, ask in the same message: "Also install Graphify, so the
+   memory sees the structure of the code (what calls what)? (no)" -> `--graphify yes|no`; if no -> `--graphify no`
+   without the second question.
+3. "Which language for the memory's labels - Russian or English? (the language of our conversation)" ->
+   `--lang ru|en`. Skip this question when the language is obvious from the conversation.
 
-Without asking, use `--wordnet yes` (about 10 MB of WordNet data that names topics in `expand`). If the user does
-not want any downloads, use `--wordnet no`.
+In Russian:
+
+1. «Импортировать историю ваших прошлых разговоров по этому проекту, чтобы память сразу знала, что вы решали? (нет)»
+2. «Вы будете работать с кодом в этом проекте? (нет)» — если да: «Поставить ещё Graphify, чтобы память видела
+   структуру кода (что из чего вызывается)? (нет)»
+3. «На каком языке показывать подписи памяти — русском или английском? (язык нашего разговора)»
+
+No answer means the safe values: `--import-history no`, `--graphify no`, `--lang` = the language of the conversation.
+Without asking, use `--wordnet yes` (about 10 MB of WordNet data that names topics in `expand`); if the user does not
+want any downloads, use `--wordnet no`.
 
 ## 3. Install
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3"
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4"
 ```
 
-Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3"`.
+Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4"`.
 
 Optional extras (only if the user asks):
 - `[quality]` - better recall: BM25 + multilingual-e5-base (int8 ONNX, about 300 MB, downloaded once). Install
@@ -40,7 +51,7 @@ Optional extras (only if the user asks):
 Run in the project's root folder, with the user's answers:
 
 ```bash
-ctxgraph setup --import-history yes --graphify no --wordnet yes
+ctxgraph setup --import-history yes --graphify no --wordnet yes --lang en
 ```
 
 What it does:

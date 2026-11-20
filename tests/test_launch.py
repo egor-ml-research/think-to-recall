@@ -445,3 +445,12 @@ def test_install_for_ai_flags_exist_in_setup_help():
             cli.main([cmd, "--help"])
     known = set(re.findall(r"--[a-z][a-z-]+", buf.getvalue())) | {"--lang", "--scope"}
     assert flags <= known, flags - known
+
+
+def test_setup_lang_is_saved_for_every_store(tmp_path, monkeypatch):
+    proj, _calls = _setup_env(tmp_path, monkeypatch, tty=False)
+    monkeypatch.delenv("CTXGRAPH_LANG", raising=False)
+    S.run(proj, str(tmp_path / "home"), None, lang="en")
+    assert json.loads((tmp_path / "home" / "config.json").read_text("utf-8"))["lang"] == "en"
+    m = ProjectMemory(proj, home=tmp_path / "home")
+    assert m.lang == "en"

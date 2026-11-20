@@ -164,7 +164,8 @@ def cmd_setup(a) -> None:
     yn = {"yes": True, "no": False, None: None}
     flags = {"import": yn[a.import_history], "graphify": yn[a.graphify], "wordnet": yn[a.wordnet]}
     S.run(Path(a.project or Path.cwd()), a.home or os.environ.get("CTXGRAPH_HOME"), True if a.yes else None,
-          model=not a.no_model, history=not a.no_import, quality=a.quality, flags=flags)
+          model=not a.no_model, history=not a.no_import, quality=a.quality, flags=flags,
+          lang=a.setup_lang or a.lang)
     if a.print_cursor:
         e = S.mcp_entry()
         print("\nCursor - .cursor/mcp.json of the project (no hooks there: turns are saved via the remember tool):\n"
@@ -244,6 +245,8 @@ def main(argv=None) -> None:
     p.add_argument("--import-history", choices=["yes", "no"], help="import this project's earlier Claude Code sessions")
     p.add_argument("--graphify", choices=["yes", "no"], help="build a code graph with Graphify when code is found")
     p.add_argument("--wordnet", choices=["yes", "no"], help="download WordNet data for topic names (~10 MB)")
+    p.add_argument("--lang", dest="setup_lang", choices=["en", "ru"],
+                   help="language of the memory's labels, saved for every project (default: each project's language)")
     p.add_argument("--no-model", action="store_true", help="only write the config files")
     p.add_argument("--quality", action="store_true",
                    help="better recall: BM25 + multilingual-e5-base (int8 ONNX, ~300 MB download, needs the `quality` extra)")

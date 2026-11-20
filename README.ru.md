@@ -31,13 +31,13 @@ Code. Перед ответом ассистент может спросить �
 Одна строка (Python 3.11+ и [uv](https://docs.astral.sh/uv/)), из папки проекта, который хотите подключить:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4" && ctxgraph setup
 ```
 
 С [pipx](https://pipx.pypa.io/) вместо uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4" && ctxgraph setup
 ```
 
 **Работает сразу, без загрузки модели.** Поиск — BM25 по вашим разговорам; установка около 125 МБ. Режим качества —
@@ -45,10 +45,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 ещё несколько ответов, сформулированных иначе, чем вопрос:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4" && ctxgraph setup --quality
 ```
 
-Пакета пока нет в PyPI; команды ставят релиз v0.5.3 с GitHub. Для более точных английских понятий на карте графа
+Пакета пока нет в PyPI; команды ставят релиз v0.5.4 с GitHub. Для более точных английских понятий на карте графа
 добавьте набор `english`. **Ставите через ИИ-ассистента?** Дайте ему [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
 `setup` задаёт все вопросы один раз, до начала работы; Enter выбирает ответ по умолчанию:
@@ -89,6 +89,21 @@ uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/e
    печатает **хронологию решений**, чтобы сразу было видно, что знает память.
 
 Перезапустите Claude Code в папке проекта и подтвердите сервер `ctxgraph`, когда он спросит.
+
+### Установка через ИИ-ассистента
+
+Дайте ассистенту [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md). Перед запуском `ctxgraph setup` он задаст вам одним
+сообщением короткие вопросы, с ответом по умолчанию в скобках:
+
+1. «Импортировать историю ваших прошлых разговоров по этому проекту, чтобы память сразу знала, что вы решали? (нет)»
+   → `--import-history yes|no`
+2. «Вы будете работать с кодом в этом проекте? (нет)» — если да: «Поставить ещё Graphify, чтобы память видела
+   структуру кода (что из чего вызывается)? (нет)» → `--graphify yes|no`; если нет — `--graphify no` без второго
+   вопроса.
+3. «На каком языке показывать подписи памяти — русском или английском?» → `--lang ru|en` (можно не спрашивать, если
+   язык очевиден из разговора).
+
+Без ответа — безопасные значения: нет / нет / язык разговора.
 
 ### Рекомендуемый `.gitignore`
 

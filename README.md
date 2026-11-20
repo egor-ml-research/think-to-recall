@@ -30,13 +30,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -44,10 +44,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.5.3 from GitHub. For finer English concepts in the
+The package is not on PyPI yet; the commands install release v0.5.4 from GitHub. For finer English concepts in the
 graph view, add the `english` extra. **Installing through an AI assistant?** Point it to
 [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
@@ -88,6 +88,21 @@ Then it does four things:
    prints the **decision chronology**, so you see what the memory knows straight away.
 
 Restart Claude Code in the project folder and approve the `ctxgraph` server when it asks.
+
+### Installing through an AI assistant
+
+Point the assistant to [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md). Before running `ctxgraph setup` it asks you, in one
+message, with the default in brackets:
+
+1. "Import the history of your earlier conversations about this project, so the memory knows right away what you
+   decided? (no)" -> `--import-history yes|no`
+2. "Will you work with code in this project? (no)" - if yes: "Also install Graphify, so the memory sees the
+   structure of the code (what calls what)? (no)" -> `--graphify yes|no`; if no, `--graphify no` without the second
+   question.
+3. "Which language for the memory's labels - Russian or English?" -> `--lang ru|en` (not asked when the language is
+   obvious from the conversation).
+
+No answer means the safe values: no / no / the language of the conversation.
 
 ### Recommended `.gitignore`
 

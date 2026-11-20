@@ -22,7 +22,8 @@
 
 ## Setup flags
 
-- --import-history yes|no, --graphify yes|no, --wordnet yes|no: answers without a terminal; -y takes the defaults
+- Before `ctxgraph setup`, ask the user in ONE chat message (defaults in brackets): import the history of earlier conversations about this project? (no) -> --import-history yes|no; will you work with code here? (no) - if yes: also install Graphify so the memory sees the code structure? (no) -> --graphify yes|no, if no: --graphify no; labels in Russian or English? (the conversation's language; skip when obvious) -> --lang ru|en. No answer: no / no / the conversation's language. See INSTALL_FOR_AI.md
+- --import-history yes|no, --graphify yes|no, --wordnet yes|no, --lang ru|en: answers without a terminal; -y takes the defaults
 - --quality: BM25 + multilingual-e5-base (int8 ONNX, ~300 MB)
 - --lang en|ru (global): language of the labels
 

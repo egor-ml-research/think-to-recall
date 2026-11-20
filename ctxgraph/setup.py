@@ -425,9 +425,24 @@ SKIP_HINT = {"import": "ctxgraph setup --import-history yes", "graphify": "ctxgr
              "wordnet": "ctxgraph setup --wordnet yes", "model": "ctxgraph setup --quality -y"}
 
 
+def save_lang(home: str | None, lang: str) -> Path:
+    """The label language for every store under this home: "lang" in <home>/config.json."""
+    from ctxgraph import memory as MM
+
+    hdir = Path(home) if home else MM.HOME
+    hdir.mkdir(parents=True, exist_ok=True)
+    cfg = hdir / "config.json"
+    data = _read_json(cfg)
+    data["lang"] = lang
+    _write_json(cfg, data)
+    return cfg
+
+
 def run(project: Path, home: str | None, assume: bool | None, model: bool = True, history: bool = True,
-        quality: bool = False, flags: dict | None = None) -> dict:  # fmt: skip
+        quality: bool = False, flags: dict | None = None, lang: str | None = None) -> dict:  # fmt: skip
     project = project.resolve()
+    if lang:
+        print(f"Labels: {lang} ({save_lang(home, lang)})")
     flags = dict(flags or {})
     if not history:
         flags["import"] = False
