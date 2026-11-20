@@ -32,13 +32,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.0" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.1" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.0" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.1" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -46,10 +46,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.0" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.1" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.6.0 from GitHub. For finer English concepts in the
+The package is not on PyPI yet; the commands install release v0.6.1 from GitHub. For finer English concepts in the
 graph view, add the `english` extra. **Installing through an AI assistant?** Point it to
 [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
@@ -179,8 +179,8 @@ It is safe to repeat: saying it again later in the same chat adds only the new t
 Saved chats get the same statuses as Claude Code sessions (decisions, rules, reports) and the source "chat".
 
 **Claude Desktop extension (no developer mode).** Install ctxgraph once in a terminal (the `uv tool install` or
-`pipx install` command above), then download `ctxgraph-0.6.0.mcpb` from the
-[release page](https://github.com/egor-ml-research/think-to-recall/releases/tag/v0.6.0) and open it (or drag it
+`pipx install` command above), then download `ctxgraph-0.6.1.mcpb` from the
+[release page](https://github.com/egor-ml-research/think-to-recall/releases/tag/v0.6.1) and open it (or drag it
 into Claude Desktop → Settings → Extensions). Claude Desktop asks for the project folder; the memory of that folder
 is used. The extension contains no code: it runs the `ctxgraph-mcp` you installed (`~/.local/bin`).
 ctxgraph is not offered as a remote "custom connector" URL on purpose: a connector runs on a server, and this memory
