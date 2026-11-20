@@ -5,7 +5,7 @@ absent) after leaving out tests / scripts / examples / archive / docs, minified 
 git and paths listed in `overview.exclude` (gitignore-style, project root); tiny communities merged into their
 best-linked neighbour. Communities are ranked by 2*A + P + R: A - holds an entry point (a `[project.scripts]` module,
 an MCP tool decorator, `__main__`), P - summed PageRank (relative to the top one), R - the share of its files changed
-in the last 50 commits. Each is named by its entry files and most connected files, with up to 3 most connected
+in the last 50 commits. Communities with the same lead file share one line. Each is named by its entry files and most connected files, with up to 3 most connected
 functions / classes, the communities it links to (edge counts), and the 1-2 newest user decisions linked to it by an
 exact (case-insensitive) code name in the sentence or by the files of the commit its report names. Without a code
 graph: the conversation topics with their newest decisions and a hint to build the graph. Budget in characters
@@ -23,13 +23,15 @@ from pathlib import Path
 from ctxgraph.graphify import GENERIC, _norm_name
 
 MAX_CHARS = 1500  # 600 tokens x 2.54 chars/token (XLM-R, code-name heavy text), fixed before measuring
+MAX_TOKENS = 600  # hard (post-run rule of v0.5.7): XLM-R tokens when its tokenizer is cached, else chars / 2.3
+TOPLEVEL = re.compile(r"^(?:src/)?[^/]+/[^/]+\.py$|^[^/]+\.py$")
 MAX_SHOWN = 8
 RECENT = 50  # commits for R
 SKIP_FILE = re.compile(r"(^|/)(vendor|node_modules|dist|build|third_party|site-packages|\.venv)/|\.min\.(js|css)$")
 SKIP_DIR = re.compile(r"(^|/)(tests|scripts|examples|archive|docs)/")
 TEST_FILE = re.compile(r"(^|/)tests?/|(^|/)test_[^/]*$|_test\.[^/]*$")
 TOKEN = re.compile(r"[A-Za-z_][\w./\\-]*")
-TOOL = re.compile(r"^\s*@(\w+\.)*tool\b", re.M)
+TOOL_DEF = re.compile(r"^[ \t]*@(?:\w+\.)*tool\b[^\n]*\n(?:[ \t]*@[^\n]*\n)*[ \t]*(?:async[ \t]+)?def[ \t]+(\w+)", re.M)
 MAIN = re.compile(r"""if\s+__name__\s*==\s*["']__main__["']""")
 HASH = re.compile(r"\b[0-9a-f]{7,40}\b")
 
@@ -67,6 +69,29 @@ class Ignore:
         return any(r.match(path) for r in self.rx)
 
 
+_TOK: list = []
+
+
+def _ntok(text: str) -> int:
+    """XLM-R (multilingual-e5-base) tokens when `tokenizers` and the cached tokenizer.json are there (no download);
+    otherwise ceil(chars / 2.3), an overestimate (measured 2.48-3.19 chars/token)."""
+    if not _TOK:
+        tk = None
+        try:
+            from tokenizers import Tokenizer
+
+            from ctxgraph import model as M
+
+            f = M.snapshot_dir() / "tokenizer.json"
+            tk = Tokenizer.from_file(str(f)) if f.is_file() else None
+        except Exception:  # noqa: BLE001 - no tokenizer: the estimate
+            tk = None
+        _TOK.append(tk)
+    if _TOK[0] is not None:
+        return len(_TOK[0].encode(text, add_special_tokens=False).ids)
+    return -(-len(text) * 10 // 23)
+
+
 def _git(root: Path, *args: str, stdin: str | None = None) -> str:
     try:
         r = subprocess.run(["git", "-C", str(root), *args], input=stdin, capture_output=True, text=True,
@@ -100,9 +125,30 @@ def _excluded(root: Path | None, files: set[str], repo: bool) -> set[str]:
     return out
 
 
-def _entry_files(root: Path | None, files: set[str]) -> set[str]:
-    """(i) `[project.scripts]` modules, (ii) files with an MCP tool decorator, (iii) `__main__` files."""
-    out = {f for f in files if f.rsplit("/", 1)[-1] == "__main__.py"}
+def _is_file_node(label: str, file: str) -> bool:
+    base = file.rsplit("/", 1)[-1]
+    lab = label.lower()
+    return lab in (base.lower(), file.lower()) or lab.endswith("/" + base.lower())
+
+
+def _entry_nodes(root: Path | None, nodes: dict[str, tuple]) -> set[str]:
+    """The entry FUNCTIONS: (i) `[project.scripts]` targets, (ii) MCP tool functions, (iii) the functions called in an
+    `if __name__ == "__main__":` block (else the file node); `__main__.py` -> its file node."""
+    file_node: dict[str, str] = {}
+    by_name: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+    for nid in sorted(nodes):
+        label, file = nodes[nid][0], nodes[nid][1]
+        if _is_file_node(label, file):
+            file_node.setdefault(file, nid)
+        else:
+            by_name[file][_norm_name(label)].append(nid)
+    files = sorted({v[1] for v in nodes.values()})
+
+    def pick(f: str, names) -> list[str]:
+        hit = [n for nm in names for n in by_name[f].get(nm.lower(), [])]
+        return hit or ([file_node[f]] if f in file_node else [])
+
+    out = {file_node[f] for f in files if f.rsplit("/", 1)[-1] == "__main__.py" and f in file_node}
     if root is None:
         return out
     try:
@@ -112,19 +158,30 @@ def _entry_files(root: Path | None, files: set[str]) -> set[str]:
     except (OSError, ValueError):
         scripts = {}
     for target in scripts.values():
-        mod = str(target).split(":")[0].strip().replace(".", "/").lower()
-        out |= {f for f in files if f.endswith((mod + ".py", mod + "/__init__.py")) and
-                (f == mod + ".py" or f == mod + "/__init__.py" or f.endswith("/" + mod + ".py") or
-                 f.endswith("/" + mod + "/__init__.py"))}  # fmt: skip
+        mod, _, func = str(target).partition(":")
+        mod = mod.strip().replace(".", "/").lower()
+        for f in files:
+            if f in (mod + ".py", mod + "/__init__.py") or f.endswith(("/" + mod + ".py", "/" + mod + "/__init__.py")):
+                out |= set(pick(f, [func.strip()] if func.strip() else []))
     for f in files:
         p = root / f
         try:
-            if p.is_file() and p.stat().st_size <= 1_000_000:
-                t = p.read_text("utf-8", errors="replace")
-                if TOOL.search(t) or MAIN.search(t):
-                    out.add(f)
+            if not (p.is_file() and p.stat().st_size <= 1_000_000):
+                continue
+            t = p.read_text("utf-8", errors="replace")
         except OSError:
-            pass
+            continue
+        tools = TOOL_DEF.findall(t)
+        if tools:
+            out |= {n for nm in tools for n in by_name[f].get(nm.lower(), [])}
+        m = MAIN.search(t)
+        if m:
+            block = []
+            for ln in t[m.end():].split("\n")[1:]:
+                if ln.strip() and not ln[:1].isspace():
+                    break
+                block.append(ln)
+            out |= set(pick(f, re.findall(r"\b([A-Za-z_]\w*)\s*\(", "\n".join(block))))
     return out
 
 
@@ -224,18 +281,14 @@ def _code_map(db, root: Path | None) -> dict | None:
     edges = sorted({(a, b) for a, b in db.execute("SELECT src, dst FROM code_edges") if a in nodes and b in nodes and a != b})
     com = _merge_tiny(_communities(nodes, edges), edges)
     deg: Counter = Counter()
-    pair: Counter = Counter()
     for a, b in edges:
         deg[a] += 1
         deg[b] += 1
-        if com[a] != com[b]:
-            pair[(com[a], com[b])] += 1
-            pair[(com[b], com[a])] += 1
     members: dict[int, list[str]] = defaultdict(list)
     for n in sorted(nodes):
         members[com[n]].append(n)
-    files_all = {v[1] for v in nodes.values()}
-    entry = _entry_files(root, files_all)
+    entry = _entry_nodes(root, nodes)
+    entry_files = {nodes[n][1] for n in entry}
     recent = set()
     if repo:
         recent = {x.strip().lower() for x in _git(root, "log", "-n", str(RECENT), "--name-only", "--format=").splitlines()}
@@ -245,38 +298,68 @@ def _code_map(db, root: Path | None) -> dict | None:
     score = {}
     for c, ms in members.items():
         fs = {nodes[n][1] for n in ms}
-        score[c] = 2 * bool(fs & entry) + psum[c] / pmax + len(fs & recent) / len(fs)
+        score[c] = 2 * bool(entry.intersection(ms)) + psum[c] / pmax + len(fs & recent) / len(fs)
     order = sorted(members, key=lambda c: (-score[c], -len(members[c]), c))
+
+    def ranked_files(ms: list[str]) -> list[str]:
+        fscore: Counter = Counter()
+        for n in ms:
+            fscore[nodes[n][1]] += deg[n] + 1
+        ent = sorted((f for f in fscore if f in entry_files), key=lambda f: (-fscore[f], f))[:2]
+        rest = sorted(fscore, key=lambda f: (bool(TEST_FILE.search(f)), -fscore[f], f))
+        return ent + [f for f in rest if f not in ent]
+
+    # diversity: communities with the same lead file become one line, at the rank of the best of them
+    line_of: dict[str, int] = {}
+    into: dict[int, int] = {}
+    for c in order:
+        into[c] = line_of.setdefault(ranked_files(members[c])[0], c)
+    com = {n: into[c] for n, c in com.items()}
+    order = [c for c in order if into[c] == c]
+    members = defaultdict(list)
+    for n in sorted(nodes):
+        members[com[n]].append(n)
+    pair: Counter = Counter()
+    for a, b in edges:
+        if com[a] != com[b]:
+            pair[(com[a], com[b])] += 1
+            pair[(com[b], com[a])] += 1
     idx = {c: i + 1 for i, c in enumerate(order)}  # display ids c1, c2, ... by rank
+    # top-level module files are named on their home line (the line holding most of their nodes)
+    per_line = Counter((nodes[n][1], com[n]) for n in nodes)
+    home: dict[str, int] = {}
+    for (f, c), k in sorted(per_line.items()):
+        if TOPLEVEL.match(f) and not f.endswith("__init__.py") and (
+                f not in home or (k, -idx[c]) > (per_line[(f, home[f])], -idx[home[f]])):
+            home[f] = c
     info, owner = {}, defaultdict(set)
     for c in order:
-        fscore: Counter = Counter()
         syms: list[tuple[int, str]] = []
         for n in members[c]:
             label, file = nodes[n][0], nodes[n][1]
-            fscore[file] += deg[n] + 1
             base = file.rsplit("/", 1)[-1]
-            is_file = label.lower() in (base.lower(), file.lower()) or label.lower().endswith("/" + base.lower())
             for k in {base, _stem(base), *file.split("/")[:-1]}:
                 owner[k.lower()].add(c)
-            if not is_file:
+            if not _is_file_node(label, file):
                 owner[_norm_name(label)].add(c)
                 if not TEST_FILE.search(file):
                     syms.append((-deg[n], label.strip().removesuffix("()").lstrip(".")))
-        ent = sorted((f for f in fscore if f in entry), key=lambda f: (-fscore[f], f))[:2]
-        files = ent + [f for f in sorted(fscore, key=lambda f: (bool(TEST_FILE.search(f)), -fscore[f], f)) if f not in ent]
+        files = ranked_files(members[c])
         seen, top = set(), []
-        for _, s in sorted(syms):
-            if s not in seen and len(top) < 3:
-                seen.add(s)
-                top.append(s)
+        for _, sym in sorted(syms):
+            if sym not in seen and len(top) < 3:
+                seen.add(sym)
+                top.append(sym)
         names: list[str] = []
         for f in files:
             if len(names) < 3 and _base(f) not in names:
                 names.append(_base(f))
+        for f in files:
+            if home.get(f) == c and _base(f) not in names:
+                names.append(_base(f))
         links = sorted(((o, w) for (x, o), w in pair.items() if x == c), key=lambda t: (-t[1], idx[t[0]]))[:3]
         info[c] = {"size": len(members[c]), "files": names, "syms": top, "links": [(idx[o], w) for o, w in links],
-                   "fileset": set(fscore)}  # fmt: skip
+                   "fileset": set(files)}  # fmt: skip
     names = {k: next(iter(v)) for k, v in owner.items() if len(v) == 1 and len(k) >= 4 and k not in GENERIC}
     file_com = {nodes[n][1]: com[n] for n in sorted(nodes)}
     return {"order": order, "idx": idx, "info": info, "names": names, "nodes": len(nodes), "n_com": len(order),
@@ -324,7 +407,7 @@ def _link(mem, cm: dict, decs: list[tuple], root: Path | None) -> dict[int, list
     names = {k: c for k, c in cm["names"].items() if freq[k] <= cap}
     shown: dict[str, list[str]] = {}
     per: dict[int, list[tuple]] = defaultdict(list)
-    for (ts, ep, text, fid, ref), tk in zip(decs, toks):
+    for (ts, ep, text, fid, ref), tk in zip(decs, toks, strict=True):
         votes: Counter = Counter()
         first: dict[int, int] = {}
         for pos, cs in tk:
@@ -345,9 +428,12 @@ def _link(mem, cm: dict, decs: list[tuple], root: Path | None) -> dict[int, list
                                 _git(root, "show", "--name-only", "--format=", h).splitlines() if x.strip()]  # fmt: skip
                 cnt = Counter(cm["file_com"][f] for f in shown[h] if f in cm["file_com"])
                 if 1 <= sum(cnt.values()) <= 15:
-                    best = max(cnt, key=lambda c: (cnt[c], -cm["idx"][c]))
-                    votes[best] += 1
-                    commit = h[:7]
+                    tied = [c for c in cnt if cnt[c] == max(cnt.values())]
+                    if len(tied) > 1:  # a tie: only to a tied community that also has a name match, else no vote
+                        tied = sorted((c for c in tied if votes[c]), key=lambda c: (-votes[c], cm["idx"][c]))[:1]
+                    if tied:
+                        votes[tied[0]] += 1
+                        commit = h[:7]
         if not votes:
             continue
         c = max(votes, key=lambda x: (votes[x], -cm["idx"][x]))
@@ -369,30 +455,37 @@ def _render(head: str, items: list[dict], names: list[str], hidden: int, hint: s
 
 
 def _fit(head: str, items: list[dict], rest: list[str], hint: str, max_chars: int) -> str:
-    """Drop in the fixed order until the text fits: second decisions (lowest-ranked first) -> symbols -> links ->
-    whole communities (into "+N more"); then the "+N more" line takes as many names as still fit (folded first)."""
+    """Drop in the fixed order until the text fits (chars <= max_chars AND tokens <= MAX_TOKENS): second decisions
+    (lowest-ranked first) -> symbols -> links -> whole lines from the bottom (into "+N more"); then the "+N more" line
+    takes as many names as still fit (folded first); a text that still does not fit is cut."""
+
+    def fits(t: str) -> bool:
+        return len(t) <= max_chars and _ntok(t) <= MAX_TOKENS
+
     hidden = len(rest)
     text = _render(head, items, [], hidden, hint)
     for field in ("k", "syms", "links"):
         for it in reversed(items):
-            while len(text) > max_chars and (it[field] if field != "k" else it["k"] > 1):
+            while not fits(text) and (it[field] if field != "k" else it["k"] > 1):
                 if field == "k":
                     it["k"] -= 1
                 else:
                     it[field] = it[field][:-1]
                 text = _render(head, items, [], hidden, hint)
     folded: list[str] = []
-    while len(text) > max_chars and len(items) > 1:
+    while not fits(text) and len(items) > 1:
         folded.insert(0, items.pop()["short"])
         hidden += 1
         text = _render(head, items, [], hidden, hint)
     names: list[str] = []
     for nm in folded + rest:
-        if len(_render(head, items, names + [nm], hidden, hint)) > max_chars:
+        if not fits(_render(head, items, names + [nm], hidden, hint)):
             break
         names.append(nm)
     text = _render(head, items, names, hidden, hint)
-    return text if len(text) <= max_chars else text[:max_chars - 1] + "…"
+    while not fits(text) and len(text) > 1:
+        text = text[:max(1, min(len(text), max_chars) - 20)].rstrip() + "…"
+    return text
 
 
 def _line(it: dict) -> str:

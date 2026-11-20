@@ -107,7 +107,7 @@ def test_budget_on_5000_nodes(tmp_path, monkeypatch):
         f = f"pkg/mod_{i % 120:03d}.py"
         nodes.append({"id": f"n{i}", "label": f"function_with_long_name_{i}()", "source_file": f, "file_type": "code",
                       "community": i // 20})  # fmt: skip
-    for i in range(12000):
+    for _ in range(12000):
         a = rnd.randrange(5000)
         b = a + rnd.randrange(1, 40) if rnd.random() < 0.8 else rnd.randrange(5000)
         links.append({"source": f"n{a}", "target": f"n{b % 5000}", "relation": "calls"})
@@ -121,6 +121,9 @@ def test_budget_on_5000_nodes(tmp_path, monkeypatch):
     GF.import_graph(m.db_path, tmp_path / "g.json")
     text = overview(m)
     assert len(text) <= MAX_CHARS and text == overview(m)
+    from ctxgraph.overview import MAX_TOKENS, _ntok
+
+    assert _ntok(text) <= MAX_TOKENS
     assert sum(ln.startswith("#c") for ln in text.splitlines()) >= 1
 
 
@@ -197,3 +200,71 @@ def test_ignore_patterns():
     assert ig("benchmark_e1b/run.py") and ig("a/benchmark_e1/x.py") and ig("ctxgraph/e1/runner.py")
     assert not ig("pkg/ctxgraph/e1/runner.py") and not ig("ctxgraph/e1b/x.py") and ig("pkg.egg-info/PKG")
     assert ig("docs/a/b/x.py") and not ig("keep.py")
+
+
+def test_entry_nodes_are_functions_not_files(tmp_path):
+    from ctxgraph.overview import _entry_nodes
+
+    root = tmp_path / "p"
+    (root / "shop").mkdir(parents=True)
+    (root / "pyproject.toml").write_text('[project.scripts]\nshop = "shop.cart:add_item"\n', "utf-8")
+    (root / "shop/cart.py").write_text("def add_item():\n    pass\n", "utf-8")
+    (root / "shop/api.py").write_text("@server.tool()\n@cached\ndef cart_total():\n    pass\n\ndef helper():\n    pass\n",
+                                      "utf-8")  # fmt: skip
+    (root / "shop/run.py").write_text('def go():\n    pass\n\nif __name__ == "__main__":\n    go()\nprint(1)\n', "utf-8")
+    nodes = {"f1": ("cart.py", "shop/cart.py", "code", 0), "a": ("add_item()", "shop/cart.py", "code", 1),
+             "f2": ("api.py", "shop/api.py", "code", 2), "t": ("cart_total()", "shop/api.py", "code", 3),
+             "h": ("helper()", "shop/api.py", "code", 2), "f3": ("run.py", "shop/run.py", "code", 4),
+             "g": ("go()", "shop/run.py", "code", 5)}  # fmt: skip
+    assert _entry_nodes(root, nodes) == {"a", "t", "g"}
+
+
+def test_one_line_per_file(tmp_path, monkeypatch):
+    m = _mem(tmp_path, monkeypatch, graph=False)
+    g = json.loads(_graph(tmp_path / "graph.json").read_text("utf-8"))
+    for n in g["nodes"]:  # cart.py split by Graphify into two communities
+        if n["id"] in ("shop_cart.py_apply_coupon", "shop_cart.py_cart_items", "shop_cart.py_CartLine",
+                       "shop_cart.py_cart_total", "shop_cart.py_remove_item"):  # fmt: skip
+            n["community"] = 7
+    (tmp_path / "graph.json").write_text(json.dumps(g), "utf-8")
+    GF.import_graph(m.db_path, tmp_path / "graph.json")
+    text = overview(m)
+    assert sum(ln.split()[1].rstrip(",") == "cart.py" for ln in text.splitlines() if ln.startswith("#c")) == 1
+    assert text.startswith("Project map: 3 code areas")
+
+
+def test_commit_tie_without_a_name_does_not_link(tmp_path, monkeypatch):
+    root = _project(tmp_path)
+    _git(root, "init", "-q")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "init")
+    (root / "shop/payments.py").write_text("RETRIES = 3\n", "utf-8")
+    (root / "shop/cart.py").write_text("RETRIES = 3\n", "utf-8")
+    _git(root, "commit", "-q", "-am", "retries")
+    h = _git(root, "rev-parse", "HEAD")
+    turns = [_t(1, "Решили: делаем повторные попытки для платежей.", "2026-11-10T10:00:00Z"),
+             {**_t(2, f"Повторные попытки для платежей готовы, коммит {h[:7]}.", "2026-11-10T11:00:00Z"),
+              "role": "assistant"}]  # fmt: skip
+    text = overview(_mem(tmp_path, monkeypatch, turns))
+    assert "повторные попытки" not in text and "→" not in text
+
+
+def test_top_level_modules_named_on_their_home_line(tmp_path, monkeypatch):
+    m = _mem(tmp_path, monkeypatch, graph=False)
+    g = json.loads(_graph(tmp_path / "graph.json").read_text("utf-8"))
+    for i, f in enumerate(["shop/alpha.py", "shop/beta.py", "shop/gamma.py", "shop/delta.py"]):
+        g["nodes"].append({"id": f"e{i}", "label": f"fn_{i}()", "source_file": f, "file_type": "code", "community": 0})
+        g["links"].append({"source": "shop_cart.py", "target": f"e{i}", "relation": "calls"})
+    (tmp_path / "graph.json").write_text(json.dumps(g), "utf-8")
+    GF.import_graph(m.db_path, tmp_path / "graph.json")
+    line = next(ln for ln in overview(m).splitlines() if ln.startswith("#c") and " cart.py" in ln)
+    assert all(x in line for x in ("alpha.py", "beta.py", "gamma.py", "delta.py"))
+
+
+def test_hard_token_limit(tmp_path, monkeypatch):
+    from ctxgraph import overview as O
+
+    m = _mem(tmp_path, monkeypatch)
+    monkeypatch.setattr(O, "MAX_TOKENS", 60)
+    text = O.overview(m)
+    assert O._ntok(text) <= 60 and text.startswith("Project map:")
