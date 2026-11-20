@@ -10,6 +10,7 @@
     ctxgraph hook-stop              # Claude Code Stop hook: queues the transcript (fast, no model load)
     ctxgraph hook-start             # Claude Code SessionStart hook: one line of open "later" items
     ctxgraph later                  # open "later" items (chat + .beads/*.jsonl, read-only)
+    ctxgraph overview               # a map of the project: code areas + their newest decisions (<= ~600 tokens)
 
 All commands work on the project in the current directory (or --project / CTXGRAPH_PROJECT).
 """
@@ -152,6 +153,12 @@ def cmd_hook_start(a) -> None:
         pass
 
 
+def cmd_overview(a) -> None:
+    from ctxgraph.overview import overview
+
+    print(overview(_mem(a.project), max_chars=a.max_chars))
+
+
 def cmd_later(a) -> None:
     from ctxgraph.memory import format_later
 
@@ -235,6 +242,9 @@ def main(argv=None) -> None:
     sub.add_parser("mcp").set_defaults(f=lambda a: __import__("ctxgraph.memory_mcp", fromlist=["main"]).main())
     sub.add_parser("hook-stop").set_defaults(f=cmd_hook_stop)
     sub.add_parser("hook-start").set_defaults(f=cmd_hook_start)
+    p = sub.add_parser("overview", help="a map of the project (<= ~600 tokens): code areas + their newest decisions")
+    p.add_argument("--max-chars", type=int, default=1500)
+    p.set_defaults(f=cmd_overview)
     p = sub.add_parser("later", help="open 'later' items: deferred decisions, 'later' answers, deferred Beads issues")
     p.add_argument("--limit", type=int, default=50)
     p.set_defaults(f=cmd_later)

@@ -22,6 +22,8 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 - **One command to connect.** `ctxgraph setup` writes the MCP config and the hook for the project you are in.
 - **Small answers.** When nothing in memory is about the question, recall answers in one line instead of a block.
   One-line records show the sentence that answers the question, and in one session a record is not repeated.
+- **A project map in one call.** `overview` gives a new chat the areas of the code (from the Graphify graph:
+  main files, functions, links) with the newest decisions about each, in about 600 tokens, without reading code.
 - **A graph you can look at.** `ctxgraph view` opens a local 2D or 3D map of topics, concepts and decisions. A
   [Graphify](https://github.com/Graphify-Labs/graphify) code graph can be shown on the same map.
 
@@ -30,13 +32,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.5" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.5" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -44,10 +46,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.5" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.5.4 from GitHub. For finer English concepts in the
+The package is not on PyPI yet; the commands install release v0.5.5 from GitHub. For finer English concepts in the
 graph view, add the `english` extra. **Installing through an AI assistant?** Point it to
 [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
@@ -131,6 +133,7 @@ In Claude Code the assistant gets these tools:
 | tool | what it does |
 |---|---|
 | `recall(question, steps, detail)` | finds earlier turns relevant to the question and to the assistant's reasoning steps; `detail="brief"` gives one line per record (date, status, topic, gist, `#id`), `"mixed"` the best records in full and the rest as lines; one line when nothing is about the question; `fresh=True` repeats records already shown in the session |
+| `overview()` | a map of the project in ≤ ~600 tokens without reading code: areas of the Graphify code graph (main files, functions, links between areas) with the newest decisions that name their code; without a code graph, conversation topics with their newest decisions. Call it first in a new chat |
 | `expand(id)` | one record in full (exact wording, numbers, commits) and the thread of its topic by date: how it started, what changed, the reports |
 | `decisions(limit)` | the decision chronology, newest first, with confirmations and reports |
 | `later(limit)` | what was put off: decisions on hold ("later", "на потом", TODO), proposals you answered "later", and deferred [Beads](https://github.com/gastownhall/beads) issues from `.beads/*.jsonl` (read only). An item closes itself when a later report of done work matches it; recall adds a line of open items on the same topic |

@@ -36,10 +36,10 @@ want any downloads, use `--wordnet no`.
 ## 3. Install
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4"
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.5"
 ```
 
-Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.4"`.
+Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.5"`.
 
 Optional extras (only if the user asks):
 - `[quality]` - better recall: BM25 + multilingual-e5-base (int8 ONNX, about 300 MB, downloaded once). Install
@@ -76,13 +76,15 @@ ctxgraph status
 ctxgraph decisions --limit 5
 ```
 
-After the restart, call the MCP tool `recall` with a question about an earlier decision.
+After the restart, call the MCP tool `overview` (the project map), then `recall` with a question about an earlier decision.
+In every new chat, call `overview` first.
 
 ## 6. Tools and when to call them
 
 | tool | when |
 |---|---|
 | `recall(question, steps, k=6, detail="full", fresh=False)` | before answering about earlier decisions, rules or work; `steps` are your reasoning steps; `detail="brief"` gives one line per record, `"mixed"` the best in full and the rest as lines; `fresh=True` repeats records already shown in this session |
+| `overview()` | FIRST in a new chat: the project map in ≤ ~600 tokens (code areas from the Graphify graph with their newest decisions; without a code graph, conversation topics) |
 | `expand(record_id)` | a record from `recall` in full plus its thread by date (how it started, what changed, the reports) |
 | `decisions(limit)` | the decision chronology, newest first, with confirmations and reports |
 | `later(limit)` | open "later" items: decisions on hold, proposals answered "later", deferred Beads issues; call it when the user asks what was put off or the session line mentions open items |
