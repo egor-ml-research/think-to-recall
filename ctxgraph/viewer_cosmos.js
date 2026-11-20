@@ -138,7 +138,7 @@ const COS = (() => {
   }
   let neb = null;
   function nebula() {
-    neb = document.createElement("canvas"); neb.width = W; neb.height = H; const g = neb.getContext("2d");
+    neb = document.createElement("canvas"); neb.width = Math.max(1, W); neb.height = Math.max(1, H); const g = neb.getContext("2d");
     const blobs = [[0.5, 0.5, 0.55, "60,50,110", 0.22], [0.3, 0.35, 0.4, "40,70,120", 0.14], [0.72, 0.62, 0.45, "90,50,100", 0.13],
       [0.62, 0.28, 0.3, "130,90,60", 0.07], [0.2, 0.8, 0.35, "50,60,90", 0.12], [0.88, 0.15, 0.3, "70,60,120", 0.08]];
     blobs.forEach(([x, y, r, c, a]) => { const R0 = r * Math.max(W, H);
@@ -323,7 +323,7 @@ const COS = (() => {
   // the same starfield and nebula, still, behind the 2D / 3D graphs
   function drawSky() {
     const c = $("#sky"); if (!c) return;
-    const w = stage.clientWidth || innerWidth, h = stage.clientHeight || innerHeight, d = Math.min(2, devicePixelRatio || 1);
+    const w = stage.clientWidth || innerWidth || 1, h = stage.clientHeight || innerHeight || 1, d = Math.min(2, devicePixelRatio || 1);
     c.width = w * d; c.height = h * d; const g = c.getContext("2d"); g.setTransform(d, 0, 0, d, 0, 0);
     g.fillStyle = "#030306"; g.fillRect(0, 0, w, h); W = w; H = h; nebula(); g.drawImage(neb, 0, 0, w, h);
     for (const st of stars) { g.globalAlpha = st.a * 0.85; g.fillStyle = st.c; g.fillRect((st.x * 0.5 + 0.5) * w, (st.z * 0.5 + 0.5) * h, st.s, st.s); }
@@ -486,7 +486,9 @@ const COS = (() => {
   };
 })();
 window.COS = COS;
-COS.sky();
+// the background must never stop the page: a window without a size yet (opened in the background) used to throw
+try { COS.sky(); } catch (e) { console.warn("sky", e); }
+addEventListener("load", () => { try { COS.sky(); } catch (e) {} });
 $("#openDash").onclick = () => COS.openDash();
 { let m0 = DATA.mode; if (!m0) try { m0 = localStorage.getItem("ctxgraph.mode"); } catch (e) {}
   if (m0 === "3d" || m0 === "cosmos") setMode(m0); }
