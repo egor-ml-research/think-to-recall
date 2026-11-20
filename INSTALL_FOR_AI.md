@@ -25,10 +25,10 @@ not want any downloads, use `--wordnet no`.
 ## 3. Install
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.2"
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3"
 ```
 
-Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.2"`.
+Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3"`.
 
 Optional extras (only if the user asks):
 - `[quality]` - better recall: BM25 + multilingual-e5-base (int8 ONNX, about 300 MB, downloaded once). Install
@@ -88,8 +88,9 @@ hold, report, rule, proposal). A later decision replaces an earlier one on the s
 
 When nothing in memory is about the question, recall returns one line ("Nothing in memory on this question" /
 "В памяти нет записей по этому вопросу") instead of a block: there is no earlier decision to rely on. With
-`detail="brief"`, a record already shown in this session is one line "#id — shown above in this session": it is in
-your context above; if it is not any more (after context compaction), call `expand(id)` or pass `fresh=True`.
+`detail="brief"`, a record already shown in this session is one line "#id (shown earlier): date · gist": the full
+line is in your context above. After a context compaction or in a new session the records are shown in full again;
+`expand(id)` or `fresh=True` give them in full at any time.
 Dates of the current year are `MM-DD`; ids are short prefixes that `expand` accepts.
 
 Labels follow the project's language; `ctxgraph --lang en|ru ...` or `CTXGRAPH_LANG` sets it.

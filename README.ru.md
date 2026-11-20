@@ -29,13 +29,13 @@ Code. Перед ответом ассистент может спросить �
 Одна строка (Python 3.11+ и [uv](https://docs.astral.sh/uv/)), из папки проекта, который хотите подключить:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.2" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3" && ctxgraph setup
 ```
 
 С [pipx](https://pipx.pypa.io/) вместо uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.2" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3" && ctxgraph setup
 ```
 
 **Работает сразу, без загрузки модели.** Поиск — BM25 по вашим разговорам; установка около 125 МБ. Режим качества —
@@ -43,10 +43,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 ещё несколько ответов, сформулированных иначе, чем вопрос:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.2" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.3" && ctxgraph setup --quality
 ```
 
-Пакета пока нет в PyPI; команды ставят релиз v0.5.2 с GitHub. Для более точных английских понятий на карте графа
+Пакета пока нет в PyPI; команды ставят релиз v0.5.3 с GitHub. Для более точных английских понятий на карте графа
 добавьте набор `english`. **Ставите через ИИ-ассистента?** Дайте ему [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
 `setup` задаёт все вопросы один раз, до начала работы; Enter выбирает ответ по умолчанию:
@@ -186,9 +186,9 @@ ctxgraph view --3d
 по смыслу), recall отвечает одной строкой «В памяти нет записей по этому вопросу» вместо блока. В записях одной
 строкой (`detail="brief"` и короткие записи `"mixed"`) суть — то предложение решения или отчёта, у которого больше
 всего общих слов с вопросом. Метки короткие: `11-18` для даты этого года, короткий `#id`, который принимает
-`expand`, тема один раз на серию строк. С `detail="brief"` запись, уже показанная в этой сессии, приходит строкой
-«`#id` — показано выше в этой сессии»; `recall(..., fresh=True)` снова показывает всё. `CTXGRAPH_ECONOMY=off` возвращает
-прежнее поведение.
+`expand`, тема один раз на серию строк. С `detail="brief"` запись, уже показанная в этой сессии, приходит короткой
+строкой «`#id` (показано ранее): дата · суть». После сжатия контекста и в новой сессии все записи снова показываются
+полностью; `recall(..., fresh=True)` делает то же сразу. `CTXGRAPH_ECONOMY=off` возвращает прежнее поведение.
 
 **Закреплённые правила.** Постоянные правила, которые вы называете («всегда…», «никогда…», «по умолчанию…», «ключи
 только в `.env`»), закрепляются и показываются в начале каждого ответа `recall`, каким бы ни был вопрос. Правила можно

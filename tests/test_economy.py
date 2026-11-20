@@ -63,12 +63,12 @@ def test_b_no_repeats_within_a_session_and_fresh(tmp_path, monkeypatch):
     m = _mem(tmp_path, monkeypatch, EN)
     monkeypatch.setattr(memory_mcp, "_mem", m)
     first = memory_mcp.recall("Which database did we choose?", detail="brief")
-    assert "shown above in this session" not in first and "SQLite" in first
+    assert "shown earlier" not in first and "SQLite" in first
     again = memory_mcp.recall("Which database did we choose?", detail="brief")
-    stubs = re.findall(r"^- #(\w+) — shown above in this session$", again, re.M)
+    stubs = re.findall(r"^- #(\w+) \(shown earlier\): \d\d-\d\d · .+$", again, re.M)
     assert stubs and "Switched to SQLite" not in again
     assert "Switched to SQLite" in m.expand(stubs[0])  # expand still gives the record in full
-    assert "shown above" not in memory_mcp.recall("Which database did we choose?", detail="brief", fresh=True)
+    assert "shown earlier" not in memory_mcp.recall("Which database did we choose?", detail="brief", fresh=True)
     # the CLI path (no session) never stubs
     cli = _mem(tmp_path / "cli", monkeypatch, EN)
     h = cli.recall("Which database did we choose?", k=6)
@@ -104,3 +104,30 @@ def test_d_topic_shown_once_in_a_row(tmp_path, monkeypatch):
              "- 01-03 · decision · topic: api · #cccc: z"]
     assert m._dedupe_topics(lines) == ["- 01-01 · decision · topic: db · #aaaa: x", "- 01-02 · decision · #bbbb: y",
                                        "- 01-03 · decision · topic: api · #cccc: z"]
+
+
+def test_b_shown_records_reset_on_compaction_and_new_session(tmp_path, monkeypatch):
+    import ctxgraph.memory as MM
+
+    m = _mem(tmp_path, monkeypatch, EN)
+    tdir = tmp_path / "transcripts"
+    tdir.mkdir()
+    monkeypatch.setattr(MM, "claude_project_dir", lambda p: tdir)
+    monkeypatch.setattr(memory_mcp, "_mem", m)
+    s1 = tdir / "s1.jsonl"
+    s1.write_text('{"type":"user","message":{"role":"user","content":"hi"}}\n', "utf-8")
+    q = "Which database did we choose?"
+    assert "shown earlier" not in memory_mcp.recall(q, detail="brief")
+    assert "shown earlier" in memory_mcp.recall(q, detail="brief")
+    with open(s1, "a", encoding="utf-8") as f:  # the context was compacted
+        f.write('{"type":"user","isCompactSummary":true,"message":{"role":"user","content":"This session is being '
+                'continued from a previous conversation"}}\n')
+    assert "shown earlier" not in memory_mcp.recall(q, detail="brief")
+    assert "shown earlier" in memory_mcp.recall(q, detail="brief")
+    import os, time
+
+    s2 = tdir / "s2.jsonl"  # a new session: a newer transcript
+    s2.write_text('{"type":"user","message":{"role":"user","content":"hi"}}\n', "utf-8")
+    t = time.time() + 5
+    os.utime(s2, (t, t))
+    assert "shown earlier" not in memory_mcp.recall(q, detail="brief")

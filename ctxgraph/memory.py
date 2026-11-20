@@ -92,7 +92,7 @@ TEXTS = {
            "done": "сделано", "answer": "ответ ассистента", "request": "просьба ассистента",
            "proposal_of": "предложение ассистента", "on": "на", "same_entity": "та же сущность", "topic": "тема", "later": "на потом", "later_topic": "на потом по этой теме", "later_line": "На потом — открытых пунктов: {n}; последний: «{text}» ({date}). `later` — список.", "later_none": "На потом: открытых пунктов нет.", "beads": "Beads", "chat": "чат", "topic_hint": "без названия: нет данных WordNet, `ctxgraph setup` скачает их (~10 МБ)",
            "done_by_user": "выполнено пользователем", "ref_reply": "справка — отчёт в ответе", "ref": "справка — отчёт",
-           "nothing": "В памяти нет записей по этому вопросу.", "shown_above": "показано выше в этой сессии",
+           "nothing": "В памяти нет записей по этому вопросу.", "shown_earlier": "показано ранее",
            "s_decision": "решение", "s_no": "отказ", "s_report": "отчёт", "s_applied": "сделано",
            "s_proposal": "предложение, не применено", "s_confirm": "решение: подтверждено"},
     "en": {"decision": "decision", "rule": "rule", "said": "user", "report": "assistant's final report",
@@ -104,7 +104,7 @@ TEXTS = {
            "request": "assistant's request", "proposal_of": "assistant's proposal", "on": "on",
            "same_entity": "same entity", "topic": "topic", "later": "later", "later_topic": "later, on this topic", "later_line": "Later — open items: {n}; newest: «{text}» ({date}). `later` lists them.", "later_none": "Later: nothing open.", "beads": "Beads", "chat": "chat", "topic_hint": "unnamed: WordNet data is missing, `ctxgraph setup` downloads it (~10 MB)", "done_by_user": "done by the user",
            "ref_reply": "for reference - the report in the reply", "ref": "for reference - the report",
-           "nothing": "Nothing in memory on this question.", "shown_above": "shown above in this session",
+           "nothing": "Nothing in memory on this question.", "shown_earlier": "shown earlier",
            "s_decision": "decision", "s_no": "rejected", "s_report": "report", "s_applied": "done",
            "s_proposal": "proposal, not applied", "s_confirm": "decision: confirmed"},
 }
@@ -1119,7 +1119,37 @@ class ProjectMemory:
         return short_status_label(status, ref) if "d" in self.economy else status_label(status, ref)
 
     def _stub_line(self, h: Hit) -> str:
-        return f"- #{self._id(h.episode)} — {L('shown_above')}"
+        """Economy (b): a record shown earlier in this session - one line, its date and the gist."""
+        body = self._gist(h.proposal) if h.status in ("confirm", "closed") and h.proposal is not None else self._gist(h)
+        return f"- #{self._id(h.episode)} ({L('shown_earlier')}): {self._d(h.ts)} · {body}"
+
+    def sync_session(self) -> None:
+        """Economy (b): forget the shown records when a new Claude Code session starts or the current one is compacted
+        (a compaction summary appears in its transcript) - what was shown is no longer in the model's context. The
+        session is the newest transcript of the project; its file is read only from where the last check stopped."""
+        d = claude_project_dir(self.project)
+        try:
+            path = max(d.glob("*.jsonl"), key=lambda p: p.stat().st_mtime)
+        except (ValueError, OSError):
+            return
+        st = getattr(self, "_sess", None)
+        if st is None or st["path"] != path:
+            # a new session (or the first call): what was shown before belongs to another context
+            self._sess = st = {"path": path, "offset": 0, "marks": 0}
+            self._shown = set()
+        try:
+            with open(path, "rb") as f:
+                f.seek(st["offset"])
+                chunk = f.read()
+        except OSError:
+            return
+        end = chunk.rfind(b"\n") + 1  # only whole lines; a half-written one is read next time
+        new = len(re.findall(rb'"isCompactSummary"\s*:\s*true|This session is being continued from a previous',
+                             chunk[:end]))  # fmt: skip
+        st["offset"] += end
+        if new:
+            st["marks"] += new
+            self._shown = set()
 
     def _dedupe_topics(self, items: list[str]) -> list[str]:
         """Compact labels (d): a topic name only where it differs from the previous line's."""
