@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/media/ctxgraph_icon.svg" width="140" alt="логотип ctxgraph"></p>
+
 # ctxgraph — память решений для ИИ-ассистентов программиста
 
 [English](README.md) · **Русский**

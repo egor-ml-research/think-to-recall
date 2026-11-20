@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/media/ctxgraph_icon.svg" width="140" alt="ctxgraph logo"></p>
+
 # ctxgraph — decision memory for AI coding assistants
 
 **English** · [Русский](README.ru.md)
