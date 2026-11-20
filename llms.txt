@@ -10,7 +10,7 @@
 
 ## MCP tools
 
-- overview(): call FIRST in a new chat - the project map in <= ~600 tokens without reading code: Graphify code communities (main files, functions, links) with the newest decisions that name their code; without a code graph, conversation topics with their newest decisions and a hint to run `ctxgraph setup --graphify yes`
+- overview(): call FIRST in a new chat - the project map in <= ~600 tokens without reading code: Graphify code communities (main files, functions, links) ranked by entry points, PageRank and recent commits, with the newest decisions that name their code or whose commit touched it; tests/scripts/docs, git-ignored paths and overview.exclude patterns (gitignore-style, project root) are left out; without a code graph, conversation topics with their newest decisions and a hint to run `ctxgraph setup --graphify yes`
 - recall(question, steps, k, detail, fresh): earlier turns relevant to the question and reasoning steps; detail full / brief / mixed; one line when nothing is about the question; in brief, records already shown in the session are one line "#id (shown earlier): date · gist" (reset after compaction and in a new session; fresh=True repeats them)
 - expand(record_id): one record in full plus its thread by date
 - decisions(limit): decision chronology with confirmations and reports

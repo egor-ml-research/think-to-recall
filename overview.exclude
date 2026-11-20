@@ -1,0 +1,23 @@
+# Paths left out of `ctxgraph overview` (gitignore-style: `dir/`, `*`, `**`, a `/` anchors at the project root).
+# Research code of this repo: benchmarks, experiments, the v1 engine; the product is the decision memory.
+benchmark_e1*/
+benchmark_e3/
+kaggle/
+reports/
+out/
+build/
+demo/
+*.egg-info/
+/ctxgraph/e1/
+/ctxgraph/e1b/
+/ctxgraph/e3/
+/ctxgraph/graph.py
+/ctxgraph/menu.py
+/ctxgraph/mcp_server.py
+/ctxgraph/__init__.py
+/ctxgraph/sources/conceptnet.py
+/ctxgraph/sources/experience.py
+/ctxgraph/sources/wikidata.py
+/ctxgraph/v2/gate.py
+/ctxgraph/v2/planner.py
+/ctxgraph/v2/sleeves.py

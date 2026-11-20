@@ -33,13 +33,13 @@ Code. Перед ответом ассистент может спросить �
 Одна строка (Python 3.11+ и [uv](https://docs.astral.sh/uv/)), из папки проекта, который хотите подключить:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.5" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.6" && ctxgraph setup
 ```
 
 С [pipx](https://pipx.pypa.io/) вместо uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.5" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.6" && ctxgraph setup
 ```
 
 **Работает сразу, без загрузки модели.** Поиск — BM25 по вашим разговорам; установка около 125 МБ. Режим качества —
@@ -47,10 +47,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 ещё несколько ответов, сформулированных иначе, чем вопрос:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.5" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.6" && ctxgraph setup --quality
 ```
 
-Пакета пока нет в PyPI; команды ставят релиз v0.5.5 с GitHub. Для более точных английских понятий на карте графа
+Пакета пока нет в PyPI; команды ставят релиз v0.5.6 с GitHub. Для более точных английских понятий на карте графа
 добавьте набор `english`. **Ставите через ИИ-ассистента?** Дайте ему [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
 `setup` задаёт все вопросы один раз, до начала работы; Enter выбирает ответ по умолчанию:
@@ -134,7 +134,7 @@ uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/e
 | инструмент | что делает |
 |---|---|
 | `recall(question, steps, detail)` | находит прежние реплики, относящиеся к вопросу и к шагам рассуждения ассистента; `detail="brief"` — одна строка на запись (дата, статус, тема, суть, `#id`), `"mixed"` — лучшие записи полностью, остальные строками; одна строка, если по вопросу ничего нет; `fresh=True` повторяет уже показанные в сессии записи |
-| `overview()` | карта проекта в ≤ ~600 токенах без чтения кода: части графа кода Graphify (главные файлы, функции, связи между частями) с последними решениями, где назван их код; без графа кода — темы разговоров с последними решениями. Вызывать первым в новом чате |
+| `overview()` | карта проекта в ≤ ~600 токенах без чтения кода: части графа кода Graphify (главные файлы, функции, связи между частями) по рангу — точки входа, PageRank, свежие коммиты — с последними решениями, где назван их код или чей коммит его менял (tests / scripts / docs, пути из .gitignore и шаблоны файла `overview.exclude` не учитываются); без графа кода — темы разговоров с последними решениями. Вызывать первым в новом чате |
 | `expand(id)` | одна запись целиком (точные формулировки, числа, коммиты) и цепочка её темы по датам: с чего началось, что поменялось, отчёты |
 | `decisions(limit)` | хронология решений, новые сверху, с подтверждениями и отчётами |
 | `later(limit)` | отложенное: решения «на потом» («потом», «на потом», TODO, later), предложения, на которые вы ответили «потом», и отложенные задачи [Beads](https://github.com/gastownhall/beads) из `.beads/*.jsonl` (только чтение). Пункт закрывается сам, когда позже приходит отчёт о сделанном; к выдаче recall добавляется строка открытых пунктов по той же теме |

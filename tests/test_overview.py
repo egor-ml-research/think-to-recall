@@ -49,7 +49,7 @@ TURNS = [
     _t(3, "We decided: ship_order sends no email inline.", "2026-11-05T10:00:00Z"),
     _t(4, "Decided to rename OrderStatus values to lower case.", "2026-11-07T10:00:00Z"),
     _t(5, "Решили не трогать дизайн писем до релиза.", "2026-11-08T10:00:00Z"),
-    _t(6, "We decided the payments page stays as is.", "2026-11-09T10:00:00Z"),
+    _t(6, "We decided the checkout page stays as is.", "2026-11-09T10:00:00Z"),
 ]
 
 
@@ -67,7 +67,7 @@ def test_map_names_communities_links_and_decisions(tmp_path, monkeypatch):
     m = _mem(tmp_path, monkeypatch)
     text = overview(m)
     lines = text.splitlines()
-    assert lines[0].startswith("Project map: 3 code communities, 19 nodes")  # vendor + rationale nodes left out
+    assert lines[0].startswith("Project map: 3 code areas, 19 nodes")  # vendor + rationale nodes left out
     assert "lib.min.js" not in text and "Zq" not in text
     rows = {ln.split()[1]: ln for ln in lines if ln.startswith("#c")}
     assert set(rows) == {"cart.py", "payments.py", "orders.py"}
@@ -81,7 +81,7 @@ def test_map_names_communities_links_and_decisions(tmp_path, monkeypatch):
             names = {"cart.py": MODS["shop/cart.py"], "payments.py": MODS["shop/payments.py"] + ["payments.py"],
                      "orders.py": MODS["shop/orders.py"]}[owner]  # fmt: skip
             assert any(n in ln for n in names), ln
-    assert "дизайн писем" not in text and "payments page" not in text
+    assert "дизайн писем" not in text and "checkout page" not in text
     assert "charge_card повторяет" in text and "OrderStatus values" in text
 
 
@@ -128,6 +128,72 @@ def test_fallback_without_code_graph(tmp_path, monkeypatch):
     m = _mem(tmp_path, monkeypatch, graph=False)
     text = overview(m)
     assert "ctxgraph setup --graphify yes" in text and len(text) <= MAX_CHARS
-    assert "payments page" in text  # the newest decisions still shown
+    assert "checkout page" in text  # the newest decisions still shown
     empty = ProjectMemory(tmp_path / "e", home=tmp_path / "home2")
     assert "empty" in overview(empty)
+
+
+def _git(root, *a):
+    import subprocess
+
+    return subprocess.run(["git", "-C", str(root), "-c", "user.email=t@t", "-c", "user.name=t", *a], check=True,
+                          capture_output=True, text=True).stdout.strip()  # fmt: skip
+
+
+def _project(tmp_path):
+    """The shop project on disk: orders.py is an entry point; tests/ and an overview.exclude entry are left out."""
+    root = tmp_path / "proj"
+    for f in MODS:
+        (root / f).parent.mkdir(parents=True, exist_ok=True)
+        (root / f).write_text("x = 1\n", "utf-8")
+    (root / "shop/orders.py").write_text('def main():\n    pass\n\nif __name__ == "__main__":\n    main()\n', "utf-8")
+    (root / "overview.exclude").write_text("# research\n/shop/legacy/\n", "utf-8")
+    return root
+
+
+def _extra_nodes(path):
+    g = json.loads(path.read_text("utf-8"))
+    for i, f in enumerate(["tests/test_cart.py", "scripts/bench.py", "shop/legacy/old.py"]):
+        for j in range(6):
+            g["nodes"].append({"id": f"x{i}_{j}", "label": f"helper_{i}_{j}()", "source_file": f, "file_type": "code",
+                               "community": 20 + i})  # fmt: skip
+            if j:
+                g["links"].append({"source": f"x{i}_0", "target": f"x{i}_{j}", "relation": "calls"})
+    path.write_text(json.dumps(g), "utf-8")
+
+
+def test_exclusions_and_entry_point_ranking(tmp_path, monkeypatch):
+    _project(tmp_path)
+    m = _mem(tmp_path, monkeypatch, graph=False)
+    _extra_nodes(_graph(tmp_path / "graph.json"))
+    GF.import_graph(m.db_path, tmp_path / "graph.json")
+    text = overview(m)
+    assert "helper_" not in text and "test_cart" not in text and "bench.py" not in text and "old.py" not in text
+    assert text.splitlines()[1].startswith("#c1 orders.py")  # the entry point ranks first
+
+
+def test_decision_linked_by_its_commit(tmp_path, monkeypatch):
+    root = _project(tmp_path)
+    _git(root, "init", "-q")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "init")
+    (root / "shop/payments.py").write_text("RETRIES = 3\n", "utf-8")
+    _git(root, "commit", "-q", "-am", "retries")
+    h = _git(root, "rev-parse", "HEAD")
+    turns = [_t(1, "Решили: делаем повторные попытки для платежей.", "2026-11-10T10:00:00Z"),
+             {**_t(2, f"Повторные попытки для платежей готовы, коммит {h[:7]}.", "2026-11-10T11:00:00Z"),
+              "role": "assistant"}]  # fmt: skip
+    m = _mem(tmp_path, monkeypatch, turns)
+    text = overview(m)
+    block = text.split("#c")[[i for i, b in enumerate(text.split("#c")) if b.split()[1:2] == ["payments.py,"]
+                              or b.split()[1:2] == ["payments.py"]][0]]  # fmt: skip
+    assert f"→ {h[:7]}" in block and "повторные попытки" in block
+
+
+def test_ignore_patterns():
+    from ctxgraph.overview import Ignore
+
+    ig = Ignore(["# c", "benchmark_e1*/", "/ctxgraph/e1/", "*.egg-info/", "!keep.py", "docs/**/x.py"])
+    assert ig("benchmark_e1b/run.py") and ig("a/benchmark_e1/x.py") and ig("ctxgraph/e1/runner.py")
+    assert not ig("pkg/ctxgraph/e1/runner.py") and not ig("ctxgraph/e1b/x.py") and ig("pkg.egg-info/PKG")
+    assert ig("docs/a/b/x.py") and not ig("keep.py")
