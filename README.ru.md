@@ -33,13 +33,13 @@ Code. Перед ответом ассистент может спросить �
 Одна строка (Python 3.11+ и [uv](https://docs.astral.sh/uv/)), из папки проекта, который хотите подключить:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.9" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.0" && ctxgraph setup
 ```
 
 С [pipx](https://pipx.pypa.io/) вместо uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.9" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.0" && ctxgraph setup
 ```
 
 **Работает сразу, без загрузки модели.** Поиск — BM25 по вашим разговорам; установка около 125 МБ. Режим качества —
@@ -47,10 +47,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 ещё несколько ответов, сформулированных иначе, чем вопрос:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.9" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.0" && ctxgraph setup --quality
 ```
 
-Пакета пока нет в PyPI; команды ставят релиз v0.5.9 с GitHub. Для более точных английских понятий на карте графа
+Пакета пока нет в PyPI; команды ставят релиз v0.6.0 с GitHub. Для более точных английских понятий на карте графа
 добавьте набор `english`. **Ставите через ИИ-ассистента?** Дайте ему [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
 `setup` задаёт все вопросы один раз, до начала работы; Enter выбирает ответ по умолчанию:
@@ -138,7 +138,9 @@ uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/e
 | `expand(id)` | одна запись целиком (точные формулировки, числа, коммиты) и цепочка её темы по датам: с чего началось, что поменялось, отчёты |
 | `decisions(limit)` | хронология решений, новые сверху, с подтверждениями и отчётами |
 | `later(limit)` | отложенное: решения «на потом» («потом», «на потом», TODO, later), предложения, на которые вы ответили «потом», и отложенные задачи [Beads](https://github.com/gastownhall/beads) из `.beads/*.jsonl` (только чтение). Пункт закрывается сам, когда позже приходит отчёт о сделанном; к выдаче recall добавляется строка открытых пунктов по той же теме |
-| `rules`, `pin_rule`, `unpin_rule` | закреплённые постоянные правила проекта |
+| `rules`, `pin_rule`, `unpin_rule` | закреплённые постоянные правила проекта (только ваши «всегда / никогда / впредь»; не обычные и не условные решения) |
+| `save_chat(title, turns)` | сохранить текущий чат Claude Desktop / Cursor («добавь этот чат в память»); повторять можно |
+| `import_claude_ai(export, match)` | импорт выбранных чатов из выгрузки claude.ai |
 | `remember(text)` | явно сохранить одно утверждение |
 | `import_history` | импорт прежних сессий (только по вашей просьбе), затем хронология |
 | `forget(episode)` | скрыть одну реплику из поиска |
@@ -169,6 +171,26 @@ ctxgraph import
 ```bash
 ctxgraph view --3d
 ```
+
+## Claude Desktop, Cursor и чаты claude.ai
+
+**Сохранить текущий чат.** В любом MCP-клиенте (вкладка Chat в Claude Desktop, Cursor) скажите *«добавь этот чат в
+память»*. Ассистент вызовет `save_chat` с репликами чата дословно (длинный чат — порциями до 30 реплик). Повторять
+можно: позже в том же чате та же просьба добавит только новые реплики, память не пересобирается. У сохранённых чатов
+те же статусы, что у сессий Claude Code (решения, правила, отчёты), и источник «chat».
+
+**Расширение Claude Desktop (без режима разработчика).** Один раз установите ctxgraph в терминале (команда
+`uv tool install` или `pipx install` выше), затем скачайте `ctxgraph-0.6.0.mcpb` со
+[страницы релиза](https://github.com/egor-ml-research/think-to-recall/releases/tag/v0.6.0) и откройте его (или
+перетащите в Claude Desktop → Settings → Extensions). Claude Desktop спросит папку проекта — используется память этой
+папки. В расширении нет кода: оно запускает установленный вами `ctxgraph-mcp` (`~/.local/bin`).
+Удалённый «custom connector» по URL не используется намеренно: коннектор работает на сервере, а эта память остаётся на
+вашем компьютере.
+
+**Чаты claude.ai.** Выгрузите данные (claude.ai → Settings → Privacy → Export data) и попросите ассистента
+импортировать выгрузку (`import_claude_ai`: без фильтра он покажет список разговоров и спросит, какие относятся к
+проекту) или выполните `ctxgraph import-claude-ai export.zip --match "..."`. Повторный импорт более новой выгрузки
+добавляет только новые сообщения.
 
 ## Как работает поиск
 
@@ -289,8 +311,8 @@ ctxgraph import-graphify path/to/repo/graphify-out
   о прошлых решениях он ответил верно на 19 (одна e5 — 18, BM25 + e5 — 21; замерено на 784 репликах, поздние
   реплики сдвигают это примерно на один вопрос) и ни разу не подал устаревший ответ как текущий, но пропускает ответы, сформулированные иначе, чем вопрос (например, «БД» вместо «база данных»); `--quality`
   возвращает часть из них.
-- **Сначала Claude Code.** Автоматическая запись опирается на хук Stop Claude Code. Cursor работает только через
-  инструмент `remember`. Чаты claude.ai можно импортировать из выгрузки данных командой `ctxgraph import-claude-ai`.
+- **Сначала Claude Code.** Автоматическая запись опирается на хук Stop Claude Code. Чаты Claude Desktop и Cursor
+  сохраняются по вашей просьбе (`save_chat`). Чаты claude.ai можно импортировать из выгрузки данных командой `ctxgraph import-claude-ai`.
 - **Проверено на Windows и на чистой установке Linux.** macOS пока не проверялся.
 
 ## Исследование

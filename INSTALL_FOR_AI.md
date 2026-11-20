@@ -6,7 +6,11 @@ order. Ask the user only where a step says so.
 ## 1. Requirements
 
 - Python 3.11 or newer, and `uv` (preferred) or `pipx`.
-- Claude Code (the memory is an MCP server plus a Stop hook). Cursor works through the `remember` tool only.
+- Claude Code (the memory is an MCP server plus a Stop hook). Claude Desktop and Cursor work through the MCP
+  tools: chats are saved when the user asks (`save_chat`). For Claude Desktop the simplest way is the extension
+  `ctxgraph-<version>.mcpb` from the GitHub release (after the install below): the user opens it, Claude Desktop
+  asks for the project folder. It runs `~/.local/bin/ctxgraph-mcp`, so install with uv or pipx. Do not offer a
+  remote connector URL: the memory stays on the user's computer.
 - On Windows use PowerShell or Git Bash; both work with the flags below (setup never waits for input when given flags).
 
 ## 2. Ask the user first (in the chat)
@@ -36,10 +40,10 @@ want any downloads, use `--wordnet no`.
 ## 3. Install
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.9"
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.0"
 ```
 
-Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.9"`.
+Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.0"`.
 
 Optional extras (only if the user asks):
 - `[quality]` - better recall: BM25 + multilingual-e5-base (int8 ONNX, about 300 MB, downloaded once). Install
@@ -88,8 +92,10 @@ In every new chat, call `overview` first.
 | `expand(record_id)` | a record from `recall` in full plus its thread by date (how it started, what changed, the reports) |
 | `decisions(limit)` | the decision chronology, newest first, with confirmations and reports |
 | `later(limit)` | open "later" items: decisions on hold, proposals answered "later", deferred Beads issues; call it when the user asks what was put off or the session line mentions open items |
-| `rules`, `pin_rule(text)`, `unpin_rule(id)` | standing project rules; they come first in every recall block |
+| `rules`, `pin_rule(text)`, `unpin_rule(id)` | permanent project rules ("always / never / from now on" from the user; not ordinary, conditional or temporary decisions); they come first in every recall block |
 | `remember(text, role)` | save one statement explicitly (Cursor, or anything said outside Claude Code) |
+| `save_chat(title, turns, offset)` | when the user asks to save THIS chat ("add this chat to memory"): the turns VERBATIM with roles, ≤ 30 per call, oldest first, `offset` = index of the first turn; repeat until done. Safe to repeat later: only new turns are added |
+| `import_claude_ai(export, match, project_name, since)` | when the user asks to import a claude.ai data export: first call without a filter (lists the conversations, imports nothing), ask which ones, then call with `match` |
 | `import_history` | import earlier sessions, only when the user asks |
 | `forget(episode)` | hide one turn from recall |
 | `memory_status`, `show_graph` | what is stored; the path of the graph view |

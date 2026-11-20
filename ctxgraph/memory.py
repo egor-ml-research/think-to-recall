@@ -72,7 +72,8 @@ EN_IMPER = re.compile(r"^\W*(use|add|remove|drop|delete|rename|switch|migrate|mo
                       r"ship|freeze|start|try|build|test|document|translate)\b", re.I)
 # a hold / caveat: "пока не трогай", "решаю отдельно", "после моего «да»" - not a refusal and not a go
 HOLD = re.compile(r"(\bпока не\b|\bрешаю отдельно\b|\bреш(у|им) (позже|потом|отдельно)\b|«потом»|\bотлож(и|ить|им|ено)\b|"
-                  r"\bпосле (моего|твоего|сброса)\b|\bне сейчас\b|"
+                  r"\bпосле (моего|твоего|сброса)\b|\bне сейчас\b|\bбез (моего|твоего|вашего) «?да»?|"
+                  r"\bwithout my (ok|approval|go-ahead|yes)\b|"
                   r"\bnot now\b|\blater\b|\bpostpone(d)?\b|\bdefer(red)?\b|\bhold off\b|\bon hold\b|"
                   r"\bwait (until|for|with)\b|\bafter (my|your) (ok|go|approval|yes|go-ahead)\b|\buntil I (say|confirm|approve)\b|"
                   r"\blet'?s wait\b|\bfor now,? (don'?t|do not|not)\b|"
@@ -165,12 +166,20 @@ class _Label(dict):
 
 LABEL = _Label()
 # standing rules of the project in the user's own words (core memory in Letta, preferences in Mem0): pinned, no search
-RULE = re.compile(r"(\bвсегда\b|\bникогда\b|\bпо умолчанию\b|\bвпредь\b|\bна будущее\b|\bв дальнейшем\b|"
-                  r"\bправило\s*:|\bбез (моего|твоего|вашего) «?да»?|\bничего не (запуска\w*|делай|меняй|публику\w*)\b|"
-                  r"\bключ\w*[^.]{0,40}\bтолько\b|\bтолько в `?\.env|\bперед (запуском|отправкой|публикацией)\b[^.]{0,80}"
-                  r"\b(спрашива\w*|спроси)|\balways\b|\bnever\b|\bby default\b|\bfrom now on\b|\bgoing forward\b|"
-                  r"\brule:|\bonly in `?\.env|\bkeys?\b[^.]{0,40}\bonly\b|\bwithout my (ok|approval|go-ahead|yes)\b|"
+RULE = re.compile(r"(\bвсегда\b|\bникогда\b|\bключ\w*[^.]{0,40}\bтолько\b|\bтолько в `?\.env|\bвпредь\b|\bна будущее\b|"
+                  r"\bотныне\b|\bперед (запуском|отправкой|публикацией)\b[^.]{0,80}\b(спрашива\w*|спроси)|"
+                  r"\balways\b|\bnever\b|\bkeys?\b[^.]{0,40}\bonly\b|\bonly in `?\.env|\bfrom now on\b|\bgoing forward\b|"
                   r"\bask (me )?before\b)", re.I)
+# a conditional decision ("если X — делаем Y") is not a standing rule (rules written before the code)
+RULE_COND = re.compile(r"^\W*(?:(?:да|ок|ok|yes|и|а|но|and|but)\W+)?(если|когда|в случае|if|when|unless|in case)\b", re.I)
+# a temporary working note ("другая сессия сейчас…") is not a standing rule
+RULE_TEMP = re.compile(r"(\bсейчас\b|\bсегодня\b|\bпока что\b|\bна этот раз\b|\bв этот раз\b|\bв этой сессии\b|"
+                       r"\bв этом прогоне\b|\bдля следующ\w+|\bдругая сессия\b|\bright now\b|\bcurrently\b|\bfor now\b|"
+                       r"\btoday\b|\bthis time\b|\bthis session\b|\bthis run\b|\bfor the next\b|\banother session\b)", re.I)
+# a hold conditioned on the user's own yes: closed by that yes and a report after it (rules written before the code)
+YES_HOLD = re.compile(r"(\bпосле (моего|твоего|вашего) («?да»?|ок|подтверждения|согласия|одобрения)|"
+                      r"\bбез (моего|твоего|вашего) «?да»?|\bafter my (yes|ok|approval|go-ahead)\b|"
+                      r"\buntil I (say|confirm|approve)\b|\bwithout my (yes|ok|approval|go-ahead)\b)", re.I)
 # a question or a remark is not a decision, even with a cue word ("почему я не вижу, что было выбрано")
 QUESTION = re.compile(r"^\W*(?:(?:ок|ok|а|и|ну|так|кстати|слушай),?\s+)?(почему|зачем|как|что|где|когда|сколько|кто|"
                       r"какой|какая|какие|каким|чем|разве|можно ли|нужно ли|надо ли)\b|\bли\b|"
@@ -263,9 +272,11 @@ def list_block(raw: str, intro: str) -> str:
 
 
 def is_rule(text: str) -> bool:
-    """A standing rule in the user's words: a cue word, a statement (not a question), short enough to be a rule."""
+    """A permanent rule in the user's words (rules written before the code): a permanence cue, a statement (not a question), not
+    conditional, not a hold, not a temporary working note, short enough to be a rule."""
     t = text.strip()
-    return bool(RULE.search(t)) and not t.endswith("?") and not QUESTION.search(t) and 15 <= len(t) <= 240
+    return (bool(RULE.search(t)) and not t.endswith("?") and not QUESTION.search(t) and 15 <= len(t) <= 240
+            and not RULE_COND.search(t) and not HOLD.search(t) and not RULE_TEMP.search(t))
 
 
 def status_label(status: str, ref: str) -> str:
@@ -437,6 +448,7 @@ class ProjectMemory:
                           "ref TEXT NOT NULL DEFAULT '')")  # fmt: skip
         self.s.db.execute("CREATE TABLE IF NOT EXISTS pinned_rules (id TEXT PRIMARY KEY, text TEXT NOT NULL, ts TEXT NOT NULL, "
                           "origin TEXT NOT NULL, fragment TEXT NOT NULL DEFAULT '', removed INTEGER NOT NULL DEFAULT 0)")  # fmt: skip
+        self._drop_stale_rules()
         self.s.db.commit()
         self._status_cache: dict[str, tuple[str, str]] | None = None
         self._exec_cache: dict[str, dict] | None = None
@@ -604,6 +616,17 @@ class ProjectMemory:
         self.s.db.execute("INSERT OR IGNORE INTO pinned_rules VALUES(?,?,?,?,?,0)", (rid, text.strip(), ts, origin, fragment))
         return rid
 
+    def _drop_stale_rules(self) -> int:
+        """Migration (rules written before the code): auto-pinned rules that are no permanent user rule by the current `is_rule`, or
+        whose turn is an agent task, are deleted; manual pins and the user's removals stay. Returns the count."""
+        agents = {e for (e,) in self.s.q("SELECT episode FROM turn_agent")}
+        drop = [rid for rid, text, frag in self.s.q("SELECT id, text, fragment FROM pinned_rules WHERE origin='auto' "
+                                                    "AND removed=0")
+                if not is_rule(text) or (frag.count(":") >= 1 and frag.split(":")[1] in agents)]  # fmt: skip
+        for rid in drop:
+            self.s.db.execute("DELETE FROM pinned_rules WHERE id=? AND origin='auto'", (rid,))
+        return len(drop)
+
     def pin_rule(self, text: str) -> str:
         """The user pins a standing rule explicitly ("keys only in .env"). Returns its id."""
         rid = self._pin(text, origin="manual")
@@ -736,9 +759,11 @@ class ProjectMemory:
                       (t0, (_ts_plus(t0, days=3))))  # fmt: skip
         reports = self._reports()
         st = self._status()
+        agents = self._agents()
         want, confirmed, n_user = _stems(text), None, 0
+        on_yes = bool(YES_HOLD.search(text))  # closed by the user's yes and a report after it, no shared words needed
         for e, role, ts in [(episode, "user", t0), *tl]:
-            if role != "user":
+            if role != "user" or (e != episode and e in agents):
                 continue
             if e != episode:
                 n_user += 1
@@ -746,11 +771,18 @@ class ProjectMemory:
                     break
                 if confirmed is None:
                     raw = self.s.q("SELECT text FROM episodes WHERE id=?", (e,))[0][0]
-                    if CONFIRM.search(raw) and len(raw) <= 200:
+                    if CONFIRM.search(raw) and (on_yes or len(raw) <= 200):
                         confirmed = ts[:10]
             cands = reports.get(e, [])
             if not cands:
                 continue
+            if on_yes and confirmed:
+                txt = dict(self.s.q("SELECT id, text FROM fragments WHERE id IN (%s)" % ",".join("?" * len(cands)), cands))
+                f = cands[0]
+                rts = self.s.q("SELECT ts FROM turn_meta WHERE episode=?", (f.split(":")[1],))
+                commit = next((st[g][1] for g in cands if st.get(g, ("", ""))[1]), "")
+                return {"confirmed": confirmed, "date": rts[0][0][:10] if rts else "", "commit": commit,
+                        "report": txt.get(f, "")}  # fmt: skip
             txt = dict(self.s.q("SELECT id, text FROM fragments WHERE id IN (%s)" % ",".join("?" * len(cands)), cands))
             scored = sorted(((len(want & _stems(txt.get(f, ""))), f) for f in cands), key=lambda x: -x[0])
             if scored and scored[0][0] >= 2:
@@ -802,6 +834,29 @@ class ProjectMemory:
             self._refresh_finals()
         self.s.commit()
         return {"turns": len(turns), "new": len(todo), "summaries": 0}
+
+    def save_chat(self, title: str, turns: list[dict], offset: int = 0) -> dict:
+        """The current chat of an MCP client (Claude Desktop, Cursor) - a portion of its turns, oldest first, `offset` =
+        index of the first one in the whole chat. Idempotent (rules written before the code): a long turn's id is (title, role, text),
+        a short one's (title, role, text, position), so sending the chat again adds only new turns."""
+        def norm(x: str) -> str:
+            return re.sub(r"\s+", " ", x or "").strip().lower()
+
+        title = (title or "").strip() or "chat"
+        now = dt.datetime.now(dt.UTC)
+        out, skipped = [], 0
+        for i, t in enumerate(turns or []):
+            role, text = str(t.get("role", "")).lower().strip(), str(t.get("text") or t.get("content") or "")
+            if role not in ("user", "assistant") or not text.strip():
+                skipped += 1
+                continue
+            key = [norm(title), role, norm(text)] + ([] if len(norm(text)) >= 40 else [str(offset + i)])
+            eid = "chat:" + hashlib.sha1("\n".join(key).encode()).hexdigest()[:24]
+            ts = str(t.get("ts") or "") or (now + dt.timedelta(milliseconds=i)).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            out.append({"id": eid, "role": role, "text": text.strip(), "ts": ts, "session": f"chat:{title}",
+                        "source": "chat"})  # fmt: skip
+        r = self.import_turns(out)
+        return {"turns": len(turns or []), "new": r["new"], "skipped": skipped, "title": title}
 
     def import_claude_code(self, transcript_dir: Path | None = None, files: list[Path] | None = None, progress=None) -> dict:
         from ctxgraph import cc_transcripts as CC

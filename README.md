@@ -32,13 +32,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.9" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.0" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.9" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.0" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -46,10 +46,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.5.9" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.0" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.5.9 from GitHub. For finer English concepts in the
+The package is not on PyPI yet; the commands install release v0.6.0 from GitHub. For finer English concepts in the
 graph view, add the `english` extra. **Installing through an AI assistant?** Point it to
 [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
@@ -137,7 +137,9 @@ In Claude Code the assistant gets these tools:
 | `expand(id)` | one record in full (exact wording, numbers, commits) and the thread of its topic by date: how it started, what changed, the reports |
 | `decisions(limit)` | the decision chronology, newest first, with confirmations and reports |
 | `later(limit)` | what was put off: decisions on hold ("later", "на потом", TODO), proposals you answered "later", and deferred [Beads](https://github.com/gastownhall/beads) issues from `.beads/*.jsonl` (read only). An item closes itself when a later report of done work matches it; recall adds a line of open items on the same topic |
-| `rules`, `pin_rule`, `unpin_rule` | the project's pinned standing rules |
+| `rules`, `pin_rule`, `unpin_rule` | the project's pinned permanent rules (only "always / never / from now on" rules you stated; not ordinary or conditional decisions) |
+| `save_chat(title, turns)` | save the current chat of Claude Desktop / Cursor ("add this chat to memory"); repeat-safe |
+| `import_claude_ai(export, match)` | import chosen chats from a claude.ai data export |
 | `remember(text)` | save one statement explicitly |
 | `import_history` | import earlier sessions (only when you ask), then show the chronology |
 | `forget(episode)` | hide one turn from recall |
@@ -168,6 +170,25 @@ ctxgraph import
 ```bash
 ctxgraph view --3d
 ```
+
+## Claude Desktop, Cursor and claude.ai chats
+
+**Save the current chat.** In any MCP client (the Claude Desktop Chat tab, Cursor) say *"add this chat to memory"*.
+The assistant calls `save_chat` with the chat's turns word for word (in portions of up to 30 turns for long chats).
+It is safe to repeat: saying it again later in the same chat adds only the new turns, the memory is never rebuilt.
+Saved chats get the same statuses as Claude Code sessions (decisions, rules, reports) and the source "chat".
+
+**Claude Desktop extension (no developer mode).** Install ctxgraph once in a terminal (the `uv tool install` or
+`pipx install` command above), then download `ctxgraph-0.6.0.mcpb` from the
+[release page](https://github.com/egor-ml-research/think-to-recall/releases/tag/v0.6.0) and open it (or drag it
+into Claude Desktop → Settings → Extensions). Claude Desktop asks for the project folder; the memory of that folder
+is used. The extension contains no code: it runs the `ctxgraph-mcp` you installed (`~/.local/bin`).
+ctxgraph is not offered as a remote "custom connector" URL on purpose: a connector runs on a server, and this memory
+stays on your computer.
+
+**claude.ai chats.** Export your data (claude.ai → Settings → Privacy → Export data), then ask the assistant to
+import it (`import_claude_ai`: without a filter it lists the conversations and asks which belong to the project),
+or run `ctxgraph import-claude-ai export.zip --match "..."`. Re-importing a newer export adds only new messages.
 
 ## How recall works
 
@@ -288,8 +309,8 @@ and the conversation concepts and decisions that mention it. Re-importing replac
   some of them.
 - **Two languages.** Status labels follow the project's language (the language of most of your messages);
   `ctxgraph --lang en|ru …` or `CTXGRAPH_LANG` sets it. Cue words exist for English and Russian only.
-- **Claude Code first.** Automatic recording relies on the Claude Code Stop hook. Cursor works through the
-  `remember` tool only. Chats from claude.ai can be imported from a data export with `ctxgraph import-claude-ai`.
+- **Claude Code first.** Automatic recording relies on the Claude Code Stop hook. Claude Desktop and Cursor
+  chats are saved when you ask (`save_chat`). Chats from claude.ai can be imported from a data export with `ctxgraph import-claude-ai`.
 - **Tested on Windows and on a clean Linux install.** macOS has not been checked yet.
 
 ## Research

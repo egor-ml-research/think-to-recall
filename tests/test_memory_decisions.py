@@ -154,8 +154,8 @@ def test_claude_ai_export_import_is_selective_idempotent_and_skips_hidden_parts(
 def test_questions_rules_lists_and_closing_a_conditional_decision(tmp_path):
     # 5. a question or a remark is not a decision, even with a cue word
     assert classify("user", "ок, почему я в демо не вижу что предлагает RAG система, и что было выбрано, что нет.")[0] == "said"
-    # 7. a standing rule is a rule (pinned), not a decision
-    assert classify("user", "Пришли оценку стоимости; без моего «да» не запускай.") == ("rule", "")
+    # 7. a hold on the user's yes is a conditional decision, not a permanent rule
+    assert classify("user", "Пришли оценку стоимости; без моего «да» не запускай.")[0] == "decision"
     m = _mem(tmp_path)
     m.import_turns([
         _turn(1, "user", "Убираем модуль аналитики из мобильного приложения:\n\n"
