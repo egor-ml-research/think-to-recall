@@ -454,3 +454,11 @@ def test_setup_lang_is_saved_for_every_store(tmp_path, monkeypatch):
     assert json.loads((tmp_path / "home" / "config.json").read_text("utf-8"))["lang"] == "en"
     m = ProjectMemory(proj, home=tmp_path / "home")
     assert m.lang == "en"
+
+
+def test_explicit_graphify_yes_rebuilds_an_existing_code_graph(tmp_path, monkeypatch):
+    proj, calls = _setup_env(tmp_path, monkeypatch, tty=False)
+    monkeypatch.setattr(S, "_has_code_graph", lambda p: True)
+    assert S.run(proj, None, None, flags={"import": False, "graphify": True, "wordnet": False})["graphify"] is True
+    assert calls == ["graphify"]
+    assert "graphify" not in S.run(proj, None, None)  # without the flag an existing graph is not rebuilt

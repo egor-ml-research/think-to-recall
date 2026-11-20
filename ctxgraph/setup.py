@@ -390,7 +390,7 @@ def questionnaire(project: Path, assume: bool | None, flags: dict, quality: bool
         qs.append(("import", f"Import {n_hist} earlier Claude Code session file(s) of this project? (your prompts and "
                              "the assistant's visible replies; secrets filtered; stays on this machine)", True))
     n_code = code_files(project)
-    if n_code and not _has_code_graph(project):
+    if n_code and (not _has_code_graph(project) or flags.get("graphify")):  # an explicit yes rebuilds it
         qs.append(("graphify", f"Found {n_code}{'+' if n_code >= 2000 else ''} source files. Build a code graph with "
                                f"Graphify (installs `graphifyy`, ~{GRAPHIFY_MB} MB, local AST, no LLM)?", False))
     try:
