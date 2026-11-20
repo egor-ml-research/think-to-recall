@@ -143,6 +143,46 @@ def _text(content) -> str:
     return "\n".join(p for p in parts if p)
 
 
+def agent_origin(r: dict) -> dict | None:
+    """A `user` record the human did not type (rules written before the code): a peer session's message
+    (`turnOrigin` / `origin.kind` "peer"), the task another session started this one with (`host_synthetic`), or a
+    note of the app (`sdk` / `sdk`). None for the human's own turns and for old records without these fields."""
+    o = r.get("origin") if isinstance(r.get("origin"), dict) else {}
+    to, ps = r.get("turnOrigin"), r.get("promptSource")
+    if to == "peer" or o.get("kind") == "peer":
+        return {"kind": "peer", "parent": str(o.get("from") or ""), "body": str(o.get("body") or "")}
+    if to == "host_synthetic":
+        return {"kind": "brief", "parent": "", "body": ""}
+    if to == "sdk" and ps == "sdk":
+        return {"kind": "host", "parent": "", "body": ""}
+    return None
+
+
+def launches(path: Path) -> list[tuple[str, str]]:
+    """(session, text) of the tasks this transcript sent to other sessions: `start_session` prompts and
+    `SendMessage` messages."""
+    out = []
+    for line in path.read_text("utf-8", errors="replace").splitlines():
+        if '"tool_use"' not in line or ("start_session" not in line and "SendMessage" not in line):
+            continue
+        try:
+            r = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        for b in (r.get("message") or {}).get("content") or []:
+            if isinstance(b, dict) and b.get("type") == "tool_use":
+                name, inp = str(b.get("name", "")), b.get("input") or {}
+                text = inp.get("prompt") if name.endswith("start_session") else inp.get("message") if name == "SendMessage" else None
+                if text:
+                    out.append((r.get("sessionId") or path.stem, str(text)))
+    return out
+
+
+def _key(text: str, n: int | None = 200) -> str:
+    k = re.sub(r"\W+", " ", text).strip().lower()
+    return k[:n] if n else k
+
+
 def clean(text: str) -> str:
     text = FENCE.sub("\n", PASTE.sub("", NOISE.sub("", text)))
     lines = [ln for ln in text.splitlines() if not OUTPUT_LINE.search(ln)]
@@ -159,15 +199,17 @@ def turns(path: Path):
         if r.get("isCompactSummary"):
             after_summary = True
             continue
-        if r.get("isSidechain") or r.get("isMeta") or r.get("type") not in ("user", "assistant"):
-            continue  # isMeta: notes the app injects, not typed by the user
+        peer = r.get("type") == "user" and (agent_origin(r) or {}).get("kind") == "peer"
+        if r.get("isSidechain") or (r.get("isMeta") and not peer) or r.get("type") not in ("user", "assistant"):
+            continue  # isMeta: notes the app injects, not typed by the user (a peer session's message is kept as a task)
         content = (r.get("message") or {}).get("content")
         if r["type"] == "user" and isinstance(content, list) and any(
                 isinstance(b, dict) and b.get("type") == "tool_result" for b in content):  # fmt: skip
             continue
-        text = clean(_text(content))
         role = "user" if r["type"] == "user" else "assistant"
-        anchor = role == "user" and is_short(text)
+        agent = agent_origin(r) if role == "user" else None
+        text = clean(agent["body"] if agent and agent["body"] else _text(content))
+        anchor = role == "user" and not agent and is_short(text)
         if text.startswith("This session is being continued from a previous"):
             after_summary = True
             continue
@@ -176,7 +218,8 @@ def turns(path: Path):
         uid = r.get("uuid") or hashlib.sha1(f"{path.stem}|{r.get('timestamp')}|{text[:200]}".encode()).hexdigest()
         yield {"id": uid, "session": r.get("sessionId") or path.stem, "role": role, "ts": r.get("timestamp", ""),
                "text": text, "source": "transcript", "after_summary": after_summary and role == "user",
-               "ask": _ask(content) if role == "assistant" else ""}  # fmt: skip
+               "ask": _ask(content) if role == "assistant" else "",
+               "agent": {k: agent[k] for k in ("kind", "parent")} if agent else None}  # fmt: skip
         after_summary = False
 
 
@@ -208,8 +251,21 @@ def dedupe(turns_: list[dict]) -> list[dict]:
     return out
 
 
+def link_parents(ts: list[dict], files: list[Path]) -> list[dict]:
+    """An agent task's parent: the transcript that sent its text (start_session / SendMessage), else `origin.from`."""
+    sent = [(s, _key(t, 120)) for f in files for s, t in launches(f)]
+    for t in ts:
+        a = t.get("agent")
+        if a and a["kind"] != "host":
+            k = _key(t["text"], None)  # a brief = the parent's background + its prompt: the prompt is inside
+            hit = next((s for s, sk in sent if len(sk) >= 40 and sk in k and s != t["session"]), "")
+            a["parent"] = hit or a["parent"]
+    return ts
+
+
 def project_turns(project_dir: Path) -> list[dict]:
-    return dedupe([t for p in sorted(project_dir.glob("*.jsonl")) for t in turns(p)])
+    files = sorted(project_dir.glob("*.jsonl"))
+    return link_parents(dedupe([t for p in files for t in turns(p)]), files)
 
 
 if __name__ == "__main__":

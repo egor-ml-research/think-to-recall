@@ -83,7 +83,7 @@ HOLD = re.compile(r"(\bпока не\b|\bрешаю отдельно\b|\bреш(
 # one sentence can hold several decisions: "X убираем, а Y пока не трогай — решаю отдельно"
 CLAUSE = re.compile(r"\s+[—–]\s+|;\s+|,\s+(?=(?:а|но|однако|but)\s)")
 TEXTS = {
-    "ru": {"decision": "решение", "rule": "правило", "said": "пользователь", "report": "итоговый отчёт ассистента",
+    "ru": {"decision": "решение", "rule": "правило", "said": "пользователь", "agent_task": "задание агента", "from_session": "из сессии", "report": "итоговый отчёт ассистента",
            "applied": "ассистент: сделано", "info": "ассистент", "progress": "ход работы",
            "confirm": "решение: подтверждено пользователем", "event": "пользователь: сообщение о состоянии",
            "resume": "пользователь: продолжение работы", "proposal": "предложение ассистента, не применено",
@@ -95,7 +95,7 @@ TEXTS = {
            "nothing": "В памяти нет записей по этому вопросу.", "shown_earlier": "показано ранее",
            "s_decision": "решение", "s_no": "отказ", "s_report": "отчёт", "s_applied": "сделано",
            "s_proposal": "предложение, не применено", "s_confirm": "решение: подтверждено"},
-    "en": {"decision": "decision", "rule": "rule", "said": "user", "report": "assistant's final report",
+    "en": {"decision": "decision", "rule": "rule", "said": "user", "agent_task": "agent task", "from_session": "from session", "report": "assistant's final report",
            "applied": "assistant: done", "info": "assistant", "progress": "progress",
            "confirm": "decision: confirmed by the user", "event": "user: status message", "resume": "user: continue",
            "proposal": "assistant's proposal, not applied", "yes": "do", "no": "not do", "hold": "on hold",
@@ -148,7 +148,7 @@ PROPOSAL = re.compile(r"(черновик|предлага|предлож|есл
 COMMIT = re.compile(r"\b[0-9a-f]{7}\b")
 # assistant turns rank below the user's (V6 used 0.6); unapplied proposals lower still
 WEIGHT = {"decision": 1.0, "rule": 1.0, "report": 1.0, "said": 1.0, "applied": 0.6, "info": 0.6, "proposal": 0.45,
-          "progress": 0.0, "confirm": 0.0, "closed": 0.0, "event": 1.0, "resume": 0.0}
+          "progress": 0.0, "confirm": 0.0, "closed": 0.0, "event": 1.0, "resume": 0.0, "agent_task": 0.6}
 # The assistant's report of a turn is structural: its LAST message before the user's next turn (one per user turn).
 # Its sentences weigh like the user's decisions (a proposal / draft sentence in it keeps its lower weight). Every
 # earlier message of the turn ("сейчас…", "перезапускаю…", "жду…") is "progress" and is not searched.
@@ -279,6 +279,8 @@ def status_label(status: str, ref: str) -> str:
         return f"{LABEL[status]}, {L('commit')} {ref}"
     if status == "closed":
         return L("decision") + ": " + _closed_verb(status, ref) + " " + L("by_user")
+    if status == "agent_task":
+        return L("agent_task") + (f" ({L('from_session')} {ref})" if ref else "")
     return LABEL.get(status, status)
 
 
@@ -428,6 +430,9 @@ class ProjectMemory:
                           "session TEXT NOT NULL, origin TEXT NOT NULL DEFAULT '')")  # fmt: skip
         self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_flags (episode TEXT PRIMARY KEY, after_summary INTEGER NOT NULL)")
         self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_asks (episode TEXT PRIMARY KEY, ask TEXT NOT NULL)")
+        # a "user" record the human did not type: another session's task or message, an app note (rules written before the code)
+        self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_agent (episode TEXT PRIMARY KEY, kind TEXT NOT NULL, "
+                          "parent TEXT NOT NULL DEFAULT '')")
         self.s.db.execute("CREATE TABLE IF NOT EXISTS frag_status (fragment TEXT PRIMARY KEY, status TEXT NOT NULL, "
                           "ref TEXT NOT NULL DEFAULT '')")  # fmt: skip
         self.s.db.execute("CREATE TABLE IF NOT EXISTS pinned_rules (id TEXT PRIMARY KEY, text TEXT NOT NULL, ts TEXT NOT NULL, "
@@ -459,7 +464,8 @@ class ProjectMemory:
             v = ""
         if v in TEXTS:
             return v
-        rows = self.s.q("SELECT text FROM episodes WHERE role='user' AND t_expired IS NULL ORDER BY rowid DESC LIMIT 400")
+        rows = self.s.q("SELECT text FROM episodes WHERE role='user' AND t_expired IS NULL AND id NOT IN "
+                        "(SELECT episode FROM turn_agent) ORDER BY rowid DESC LIMIT 400")
         text = " ".join(t for (t,) in rows)
         cyr = len(re.findall(r"[а-яёА-ЯЁ]", text))
         lat = len(re.findall(r"[a-zA-Z]", text))
@@ -489,10 +495,11 @@ class ProjectMemory:
         last_asst: str | None = None
         confirms: dict[str, str] = {}  # short user turn -> the assistant message it confirms / rejects / defers
         acts: dict[str, str] = {}  # short user turn -> its dialogue act
+        agents = self._agents()
         for e, role, session, text in self.s.q("SELECT m.episode, e.role, m.session, e.text FROM turn_meta m JOIN episodes e "
                                                "ON e.id=m.episode WHERE e.t_expired IS NULL ORDER BY m.ts, m.episode"):  # fmt: skip
             if role == "user":
-                if is_short(text):
+                if is_short(text) and e not in agents:  # an agent's task is never the user's short answer
                     act = short_act(text)
                     prev = last_asst_by.get(session) or (None if session in cur_by else last_asst)
                     if act in ("agree", "directive") and e in after_summary and CONTINUE.search(text):
@@ -541,7 +548,20 @@ class ProjectMemory:
         self._finals()
         return self._confirm_cache
 
+    def _agents(self) -> dict[str, str]:
+        """Agent-task episodes -> parent session (8 chars)."""
+        if getattr(self, "_agent_cache", None) is None:
+            self._agent_cache = {e: p[:8] for e, p in self.s.q("SELECT episode, parent FROM turn_agent")}
+        return self._agent_cache
+
     def _mark(self, episode: str, role: str) -> None:
+        if role == "user" and episode in self._agents():  # not a decision, a rule, a confirmation or a deferral
+            for (fid,) in self.s.q("SELECT id FROM fragments WHERE episode_id=? AND kind='sentence'", (episode,)):
+                self.s.db.execute("INSERT OR REPLACE INTO frag_status VALUES(?,?,?)",
+                                  (fid, "agent_task", self._agents()[episode]))
+            self._status_cache = None
+            self._exec_cache = None
+            return
         raw = (self.s.q("SELECT text FROM episodes WHERE id=?", (episode,)) or [("",)])[0][0]
         final = role == "assistant" and episode in self._finals()
         short = self._short_status(episode) if role == "user" else None
@@ -763,6 +783,10 @@ class ProjectMemory:
                 self.s.db.execute("INSERT OR REPLACE INTO turn_flags VALUES(?,1)", (t["id"],))
             if t.get("ask"):
                 self.s.db.execute("INSERT OR REPLACE INTO turn_asks VALUES(?,?)", (t["id"], t["ask"]))
+            if t.get("agent"):
+                self.s.db.execute("INSERT OR REPLACE INTO turn_agent VALUES(?,?,?)",
+                                  (t["id"], t["agent"]["kind"], t["agent"].get("parent") or ""))
+                self._agent_cache = None
         todo = [t for t in sorted(turns, key=lambda t: (t["ts"], t["id"])) if t["id"] not in have]
         for i, t in enumerate(todo):
             r = self.g.add_episode(t["text"], t["role"], t["session"], source=t.get("source", "transcript"),
