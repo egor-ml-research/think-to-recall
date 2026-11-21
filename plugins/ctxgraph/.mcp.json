@@ -5,7 +5,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@1acb3f324731f32cffeba62368aa4e0914e50005",
+        "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@77f7b1215b3b8eca27b47ccf48f9c87809189091",
         "ctxgraph-mcp"
       ]
     }

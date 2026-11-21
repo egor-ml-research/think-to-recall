@@ -1,7 +1,7 @@
 {
   "name": "ctxgraph",
   "displayName": "ctxgraph",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "Local decision memory for Claude: recalls what was decided, rejected or put off in earlier conversations of this project. Everything stays on your computer.",
   "author": {
     "name": "egor-ml-research",
