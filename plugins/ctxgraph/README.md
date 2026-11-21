@@ -1,3 +1,5 @@
+**First install [uv](https://docs.astral.sh/uv/getting-started/installation/):** Windows (PowerShell) `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`; macOS / Linux `curl -LsSf https://astral.sh/uv/install.sh | sh` (or `brew install uv`, `pip install uv`).
+
 # ctxgraph: local decision memory for Claude
 
 ![ctxgraph logo](media/ctxgraph_icon.svg)
@@ -23,17 +25,15 @@ The example in the animation is synthetic.
 
 ## Install
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/) once (it runs the Python package; it fetches
-Python 3.11+ if missing), then add the plugin in Claude Code:
+Install uv once (see the first line of this page; uv runs the Python package and fetches Python 3.11+ if
+missing), then add the plugin in Claude Code:
 
 ```
-pip install uv
 /plugin marketplace add egor-ml-research/think-to-recall
 /plugin install ctxgraph@think-to-recall
 ```
 
-The first line runs in a terminal (or use the uv installer from the link), the other two in Claude Code; then
-restart Claude Code. `uvx` must be on PATH. Once the plugin is listed in the Claude plugin directory, you can also
+Then restart Claude Code. `uvx` must be on PATH. Once the plugin is listed in the Claude plugin directory, you can also
 add it from there. In a new chat, ask
 Claude "what did we decide about X?" or "import my earlier sessions of this project" (the `import_history` tool).
 
@@ -42,13 +42,13 @@ If you already connected ctxgraph by hand with `ctxgraph setup`, keep only one o
 
 ## How the package is installed (network use)
 
-The MCP server and the hooks run `uvx` with the package pinned to one exact commit of this public repository:
+The MCP server and the hooks run `uvx` with the package `think-to-recall` pinned to one exact version on PyPI:
 
 ```
-uvx --from "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@<commit>" ctxgraph-mcp
+uvx --from think-to-recall==0.6.6 ctxgraph-mcp
 ```
 
-On the first run uv downloads that commit from GitHub and the Python dependencies from PyPI (pymorphy3, yake,
+On the first run uv downloads that version and its Python dependencies from PyPI (pymorphy3, yake,
 numpy, requests, mcp, networkx, nltk), and caches them. Later runs use the cache and need no network. This install
 step is the only network use of the plugin.
 

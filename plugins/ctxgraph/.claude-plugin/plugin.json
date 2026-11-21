@@ -1,7 +1,7 @@
 {
   "name": "ctxgraph",
   "displayName": "ctxgraph",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "description": "Local decision memory for Claude: recalls what was decided, rejected or put off in earlier conversations of this project. Everything stays on your computer.",
   "author": {
     "name": "egor-ml-research",
@@ -13,6 +13,6 @@
   "keywords": ["memory", "decisions", "mcp", "local", "privacy", "recall"],
   "icon": ".claude-plugin/icon.png",
   "network": {
-    "hosts": ["github.com", "pypi.org", "files.pythonhosted.org"]
+    "hosts": ["pypi.org", "files.pythonhosted.org"]
   }
 }
