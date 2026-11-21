@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uvx --from \"think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.3\" ctxgraph hook-stop",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uvx --from \"think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.3\" ctxgraph hook-start",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "think-to-recall",
+  "owner": {
+    "name": "egor-ml-research",
+    "url": "https://github.com/egor-ml-research"
+  },
+  "description": "ctxgraph: local decision memory for Claude (MCP server, skill and hooks).",
+  "plugins": [
+    {
+      "name": "ctxgraph",
+      "source": "./plugins/ctxgraph",
+      "description": "Local decision memory for Claude: recalls what was decided, rejected or put off in earlier conversations of this project."
+    }
+  ]
+}
