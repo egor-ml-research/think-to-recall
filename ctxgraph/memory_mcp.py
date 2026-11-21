@@ -198,15 +198,24 @@ def rules() -> str:
 
 
 @tool
-def pin_rule(text: str) -> str:
-    """Pin a standing project rule. ONLY when the user asks to remember a permanent rule."""
+def pin_rule(text: str, scope: str = "project") -> str:
+    """Pin a standing rule. ONLY when the user asks to remember a permanent rule. scope="global" only when the user
+    says it is for all projects (shown in every project with the mark "(global)")."""
+    if scope == "global":
+        from ctxgraph.memory import pin_global_rule
+
+        return f"Pinned as #{pin_global_rule(text)} (global)."
     return f"Pinned as #{mem().pin_rule(text)}."
 
 
 @tool
 def unpin_rule(rule_id: str) -> str:
-    """Remove a pinned rule by its #id. ONLY when the user asks."""
-    return "Removed." if mem().unpin_rule(rule_id) else "No such rule."
+    """Remove a pinned rule (this project's or a global one) by its #id. ONLY when the user asks."""
+    from ctxgraph.memory import unpin_global_rule
+
+    if mem().unpin_rule(rule_id):
+        return "Removed."
+    return "Removed (global)." if unpin_global_rule(rule_id) else "No such rule."
 
 
 @tool

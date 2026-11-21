@@ -33,13 +33,13 @@ Code. Перед ответом ассистент может спросить �
 Одна строка (Python 3.11+ и [uv](https://docs.astral.sh/uv/)), из папки проекта, который хотите подключить:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.6" && ctxgraph setup
 ```
 
 С [pipx](https://pipx.pypa.io/) вместо uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.6" && ctxgraph setup
 ```
 
 **Работает сразу, без загрузки модели.** Поиск — BM25 по вашим разговорам; установка около 125 МБ. Режим качества —
@@ -47,10 +47,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 ещё несколько ответов, сформулированных иначе, чем вопрос:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.6" && ctxgraph setup --quality
 ```
 
-Пакета пока нет в PyPI; команды ставят релиз v0.6.5 с GitHub. Для более точных английских понятий на карте графа
+Пакета пока нет в PyPI; команды ставят релиз v0.6.6 с GitHub. Для более точных английских понятий на карте графа
 добавьте набор `english`. **Ставите через ИИ-ассистента?** Дайте ему [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
 **Плагин для Claude Code.** Та же память в виде плагина (MCP-сервер, навык о том, когда вызывать инструменты, и хуки):
@@ -142,7 +142,7 @@ uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/e
 | `expand(id)` | одна запись целиком (точные формулировки, числа, коммиты) и цепочка её темы по датам: с чего началось, что поменялось, отчёты |
 | `decisions(limit)` | хронология решений, новые сверху, с подтверждениями и отчётами |
 | `later(limit)` | отложенное: решения «на потом» («потом», «на потом», TODO, later), предложения, на которые вы ответили «потом», и отложенные задачи [Beads](https://github.com/gastownhall/beads) из `.beads/*.jsonl` (только чтение). Пункт закрывается сам, когда позже приходит отчёт о сделанном; к выдаче recall добавляется строка открытых пунктов по той же теме |
-| `rules`, `pin_rule`, `unpin_rule` | закреплённые постоянные правила проекта (только ваши «всегда / никогда / впредь»; не обычные и не условные решения) |
+| `rules`, `pin_rule`, `unpin_rule` | закреплённые постоянные правила проекта (только ваши «всегда / никогда / впредь»; не обычные и не условные решения); `pin_rule(text, scope="global")` — правило для всех проектов |
 | `save_chat(title, turns)` | сохранить текущий чат Claude Desktop / Cursor («добавь этот чат в память»); повторять можно |
 | `import_claude_ai(export, match)` | импорт выбранных чатов из выгрузки claude.ai |
 | `remember(text)` | явно сохранить одно утверждение |
@@ -167,6 +167,18 @@ ctxgraph expand 1a2b3c4d   # номер записи, который показ�
 ```bash
 ctxgraph rules --add "Никогда не пушить в main без вопроса"
 ```
+
+```bash
+ctxgraph pin-rule --global "Отвечай по-русски"   # правило для всех проектов: в rules, recall и строке старта сессии любого проекта, с пометкой (global)
+ctxgraph rules --global                          # список; `ctxgraph rules --remove <id>` удаляет из любой папки
+```
+
+```bash
+ctxgraph projects   # все проекты с памятью: путь, число записей, дата последней записи
+```
+
+Команда чтения (`rules`, `recall`, `decisions`, `later`, `expand`, `overview`, `status`, `view`) в папке без памяти
+не отвечает «not found»: она перечисляет известные проекты (или берёт единственный) и подсказывает `--project <путь>`.
 
 ```bash
 ctxgraph import

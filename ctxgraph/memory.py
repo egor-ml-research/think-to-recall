@@ -329,6 +329,169 @@ def claude_project_dir(path: str | Path) -> Path:
     return Path.home() / ".claude" / "projects" / project_slug(path)
 
 
+def store_exists(project: str | Path, home: Path | None = None) -> bool:
+    """A memory store for this project folder already exists (read commands never create one)."""
+    return (Path(home or HOME) / project_slug(Path(project).resolve()) / "graph.sqlite").exists()
+
+
+def _path_from_transcripts(slug: str) -> str:
+    """The original folder of an old store that has no `project_path` yet: the `cwd` of its Claude Code transcripts."""
+    import json
+
+    d = Path.home() / ".claude" / "projects" / slug
+    for f in sorted(d.glob("*.jsonl"))[:5] if d.is_dir() else []:
+        try:
+            with f.open(encoding="utf-8", errors="replace") as fh:
+                for _, ln in zip(range(50), fh):
+                    try:
+                        cwd = json.loads(ln).get("cwd")
+                    except (ValueError, AttributeError):
+                        continue
+                    if cwd and project_slug(cwd) == slug:
+                        return str(cwd)
+        except OSError:
+            continue
+    return ""
+
+
+def known_projects(home: Path | None = None) -> list[dict]:
+    """Every project with a memory store under the home: its original path (memory_meta `project_path`, else the
+    transcripts' cwd, else the folder slug), the number of records (turns) and the date of the last one. Read-only."""
+    import sqlite3
+
+    out = []
+    for db in sorted(Path(home or HOME).glob("*/graph.sqlite")):
+        path, n, last = "", 0, ""
+        try:
+            con = sqlite3.connect(str(db))
+            try:
+                for sql in ("SELECT value FROM memory_meta WHERE key='project_path'",
+                            "SELECT COUNT(*) FROM episodes WHERE t_expired IS NULL", "SELECT MAX(ts) FROM turn_meta"):
+                    try:
+                        row = con.execute(sql).fetchone()
+                    except sqlite3.Error:
+                        row = None
+                    v = row[0] if row else None
+                    if sql.startswith("SELECT value"):
+                        path = v or ""
+                    elif "COUNT" in sql:
+                        n = v or 0
+                    else:
+                        last = (v or "")[:10]
+            finally:
+                con.close()
+        except sqlite3.Error:
+            pass
+        slug = db.parent.name
+        path = path or _path_from_transcripts(slug)
+        out.append({"slug": slug, "path": path or slug, "exact": bool(path), "records": n, "last": last,
+                    "store": str(db)})
+    return out
+
+
+def ui_lang(home: Path | None = None) -> str:
+    """The label language outside a project store: CTXGRAPH_LANG, else "lang" in <home>/config.json, else the
+    language of most user turns of the known stores, else English."""
+    import json
+    import sqlite3
+
+    v = os.environ.get("CTXGRAPH_LANG", "").lower()
+    if v in TEXTS:
+        return v
+    root = Path(home or HOME)
+    try:
+        v = str(json.loads((root / "config.json").read_text("utf-8")).get("lang", "")).lower()
+    except (OSError, ValueError, AttributeError):
+        v = ""
+    if v in TEXTS:
+        return v
+    cyr = lat = 0
+    for db in sorted(root.glob("*/graph.sqlite"))[:10]:
+        try:
+            con = sqlite3.connect(str(db))
+            try:
+                text = " ".join(t for (t,) in con.execute(
+                    "SELECT text FROM episodes WHERE role='user' ORDER BY rowid DESC LIMIT 200"))
+            finally:
+                con.close()
+        except sqlite3.Error:
+            continue
+        cyr += len(re.findall(r"[а-яёА-ЯЁ]", text))
+        lat += len(re.findall(r"[a-zA-Z]", text))
+    return "ru" if cyr > lat else "en"
+
+
+def _rule_id(text: str) -> str:
+    return hashlib.sha1(re.sub(r"\W+", " ", text).strip().lower().encode()).hexdigest()[:6]
+
+
+def global_rules_path(home: Path | None = None) -> Path:
+    return Path(home or HOME) / "global_rules"
+
+
+def _read_global(home: Path | None = None) -> list[dict]:
+    import json
+
+    try:
+        lines = global_rules_path(home).read_text("utf-8").splitlines()
+    except OSError:
+        return []
+    out = []
+    for ln in lines:
+        try:
+            r = json.loads(ln)
+        except ValueError:
+            continue
+        if isinstance(r, dict) and r.get("id") and r.get("text"):
+            out.append(r)
+    return out
+
+
+def _write_global(rows: list[dict], home: Path | None = None) -> None:
+    import json
+
+    p = global_rules_path(home)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_name(p.name + ".tmp")
+    tmp.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), "utf-8")
+    tmp.replace(p)
+
+
+def global_rules(home: Path | None = None) -> list[dict]:
+    """Rules shared by all projects (<home>/global_rules, JSON lines), oldest first, marked origin "global"."""
+    rows = sorted((r for r in _read_global(home) if not r.get("removed")), key=lambda r: str(r.get("ts", "")))
+    return [{"id": r["id"], "text": r["text"], "date": str(r.get("ts", ""))[:10], "origin": "global"} for r in rows]
+
+
+def pin_global_rule(text: str, home: Path | None = None) -> str:
+    """Pin a rule for every project (shown in each project's rules, recall header and SessionStart). Returns its id."""
+    rid, rows = _rule_id(text), _read_global(home)
+    for r in rows:
+        if r["id"] == rid:
+            r["removed"] = False
+            break
+    else:
+        rows.append({"id": rid, "text": text.strip(), "ts": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
+                     "removed": False})
+    _write_global(rows, home)
+    return rid
+
+
+def unpin_global_rule(rid: str, home: Path | None = None) -> bool:
+    rid, rows, hit = rid.strip().lstrip("#"), _read_global(home), False
+    for r in rows:
+        if rid and r["id"].startswith(rid) and not r.get("removed"):
+            r["removed"], hit = True, True
+    if hit:
+        _write_global(rows, home)
+    return hit
+
+
+def _rule_line(r: dict) -> str:
+    """A rule in the recall header; a global one carries the mark "(global)"."""
+    return f"- {r['date'] or '?'} · #{r['id']}: {r['text']}" + (" (global)" if r.get("origin") == "global" else "")
+
+
 def rrf(*ranks: list[str], k: int = 60) -> list[str]:
     sc: dict[str, float] = {}
     for r in ranks:
@@ -442,6 +605,8 @@ class ProjectMemory:
                                   f"do not mix. Move that folder away and run `ctxgraph import` to rebuild it.")  # fmt: skip
         if not had and n_frag == 0:
             self.s.db.execute("INSERT OR REPLACE INTO memory_meta VALUES('encoder', ?)", (name,))
+        # the project's original folder, for `ctxgraph projects` and the no-store hint (older stores: set on open)
+        self.s.db.execute("INSERT OR IGNORE INTO memory_meta VALUES('project_path', ?)", (str(self.project),))
         self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_meta (episode TEXT PRIMARY KEY, ts TEXT NOT NULL, "
                           "session TEXT NOT NULL, origin TEXT NOT NULL DEFAULT '')")  # fmt: skip
         self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_flags (episode TEXT PRIMARY KEY, after_summary INTEGER NOT NULL)")
@@ -718,7 +883,7 @@ class ProjectMemory:
 
     # ── pinned rules ─────────────────────────────────────────────────────────────────────────────────────────────────
     def _pin(self, text: str, origin: str, fragment: str = "", ts: str | None = None) -> str:
-        rid = hashlib.sha1(re.sub(r"\W+", " ", text).strip().lower().encode()).hexdigest()[:6]
+        rid = _rule_id(text)
         if ts is None:
             ep = fragment.split(":")[1] if fragment.count(":") >= 1 else ""
             row = self.s.q("SELECT ts FROM turn_meta WHERE episode=?", (ep,)) if ep else []
@@ -756,7 +921,8 @@ class ProjectMemory:
         rows = self.s.q("SELECT p.id, p.text, p.ts, p.origin FROM pinned_rules p LEFT JOIN fragments f ON f.id=p.fragment "
                         "LEFT JOIN episodes e ON e.id=f.episode_id WHERE p.removed=0 AND (p.origin='manual' OR "
                         "e.t_expired IS NULL) ORDER BY p.origin='manual' DESC, p.ts DESC LIMIT ?", (limit,))  # fmt: skip
-        return [{"id": r, "text": t, "date": ts[:10], "origin": o} for r, t, ts, o in sorted(rows, key=lambda x: x[2])]
+        own = [{"id": r, "text": t, "date": ts[:10], "origin": o} for r, t, ts, o in sorted(rows, key=lambda x: x[2])]
+        return own + [g for g in global_rules(self.dir.parent) if g["id"] not in {r["id"] for r in own}]
 
     def _refresh_finals(self) -> int:
         """A message is the report only once the user's next turn is known: re-mark the assistant messages whose
@@ -1403,7 +1569,7 @@ class ProjectMemory:
 
     def _render_short(self, hits: list[Hit], max_chars: int) -> str:
         rules = self.rules()
-        head = [RULES_NOTE, *(f"- {r['date'] or '?'} · #{r['id']}: {r['text']}" for r in rules), ""] if rules else []
+        head = [RULES_NOTE, *(_rule_line(r) for r in rules), ""] if rules else []
         main = sorted([h for h in hits if h.line in ("main", "follow")], key=lambda h: (h.ts, h.episode))
         extra = sorted([h for h in hits if h.line == "periphery"], key=lambda h: (h.ts, h.episode))
         if not main and not extra:
@@ -1422,7 +1588,7 @@ class ProjectMemory:
 
     def _render_mixed(self, hits: list[Hit], max_chars: int) -> str:
         rules = self.rules()
-        head = [RULES_NOTE, *(f"- {r['date'] or '?'} · #{r['id']}: {r['text']}" for r in rules), ""] if rules else []
+        head = [RULES_NOTE, *(_rule_line(r) for r in rules), ""] if rules else []
         main = sorted([h for h in hits if h.line in ("main", "follow")], key=lambda h: (h.ts, h.episode))
         extra = sorted([h for h in hits if h.line == "periphery"], key=lambda h: (h.ts, h.episode))
         if not main and not extra:
@@ -1532,7 +1698,7 @@ class ProjectMemory:
         eco = self.economy
         if "a" in eco and not any(h.covered for h in hits if h.line in ("main", "periphery")):
             rules = self.rules()
-            head = [RULES_NOTE, *(f"- {r['date'] or '?'} · #{r['id']}: {r['text']}" for r in rules), ""] if rules else []
+            head = [RULES_NOTE, *(_rule_line(r) for r in rules), ""] if rules else []
             return "\n".join([*head, L("nothing")])
         track = "b" in eco and self._shown is not None and detail in ECONOMY_B_DETAILS
         self._stub = {h.episode for h in hits if h.episode in self._shown} if track else set()
@@ -1564,7 +1730,7 @@ class ProjectMemory:
         if detail == "mixed":
             return self._render_mixed(hits, max_chars)
         rules = self.rules()
-        head = [RULES_NOTE, *(f"- {r['date'] or '?'} · #{r['id']}: {r['text']}" for r in rules), ""] if rules else []
+        head = [RULES_NOTE, *(_rule_line(r) for r in rules), ""] if rules else []
         main = [h for h in hits if h.line in ("main", "follow")]  # follow-ups join the chronology of the main line
         extra = [h for h in hits if h.line == "periphery"]
         if not main and not extra:

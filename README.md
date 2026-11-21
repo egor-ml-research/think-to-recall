@@ -32,13 +32,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.6" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.6" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -46,10 +46,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.6" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.6.5 from GitHub. For finer English concepts in the
+The package is not on PyPI yet; the commands install release v0.6.6 from GitHub. For finer English concepts in the
 graph view, add the `english` extra. **Installing through an AI assistant?** Point it to
 [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
@@ -141,7 +141,7 @@ In Claude Code the assistant gets these tools:
 | `expand(id)` | one record in full (exact wording, numbers, commits) and the thread of its topic by date: how it started, what changed, the reports |
 | `decisions(limit)` | the decision chronology, newest first, with confirmations and reports |
 | `later(limit)` | what was put off: decisions on hold ("later", "на потом", TODO), proposals you answered "later", and deferred [Beads](https://github.com/gastownhall/beads) issues from `.beads/*.jsonl` (read only). An item closes itself when a later report of done work matches it; recall adds a line of open items on the same topic |
-| `rules`, `pin_rule`, `unpin_rule` | the project's pinned permanent rules (only "always / never / from now on" rules you stated; not ordinary or conditional decisions) |
+| `rules`, `pin_rule`, `unpin_rule` | the project's pinned permanent rules (only "always / never / from now on" rules you stated; not ordinary or conditional decisions); `pin_rule(text, scope="global")` pins one for all projects |
 | `save_chat(title, turns)` | save the current chat of Claude Desktop / Cursor ("add this chat to memory"); repeat-safe |
 | `import_claude_ai(export, match)` | import chosen chats from a claude.ai data export |
 | `remember(text)` | save one statement explicitly |
@@ -166,6 +166,19 @@ ctxgraph expand 1a2b3c4d   # a record id shown by recall
 ```bash
 ctxgraph rules --add "Never push to main without asking"
 ```
+
+```bash
+ctxgraph pin-rule --global "Answer in English"   # a rule for all projects: in every project's rules, recall and session line, marked (global)
+ctxgraph rules --global                          # list them; `ctxgraph rules --remove <id>` removes one from any folder
+```
+
+```bash
+ctxgraph projects   # every project with a memory: path, number of records, date of the last record
+```
+
+A read command (`rules`, `recall`, `decisions`, `later`, `expand`, `overview`, `status`, `view`) run in a folder
+without a memory does not answer "not found": it lists the known projects (or uses the only one) and suggests
+`--project <path>`.
 
 ```bash
 ctxgraph import
