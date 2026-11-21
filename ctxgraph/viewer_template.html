@@ -6,6 +6,7 @@
 <title>Память проекта</title>
 <script>/*__FORCE_GRAPH__*/</script>
 <script>/*__FORCE_GRAPH_3D__*/</script>
+<script>/*__D3__*/</script>
 <style>
 :root {
   --canvas: #030306; --side: rgba(14,14,20,.8); --solid: #0e0e15; --raise: rgba(255,255,255,.04); --hover: rgba(255,255,255,.07);
@@ -105,6 +106,7 @@ mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: in
       <input class="search" id="q" type="search" placeholder="Найти понятие" autocomplete="off">
       <div class="toggle"><button id="vAll" class="on">Все понятия</button><button id="vShared">Общие для тем</button></div>
       <div class="toggle"><button data-mode="2d" class="on">2D</button><button data-mode="3d">3D</button><button data-mode="cosmos">Космос</button></div>
+      <div class="toggle"><button data-mode="waves">Волны</button><button data-mode="live">Живая память</button></div>
       <div class="toggle"><button data-theme-set="dark" class="on">Тёмная</button><button data-theme-set="light">Светлая</button></div>
     </div>
     <div class="sec" id="layers" hidden><div class="lbl">Слои</div>
@@ -240,6 +242,8 @@ function setMode(m) {
   mode = m; try { localStorage.setItem("ctxgraph.mode", m); } catch (e) {}
   $("#stage").classList.toggle("d3", m === "3d"); $("#app").classList.toggle("cos", m === "cosmos");
   document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  if (m === "waves" || m === "live") { fg.pauseAnimation(); if (fg3) fg3.pauseAnimation(); if (window.COS) COS.stop(); FLOW.start(m); return; }
+  if (window.FLOW) FLOW.stop();
   if (m === "cosmos") { fg.pauseAnimation(); if (fg3) fg3.pauseAnimation(); COS.start(); return; }
   if (window.COS) COS.stop();
   if (m === "3d") { fg.pauseAnimation(); if (!fg3) make3d(); else fg3.resumeAnimation(); resize(); }
@@ -380,5 +384,6 @@ addEventListener("resize", resize);
 resize();
 </script>
 <script>/*__COSMOS__*/</script>
+<script>/*__FLOW__*/</script>
 </body>
 </html>

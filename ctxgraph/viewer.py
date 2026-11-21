@@ -25,8 +25,8 @@ PALETTE = ["#8b7fd6", "#4fa58a", "#d39a4a", "#c96a62", "#5b9ac7", "#b878a8", "#9
 
 
 
-def export_html(mem, top: int = 320, out: Path | None = None, mode: str | None = None) -> Path:
-    """mode: "2d" / "3d" / "cosmos", or None to open the mode last used in the page (localStorage)."""
+def export_html(mem, top: int = 320, out: Path | None = None, mode: str | None = None, live: bool = False) -> Path:
+    """mode: "2d" / "3d" / "cosmos" / "waves" / "live", or None to open the mode last used in the page (localStorage)."""
     import networkx as nx
 
     s = mem.s
@@ -134,13 +134,86 @@ def export_html(mem, top: int = 320, out: Path | None = None, mode: str | None =
                       "from": min((v["ts"] for v in meta.values() if v["ts"]), default="")[:10],
                       "to": max((v["ts"] for v in meta.values() if v["ts"]), default="")[:10]},
             "daily": dict(sorted(Counter(v["ts"][:10] for v in meta.values() if v["ts"]).items()))}  # fmt: skip
-    here = Path(__file__).parent
-    lib = (here / "vendor" / "force-graph.min.js").read_text("utf-8")  # MIT, vendor/force-graph.LICENSE; works offline
-    lib3d = (here / "vendor" / "3d-force-graph.min.js").read_text("utf-8")  # MIT, vendor/3d-force-graph.LICENSE
-    html = (here / "viewer_template.html").read_text("utf-8").replace("/*__FORCE_GRAPH__*/", lib)
-    html = html.replace("/*__FORCE_GRAPH_3D__*/", lib3d)
-    html = html.replace("/*__COSMOS__*/", (here / "viewer_cosmos.js").read_text("utf-8"))  # the cosmic mode, plain Canvas 2D
-    html = html.replace("/*__DATA__*/null", json.dumps(data, ensure_ascii=False).replace("</", r"<\/"))
+    # «Волны» / «Живая память»: records by topic and status (flow.py), the MCP call log (calls.py: ids only)
+    from ctxgraph import calls as CL
+    from ctxgraph.flow import build as flow_build
+
+    data["flow"] = flow_build(mem)
+    data["calls"] = CL.read_calls(mem.dir)
+    data["live"], data["offset"] = bool(live), CL.size(mem.dir)
+    html = render(data)
     out = Path(out) if out else mem.dir / "graph.html"
     out.write_text(html, "utf-8")
     return out
+
+
+def _lib(name: str) -> str:
+    """A vendored library with its license text in front (MIT / ISC, vendor/<name>.LICENSE): the page works offline."""
+    here = Path(__file__).parent / "vendor"
+    lic = (here / f"{name}.LICENSE").read_text("utf-8").replace("*/", "* /")
+    return f"/*! {name} - license:\n{lic}\n*/\n" + (here / f"{name}.min.js").read_text("utf-8")
+
+
+def render(data: dict) -> str:
+    here = Path(__file__).parent
+    html = (here / "viewer_template.html").read_text("utf-8").replace("/*__FORCE_GRAPH__*/", _lib("force-graph"))
+    html = html.replace("/*__FORCE_GRAPH_3D__*/", _lib("3d-force-graph"))
+    html = html.replace("/*__D3__*/", _lib("d3"))  # ISC, for the «Волны» streamgraph
+    html = html.replace("/*__COSMOS__*/", (here / "viewer_cosmos.js").read_text("utf-8"))  # the cosmic mode, plain Canvas 2D
+    html = html.replace("/*__FLOW__*/", (here / "viewer_flow.js").read_text("utf-8"))  # «Волны» and «Живая память»
+    return html.replace("/*__DATA__*/null", json.dumps(data, ensure_ascii=False).replace("</", r"<\/"))
+
+
+def serve(mem, port: int = 8765, mode: str = "live", on_ready=None) -> None:
+    """`ctxgraph view --live`: the page and the call log on 127.0.0.1 only (stdlib HTTP server, no other files).
+    GET / - the page (built once at start); GET /calls?offset=N - calls appended after byte N of calls.jsonl:
+    {"offset": new offset, "calls": [...]} (ids and durations, never text). Ctrl+C stops it."""
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from urllib.parse import parse_qs, urlparse
+
+    from ctxgraph import calls as CL
+
+    tmp = export_html(mem, out=mem.dir / "graph_live.html", mode=mode, live=True)
+    page, folder = tmp.read_bytes(), mem.dir
+
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802 - the stdlib name
+            u = urlparse(self.path)
+            if u.path in ("/", "/index.html"):
+                body, kind = page, "text/html; charset=utf-8"
+            elif u.path == "/calls":
+                try:
+                    off = int((parse_qs(u.query).get("offset") or ["0"])[0])
+                except ValueError:
+                    off = 0
+                new, cs = CL.read_from(folder, off)
+                body, kind = json.dumps({"offset": new, "calls": cs}).encode(), "application/json"
+            else:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", kind)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):  # quiet
+            pass
+
+    srv = None
+    for p in (port, *range(port + 1, port + 20), 0):
+        try:
+            srv = ThreadingHTTPServer(("127.0.0.1", p), H)
+            break
+        except OSError:
+            continue
+    url = f"http://127.0.0.1:{srv.server_address[1]}/"
+    if on_ready:
+        on_ready(url)
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        srv.server_close()

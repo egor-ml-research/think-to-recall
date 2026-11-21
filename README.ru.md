@@ -33,13 +33,13 @@ Code. Перед ответом ассистент может спросить �
 Одна строка (Python 3.11+ и [uv](https://docs.astral.sh/uv/)), из папки проекта, который хотите подключить:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.4" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup
 ```
 
 С [pipx](https://pipx.pypa.io/) вместо uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.4" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup
 ```
 
 **Работает сразу, без загрузки модели.** Поиск — BM25 по вашим разговорам; установка около 125 МБ. Режим качества —
@@ -47,10 +47,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 ещё несколько ответов, сформулированных иначе, чем вопрос:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.4" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup --quality
 ```
 
-Пакета пока нет в PyPI; команды ставят релиз v0.6.4 с GitHub. Для более точных английских понятий на карте графа
+Пакета пока нет в PyPI; команды ставят релиз v0.6.5 с GitHub. Для более точных английских понятий на карте графа
 добавьте набор `english`. **Ставите через ИИ-ассистента?** Дайте ему [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
 **Плагин для Claude Code.** Та же память в виде плагина (MCP-сервер, навык о том, когда вызывать инструменты, и хуки):
@@ -266,6 +266,15 @@ ctxgraph view --3d
   проект, темы — созвездия, понятия — звёзды. Есть приветственная карточка с тем, что изменилось с прошлого визита, и
   «Панель» с активностью, темами, самыми связанными понятиями, последними решениями и поиском. Без флага страница
   открывается в режиме, который вы выбирали последним.
+- **Волны** (`ctxgraph view --waves`, переключатель «Волны»): темы во времени как поток-диаграмма
+  ([d3](https://github.com/d3/d3), ISC) с отметками решений, смен решений, отчётов и пунктов «на потом».
+- **Живая память** (`ctxgraph view --live` поднимает страницу на 127.0.0.1): дерево тем вдоль времени проекта; каждый
+  `recall` ассистента пускает импульс к найденным записям, `expand` подсвечивает цепочку смен решения. MCP-сервер пишет
+  свои вызовы в `calls.jsonl` рядом с базой (инструмент, id записей, длительность; без текста запроса и записей; не
+  больше ~2 МБ); страница умеет и проигрывать журнал за период.
+
+![Волны и живая память на синтетическом проекте](docs/media/views_waves.png)
+![Живая память](docs/media/views_live.png)
 
 ### Код из Graphify
 

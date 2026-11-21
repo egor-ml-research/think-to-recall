@@ -9,6 +9,7 @@ from __future__ import annotations
 import functools
 import os
 import threading
+import time
 from pathlib import Path
 
 try:  # mcp 2.x
@@ -84,12 +85,27 @@ def tool(fn):
     def run(*a, **kw):
         from ctxgraph.memory import EncoderMismatch
 
+        t0 = time.perf_counter()
         try:
-            return fn(*a, **kw)
+            out = fn(*a, **kw)
         except (ModelMissing, DownloadFailed, EncoderMismatch) as e:
             return f"ctxgraph memory is not ready: {e}"
+        _log(fn.__name__, out, (time.perf_counter() - t0) * 1000)
+        return out
 
     return server.tool()(run)
+
+
+def _log(name: str, out, ms: float) -> None:
+    """One line in calls.jsonl next to the store (ctxgraph/calls.py: tool, record ids, duration - never the query);
+    only once the memory is loaded, and never an error for the tool call."""
+    try:
+        if _mem is not None and getattr(_mem, "dir", None):
+            from ctxgraph.calls import log_call
+
+            log_call(_mem.dir, name, out, ms)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 @tool

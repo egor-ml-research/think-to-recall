@@ -32,7 +32,10 @@ class Topics:
                 ww = math.log1p(w) if rel == "cooccur" else 0.5 * w
                 G.add_edge(a, b, weight=G[a][b]["weight"] + ww if G.has_edge(a, b) else ww)
         G.remove_nodes_from([n for n in list(G) if G.degree(n) == 0])
-        comms = nx.community.leiden_communities(G, weight="weight", seed=0) if G.number_of_edges() else []
+        try:
+            comms = nx.community.leiden_communities(G, weight="weight", seed=0) if G.number_of_edges() else []
+        except NotImplementedError:  # some networkx builds dispatch Leiden to a backend that is not installed
+            comms = nx.community.louvain_communities(G, weight="weight", seed=0)
         comms = sorted(comms, key=lambda c: (-len(c), min(c)))
         self.of = {n: i for i, c in enumerate(comms) for n in c}
         self.name = {}

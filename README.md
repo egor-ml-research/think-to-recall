@@ -32,13 +32,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.4" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.4" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -46,10 +46,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.4" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.5" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.6.4 from GitHub. For finer English concepts in the
+The package is not on PyPI yet; the commands install release v0.6.5 from GitHub. For finer English concepts in the
 graph view, add the `english` extra. **Installing through an AI assistant?** Point it to
 [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
@@ -266,6 +266,15 @@ no network: the graph libraries are vendored.
   the core is the project, topics are constellations, concepts are stars. It has a greeting card with what changed
   since your last visit and a dashboard («Панель») with activity, topics, most connected concepts, recent decisions
   and search. Without a flag, the page opens in the mode you used last.
+- **Waves** (`ctxgraph view --waves`, the «Волны» switch): topics over time as a streamgraph
+  ([d3](https://github.com/d3/d3), ISC) with marks for decisions, changes of decision, reports and "later" items.
+- **Live memory** («Живая память»; `ctxgraph view --live` serves it on 127.0.0.1): a tree of topics along the project's
+  time; each `recall` the assistant makes sends a pulse to the records it returned, `expand` lights the record's chain of
+  decision changes. The MCP server logs its calls to `calls.jsonl` next to the store (tool, record ids, duration; no
+  query or record text; at most ~2 MB); the page can also replay a period of that log.
+
+![Waves and live memory on a synthetic project](docs/media/views_waves.png)
+![Live memory](docs/media/views_live.png)
 
 ### Code from Graphify
 

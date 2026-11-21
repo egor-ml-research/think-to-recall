@@ -79,7 +79,7 @@ const COS = (() => {
     <div class="cg" id="cg"></div>
     <button class="chome cglass" id="cHome">Обзор</button>
     <div class="ctr"><button class="pg cglass" id="cDash">Панель</button>
-      <div class="cseg cglass"><button data-mode="2d">2D</button><button data-mode="3d">3D</button><button data-mode="cosmos">Космос</button></div></div>
+      <div class="cseg cglass"><button data-mode="2d">2D</button><button data-mode="3d">3D</button><button data-mode="cosmos">Космос</button><button data-mode="waves">Волны</button><button data-mode="live">Живая</button></div></div>
     <div class="cbar cglass"><button id="cOut" title="Отдалить">−</button><button id="cIn" title="Приблизить">+</button><span class="sep"></span>
       <button id="cReset" title="Вернуть вид">⟲</button><button id="cPause" title="Пауза вращения">❚❚</button><button id="cFull" title="Во весь экран">⛶</button></div>
     <div class="ctip" id="cTip"></div>

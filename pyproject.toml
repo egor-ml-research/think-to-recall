@@ -1,6 +1,6 @@
 [project]
 name = "think-to-recall"
-version = "0.6.4"
+version = "0.6.5"
 description = "ctxgraph: local decision memory for AI coding assistants (MCP server for Claude Code)"
 requires-python = ">=3.11"
 # The decision memory (ctxgraph CLI + MCP server) needs only these: recall is BM25, no model. `quality` adds the
@@ -39,7 +39,7 @@ build-backend = "setuptools.build_meta"
 include = ["ctxgraph*"]
 
 [tool.setuptools.package-data]
-ctxgraph = ["viewer_template.html", "viewer_cosmos.js", "vendor/*"]
+ctxgraph = ["viewer_template.html", "viewer_cosmos.js", "viewer_flow.js", "vendor/*"]
 
 [tool.ruff]
 line-length = 100

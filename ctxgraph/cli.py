@@ -116,7 +116,18 @@ def cmd_view(a) -> None:
 
     from ctxgraph.viewer import export_html
 
-    p = export_html(_mem(a.project), out=a.out, mode="cosmos" if a.cosmos else "3d" if a.three_d else None)
+    if a.live:  # the page and calls.jsonl on 127.0.0.1: pulses of the assistant's memory calls as they happen
+        from ctxgraph.viewer import serve
+
+        def ready(url):
+            print(f"{url}  (Ctrl+C - stop)", flush=True)
+            if not a.no_open:
+                webbrowser.open(url)
+
+        serve(_mem(a.project), port=a.port, on_ready=ready)
+        return
+    mode = "cosmos" if a.cosmos else "3d" if a.three_d else "waves" if a.waves else None
+    p = export_html(_mem(a.project), out=a.out, mode=mode)
     print(p)
     if not a.no_open:
         webbrowser.open(p.as_uri())
@@ -235,6 +246,10 @@ def main(argv=None) -> None:
     p.add_argument("--out", help="write the HTML here instead of the memory folder")
     p.add_argument("--3d", dest="three_d", action="store_true", help="open in the 3D view (2D/3D toggle in the page)")
     p.add_argument("--cosmos", action="store_true", help="open in the cosmic view (default: the mode last used in the page)")
+    p.add_argument("--waves", action="store_true", help="open in the «Волны» view: topics over time as a streamgraph")
+    p.add_argument("--live", action="store_true", help="«Живая память»: serve the page on 127.0.0.1 with live pulses "
+                   "of the memory's MCP calls (calls.jsonl)")
+    p.add_argument("--port", type=int, default=8765, help="port for --live (the next free one if busy)")
     p.set_defaults(f=cmd_view)
     p = sub.add_parser("import-graphify", help="add a Graphify code graph (graphify-out/graph.json) to the view")
     p.add_argument("path", help="graph.json, or the folder with it (graphify-out/ or the repo root)")
