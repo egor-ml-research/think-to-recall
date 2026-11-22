@@ -187,7 +187,8 @@ def check_spacy() -> None:
 
     if not english.available():
         print("Note: spaCy (en_core_web_sm) is not installed; English concepts in the graph view use the rules "
-              "fallback. Recall does not need it. For finer English concepts install the `english` extra.")  # fmt: skip
+              "fallback. Recall does not need it. For finer English concepts install the `english` extra, "
+              "then `python -m spacy download en_core_web_sm`.")  # fmt: skip
 
 
 def ensure_wordnet(assume: bool | None) -> bool:

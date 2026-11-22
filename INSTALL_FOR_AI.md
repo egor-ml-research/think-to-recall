@@ -40,15 +40,15 @@ want any downloads, use `--wordnet no`.
 ## 3. Install
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.7"
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.9"
 ```
 
-Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.7"`.
+Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.9"`.
 
 Optional extras (only if the user asks):
 - `[quality]` - better recall: BM25 + multilingual-e5-base (int8 ONNX, about 300 MB, downloaded once). Install
   `think-to-recall[quality] @ ...` and add `--quality` to setup.
-- `[english]` - spaCy for finer English concepts in the graph view.
+- `[english]` - spaCy for finer English concepts in the graph view; then run `python -m spacy download en_core_web_sm`.
 
 ## 4. Connect the project
 
