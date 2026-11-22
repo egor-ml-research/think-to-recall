@@ -56,7 +56,11 @@ NEG = re.compile(r"(\bне (берём|берем|используем|дела�
                  r"\bотменя(ем|ется)\b|\bотклон|\bне подтвердил|\bнеудачн|\bне трогай\b|"
                  r"\bdon'?t\b|\bnot (use|include|change)\b|"
                  r"\bdo not\b|\bwon'?t\b|\bwill not\b|\bnot (do|ship|touch|publish|run|switch|add)\b|\bno need (to|for)\b|"
-                 r"\bstop using\b|\bwe(?:'re| are) not (going to|using)\b|\breject(ed)?\b|\bcancel(l?ed)?\b)", re.I)
+                 r"\bstop using\b|\bwe(?:'re| are) not (going to|using)\b|\breject(ed)?\b|\bcancel(l?ed)?\b|"
+                 # v2 (english_cues_v2_rule.md): "let's not", "skip X", "forget (about) X", "scrap that", "nah", "hard no"
+                 r"\blet'?s not\b|\b(i'?m|i am|we'?re|we are) not (going to|gonna)\b|\bskip(ping)? (the|this|that|it)\b|"
+                 r"\bforget (about )?(it|that|this|the|\w+,)|\bscrap (it|that|this|the)\b|^\W*(nah|nope)\b|\bhard no\b|"
+                 r"\bnever ?mind\b)", re.I)
 POS = re.compile(r"(\bвыбира(ем|ю)\b|\bвыбран|\bберём\b|\bберем\b|\bоставляем\b|\bиспользуем\b|\bрешили\b|\bрешено\b|"
                  r"\bпереходим\b|\bутверждаю\b|\bзаморажива|\bпринимаю\b|\bпринято\b|\bзапускай\b|\bделаем\b|"
                  r"\bфиксируем\b|\bглавн(ое|ая|ый) сравнени|\bзамораживай\b|\bсделай\b|\bпоменяй\b|"
@@ -67,11 +71,24 @@ POS = re.compile(r"(\bвыбира(ем|ю)\b|\bвыбран|\bберём\b|\bб
                  # a change of decision is a "do" (the cue dictionary, written before the code)
                  r"\bswitch(ed|ing)? (from [^.;!?]{1,60}? )?to\b|\bmoved to\b|\bmigrated to\b|"
                  r"\breplac(e|ing) [^.;!?]{1,60}? with\b|\bsettle on\b|\bin favou?r of\b|"
+                 # v2 (english_cues_v2_rule.md): "going with", "go ahead and", "go for", "i'd rather", "prefer", "we should",
+                 # "do that one", "decided:"; a change: "on second thought", "changed my mind", "stick with", "going back to",
+                 # "correction:", "on reflection", "after all", "scratch that", "actually, <verb>"
+                 r"\b(going|went) with\b|\bgo ahead\b|\bgo for\b|\bi'?d rather\b|\b(i|we) prefer\b|^\W*prefer\b|\bwe should\b|"
+                 r"\bdo (that|this|it|the \w+)( one)?\b|\bdecided\s*:|\bon second thoughts?\b|\bchanged? my mind\b|"
+                 r"\bchange of plans?\b|\bstick (with|to)\b|\bgo(ing)? back to\b|\bcorrection:|\bon reflection\b|"
+                 r"\bafter all\b|\bscratch that\b|\bactually,? (let'?s|go|use|make|keep|we)\b|"
                  r"\bпереходим на\b|\bменяем [^.;!?]{1,60}? на\b|\bвместо [^.;!?]{1,60}? бер[её]м\b)", re.I)
 # a sentence starting with an English imperative of the dictionary is a decision to do / an instruction
-EN_IMPER = re.compile(r"^\W*(use|add|remove|drop|delete|rename|switch|migrate|move|keep|fix|update|check|send|stop|find|"
+EN_IMPER = re.compile(r"^\W*(?:(?:ok(?:ay)?|so|now|then|fine|alright|cool|yeah|yes|and|also|pls|please|just|"
+                      r"(?:can|could|would|will) you(?: please)?)\W+){0,3}"
+                      r"(use|add|remove|drop|delete|rename|switch|migrate|move|keep|fix|update|check|send|stop|find|"
                       r"restart|run|write|make|replace|save|mark|prepare|commit|push|create|revert|deploy|publish|merge|"
-                      r"ship|freeze|start|try|build|test|document|translate)\b", re.I)
+                      r"ship|freeze|start|try|build|test|document|translate|"
+                      # v2 (english_cues_v2_rule.md)
+                      r"wire|bump|refactor|put|wrap|implement|regenerate|inline|extract|split|pin|set|enable|disable|"
+                      r"install|upgrade|downgrade|clean|rewrite|change|convert|port|expose|register|swap|configure|"
+                      r"generate|apply|retry|rerun|undo|rollback)\b", re.I)
 # a hold / caveat: "пока не трогай", "решаю отдельно", "после моего «да»" - not a refusal and not a go
 HOLD = re.compile(r"(\bпока не\b|\bрешаю отдельно\b|\bреш(у|им) (позже|потом|отдельно)\b|«потом»|\bотлож(и|ить|им|ено)\b|"
                   r"\bпосле (моего|твоего|сброса)\b|\bне сейчас\b|\bбез (моего|твоего|вашего) «?да»?|"
@@ -82,9 +99,22 @@ HOLD = re.compile(r"(\bпока не\b|\bрешаю отдельно\b|\bреш(
                   # "на потом" items (rules written before the code)
                   r"\bна потом\b|\bв бэклог|\bв список на потом\b|\b(вернём(ся)?|вернусь) к (этому|нему|ней) (позже|потом)\b|"
                   r"\bпотом (сделаем|решим|посмотрим|вернёмся)\b|\bTODO\b|\bfor later\b|\bbacklog\b|\bnext time\b|"
-                  r"\brevisit (it|this|later)\b|\bparking lot\b|\bcome back to (it|this)\b)", re.I)
+                  r"\brevisit (it|this|later)\b|\bparking lot\b|\bcome back to (it|this)\b|"
+                  # v2 (english_cues_v2_rule.md): "until/till <someone or something> ...", "don't X yet", "pause", "give me a
+                  # minute", "once the lint passes"; later: "park", "table", "punt", "revisit", "remind me", "follow-up pr",
+                  # "a v2 thing", "next week/sprint", "after the release", "someday", "not a priority"
+                  r"\b(until|till|til) (i|i'?ve|i'?m|we|we'?ve|you'?ve|[\w ]{1,40}? (confirms|approves|says|reviews|signs off|"
+                  r"finishes|passes|lands|is done|is merged|is back))\b|\b(don'?t|do not|not)\b[^.;]{0,50}\byet\b|\bpause\b|"
+                  r"\bgive me (a|one) (sec|second|minute|moment)\b|\b(hang|hold) on\b|"
+                  r"\bonce (the )?[\w ]{1,30}? (passes|is green|lands|is merged|finishes|is done)\b|"
+                  r"\bpark(ed|ing)? (it|this|that|the)\b|\btable (it|this|that|the)\b|\bpunt( on)?\b|\brevisit\b|"
+                  r"\bremind me\b|\bfollow[- ]?up (pr|ticket|issue|task)\b|\bv\d+ thing\b|"
+                  r"\bnext (week|sprint|milestone|release|iteration|quarter)\b|\bafter (the )?(release|launch|demo)\b|"
+                  r"\bsomeday\b|\bsome other time\b|\bnot a priority\b)", re.I)
 # one sentence can hold several decisions: "X убираем, а Y пока не трогай — решаю отдельно"
-CLAUSE = re.compile(r"\s+[—–]\s+|;\s+|,\s+(?=(?:а|но|однако|but)\s)")
+_EN_LEAD = (r"(?:(?:let'?s|please|just|then|now)\s+)?(?:use|add|remove|drop|delete|rename|switch|move|keep|fix|update|"
+            r"check|run|write|make|replace|revert|merge|ship|try|build|test|implement|inline|do|go|put|wrap|bump)\b(?!:)")
+CLAUSE = re.compile(rf"\s+[—–]\s+|;\s+|,\s+(?=(?:а|но|однако|but)\s)|,\s+(?={_EN_LEAD})|\s+and (?:then )?(?={_EN_LEAD})", re.I)
 TEXTS = {
     "ru": {"decision": "решение", "rule": "правило", "said": "пользователь", "agent_task": "задание агента", "pasted": "вставленный отчёт", "from_record": "из записи", "from_session": "из сессии", "report": "итоговый отчёт ассистента",
            "applied": "ассистент: сделано", "info": "ассистент", "progress": "ход работы",
@@ -172,7 +202,13 @@ LABEL = _Label()
 RULE = re.compile(r"(\bвсегда\b|\bникогда\b|\bключ\w*[^.]{0,40}\bтолько\b|\bтолько в `?\.env|\bвпредь\b|\bна будущее\b|"
                   r"\bотныне\b|\bперед (запуском|отправкой|публикацией)\b[^.]{0,80}\b(спрашива\w*|спроси)|"
                   r"\balways\b|\bnever\b|\bkeys?\b[^.]{0,40}\bonly\b|\bonly in `?\.env|\bfrom now on\b|\bgoing forward\b|"
-                  r"\bask (me )?before\b)", re.I)
+                  r"\bask (me )?before\b|"
+                  # v2 (english_cues_v2_rule.md)
+                  r"\b(don'?t|do not) ever\b|\bevery time\b|\bwhenever\b|\bas a (general )?rule\b|"
+                  r"\brule of thumb\b|\brule:|\bfrom here on\b|\bin this (repo|codebase|project),? we\b)", re.I)
+# "it always fails", "never seen this", "the client never sends": a description, not a rule (v2)
+RULE_DESC = re.compile(r"\b(always|never)\s+(?:\w+(?<!s)s|\w+ed|seen|been|had|was|were|is|are|did|got|gone|done|made|"
+                       r"knew|thought|heard)\b|\bnever ?mind\b", re.I)
 # a conditional decision ("если X — делаем Y") is not a standing rule (rules written before the code)
 RULE_COND = re.compile(r"^\W*(?:(?:да|ок|ok|yes|и|а|но|and|but)\W+)?(если|когда|в случае|if|when|unless|in case)\b", re.I)
 # a temporary working note ("другая сессия сейчас…") is not a standing rule
@@ -187,7 +223,7 @@ YES_HOLD = re.compile(r"(\bпосле (моего|твоего|вашего) («
 QUESTION = re.compile(r"^\W*(?:(?:ок|ok|а|и|ну|так|кстати|слушай),?\s+)?(почему|зачем|как|что|где|когда|сколько|кто|"
                       r"какой|какая|какие|каким|чем|разве|можно ли|нужно ли|надо ли)\b|\bли\b|"
                       r"\b(не вижу|не понимаю|не понял|не поняла|странно|непонятно)\b|"
-                      r"^\W*(?:(?:ok|so|and|but),?\s+)?(?:(?:why|what|how|where|when|which|who)\b|(?:is|are|does|did|can|could|"
+                      r"^\W*(?:(?:ok|so|and|but),?\s+)?(?:(?:why|what|how|where|when|which|who)\b|(?!(?:can|could|would|will) you\b)(?:is|are|does|did|can|could|"
                       r"should|would|will)\s|do\s(?!not\b))|\bI don'?t (see|understand)\b|\b(strange|weird)\b", re.I)
 # a short confirmation of an earlier conditional decision ("после моего «да»" -> "Yes, recreate")
 CONFIRM = re.compile(r"^\W*(да|yes|ок|ok|давай|подтверждаю|согласен|утверждаю|можно|go ahead|делай|запускай|"
@@ -279,7 +315,7 @@ def is_rule(text: str) -> bool:
     conditional, not a hold, not a temporary working note, short enough to be a rule."""
     t = text.strip()
     return (bool(RULE.search(t)) and not t.endswith("?") and not QUESTION.search(t) and 15 <= len(t) <= 240
-            and not RULE_COND.search(t) and not HOLD.search(t) and not RULE_TEMP.search(t))
+            and not RULE_COND.search(t) and not HOLD.search(t) and not RULE_TEMP.search(t) and not RULE_DESC.search(t))
 
 
 def status_label(status: str, ref: str) -> str:

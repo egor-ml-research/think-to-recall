@@ -1,0 +1,110 @@
+{"id": "L004", "turn": "go ahead and wire up the retry decorator in client.py", "sents": [["go ahead and wire up the retry decorator in client.py", "do"]]}
+{"id": "L005", "turn": "please add a --dry-run flag to the sync command", "sents": [["please add a --dry-run flag to the sync command", "do"]]}
+{"id": "L008", "turn": "bump fastapi to 0.115 and regenerate the lockfile", "sents": [["bump fastapi to 0.115 and regenerate the lockfile", "do"]]}
+{"id": "L009", "turn": "can you refactor parse_args into its own module", "sents": [["can you refactor parse_args into its own module", "do"]]}
+{"id": "L010", "turn": "rename UserRepo to AccountRepo everywhere", "sents": [["rename UserRepo to AccountRepo everywhere", "do"]]}
+{"id": "L011", "turn": "yeah that looks fine. merge it into main", "sents": [["yeah that looks fine.", "none"], ["merge it into main", "do"]]}
+{"id": "L012", "turn": "ship it once the lint passes", "sents": [["ship it once the lint passes", "hold"]]}
+{"id": "L013", "turn": "lets keep the existing retry logic, it works", "sents": [["lets keep the existing retry logic, it works", "do"]]}
+{"id": "L014", "turn": "i'd rather keep the flat file layout for now", "sents": [["i'd rather keep the flat file layout for now", "do"]]}
+{"id": "L015", "turn": "put the feature flag behind an env var called ENABLE_V2", "sents": [["put the feature flag behind an env var called ENABLE_V2", "do"]]}
+{"id": "L018", "turn": "the second approach is better, do that one", "sents": [["the second approach is better, do that one", "do"]]}
+{"id": "L019", "turn": "wrap the db calls in a transaction please", "sents": [["wrap the db calls in a transaction please", "do"]]}
+{"id": "L021", "turn": "let's not add redis for this", "sents": [["let's not add redis for this", "not"]]}
+{"id": "L022", "turn": "lets not touch the auth middleware in this pr", "sents": [["lets not touch the auth middleware in this pr", "not"]]}
+{"id": "L024", "turn": "no, don't change the public api", "sents": [["no, don't change the public api", "not"]]}
+{"id": "L025", "turn": "i don't want a new dependency just for date parsing", "sents": [["i don't want a new dependency just for date parsing", "not"]]}
+{"id": "L027", "turn": "forget about the caching layer", "sents": [["forget about the caching layer", "not"]]}
+{"id": "L031", "turn": "no need for a config file, cli flags are fine", "sents": [["no need for a config file, cli flags are fine", "not"]]}
+{"id": "L034", "turn": "i'm not going to merge the refactor branch", "sents": [["i'm not going to merge the refactor branch", "not"]]}
+{"id": "L035", "turn": "let's skip the e2e tests for this one", "sents": [["let's skip the e2e tests for this one", "not"]]}
+{"id": "L036", "turn": "hard no on storing tokens in localStorage", "sents": [["hard no on storing tokens in localStorage", "not"]]}
+{"id": "L037", "turn": "we won't support python 3.8 anymore", "sents": [["we won't support python 3.8 anymore", "not"]]}
+{"id": "L042", "turn": "on second thought, keep the old schema", "sents": [["on second thought, keep the old schema", "change"]]}
+{"id": "L044", "turn": "changed my mind, stick with fastapi", "sents": [["changed my mind, stick with fastapi", "change"]]}
+{"id": "L048", "turn": "switch the tests from unittest to pytest", "sents": [["switch the tests from unittest to pytest", "change"]]}
+{"id": "L049", "turn": "replace the regex parser with a proper tokenizer", "sents": [["replace the regex parser with a proper tokenizer", "change"]]}
+{"id": "L050", "turn": "let's move from setup.py to pyproject", "sents": [["let's move from setup.py to pyproject", "change"]]}
+{"id": "L051", "turn": "ok forget mongo, we're going back to sqlite", "sents": [["ok forget mongo, we're going back to sqlite", "change"]]}
+{"id": "L052", "turn": "correction: the timeout should be 30s, not 10s", "sents": [["correction: the timeout should be 30s, not 10s", "change"]]}
+{"id": "L053", "turn": "actually let's do the simpler version first", "sents": [["actually let's do the simpler version first", "change"]]}
+{"id": "L054", "turn": "on reflection i prefer the event based design", "sents": [["on reflection i prefer the event based design", "change"]]}
+{"id": "L055", "turn": "never mind the yaml config, use toml", "sents": [["never mind the yaml config, use toml", "change"]]}
+{"id": "L061", "turn": "maybe later we can add a web ui", "sents": [["maybe later we can add a web ui", "later"]]}
+{"id": "L063", "turn": "leave the cleanup for a follow up pr", "sents": [["leave the cleanup for a follow up pr", "later"]]}
+{"id": "L064", "turn": "noted, but that's a v2 thing", "sents": [["noted, but that's a v2 thing", "later"]]}
+{"id": "L065", "turn": "parking lot: support for s3 uploads", "sents": [["parking lot: support for s3 uploads", "later"]]}
+{"id": "L067", "turn": "let's table the auth rewrite", "sents": [["let's table the auth rewrite", "later"]]}
+{"id": "L070", "turn": "remind me to bump the deps next week", "sents": [["remind me to bump the deps next week", "later"]]}
+{"id": "L072", "turn": "hold off on publishing to pypi", "sents": [["hold off on publishing to pypi", "hold"]]}
+{"id": "L077", "turn": "pause the migration work until the backup finishes", "sents": [["pause the migration work until the backup finishes", "hold"]]}
+{"id": "L078", "turn": "don't run the full benchmark till i say so", "sents": [["don't run the full benchmark till i say so", "hold"]]}
+{"id": "L080", "turn": "give me a minute to check the numbers first", "sents": [["give me a minute to check the numbers first", "hold"]]}
+{"id": "L083", "turn": "always run ruff before committing", "sents": [["always run ruff before committing", "rule"]]}
+{"id": "L084", "turn": "never commit the .env file", "sents": [["never commit the .env file", "rule"]]}
+{"id": "L087", "turn": "don't ever force push to main", "sents": [["don't ever force push to main", "rule"]]}
+{"id": "L088", "turn": "make sure you always ask before deleting files", "sents": [["make sure you always ask before deleting files", "rule"]]}
+{"id": "L090", "turn": "every time you change the schema, write a migration", "sents": [["every time you change the schema, write a migration", "rule"]]}
+{"id": "L091", "turn": "in this repo we use 4 spaces, no tabs", "sents": [["in this repo we use 4 spaces, no tabs", "rule"]]}
+{"id": "L095", "turn": "as a general rule keep functions under 50 lines", "sents": [["as a general rule keep functions under 50 lines", "rule"]]}
+{"id": "L099", "turn": "by default target python 3.11", "sents": [["by default target python 3.11", "rule"]]}
+{"id": "L101", "turn": "remember: we never squash merge here", "sents": [["remember: we never squash merge here", "rule"]]}
+{"id": "L103", "turn": "it always fails on the second run", "sents": [["it always fails on the second run", "none"]]}
+{"id": "L104", "turn": "never seen this error before", "sents": [["never seen this error before", "none"]]}
+{"id": "L109", "turn": "looks like the migration ran twice", "sents": [["looks like the migration ran twice", "none"]]}
+{"id": "L110", "turn": "why did you pick redis here?", "sents": [["why did you pick redis here?", "none"]]}
+{"id": "L111", "turn": "what's the difference between the two options", "sents": [["what's the difference between the two options", "none"]]}
+{"id": "L112", "turn": "does this break the existing clients?", "sents": [["does this break the existing clients?", "none"]]}
+{"id": "L115", "turn": "that's weird, it was fine an hour ago", "sents": [["that's weird, it was fine an hour ago", "none"]]}
+{"id": "L119", "turn": "the client never sends the header", "sents": [["the client never sends the header", "none"]]}
+{"id": "L122", "turn": "the ci runner always times out at 10 min", "sents": [["the ci runner always times out at 10 min", "none"]]}
+{"id": "L126", "turn": "hmm the diff looks bigger than i expected", "sents": [["hmm the diff looks bigger than i expected", "none"]]}
+{"id": "L127", "turn": "should we use a dataclass or a typeddict here", "sents": [["should we use a dataclass or a typeddict here", "none"]]}
+{"id": "L128", "turn": "the fix is good. now add a regression test for it", "sents": [["the fix is good.", "none"], ["now add a regression test for it", "do"]]}
+{"id": "L130", "turn": "keep the cli as is, but drop the deprecated --legacy flag", "sents": [["keep the cli as is, but drop the deprecated --legacy flag", "do"]]}
+{"id": "L131", "turn": "use sqlite for dev; postgres stays in prod", "sents": [["use sqlite for dev; postgres stays in prod", "do"]]}
+{"id": "L132", "turn": "nice work. let's not publish it yet, i want to test on windows", "sents": [["nice work.", "none"], ["let's not publish it yet, i want to test on windows", "hold"]]}
+{"id": "L136", "turn": "fine, use the vendored copy then", "sents": [["fine, use the vendored copy then", "do"]]}
+{"id": "L137", "turn": "move the helpers into utils/strings.py", "sents": [["move the helpers into utils/strings.py", "do"]]}
+{"id": "L138", "turn": "lets add type hints to the public functions only", "sents": [["lets add type hints to the public functions only", "do"]]}
+{"id": "L139", "turn": "go for the lazy loading approach", "sents": [["go for the lazy loading approach", "do"]]}
+{"id": "L140", "turn": "i think we should just use a lock file here", "sents": [["i think we should just use a lock file here", "do"]]}
+{"id": "L141", "turn": "prefer composition over the mixin here", "sents": [["prefer composition over the mixin here", "do"]]}
+{"id": "L142", "turn": "tbh i'd skip the abstraction and inline it", "sents": [["tbh i'd skip the abstraction and inline it", "not+do"]]}
+{"id": "L144", "turn": "on second thoughts let's not ship the beta flag", "sents": [["on second thoughts let's not ship the beta flag", "change"]]}
+{"id": "L147", "turn": "update of plan: we're targeting node 20 not 18", "sents": [["update of plan: we're targeting node 20 not 18", "change"]]}
+{"id": "L148", "turn": "let's punt on the metrics dashboard", "sents": [["let's punt on the metrics dashboard", "later"]]}
+{"id": "L150", "turn": "defer the docs rewrite to next milestone", "sents": [["defer the docs rewrite to next milestone", "later"]]}
+{"id": "L156", "turn": "never touch the vendor directory", "sents": [["never touch the vendor directory", "rule"]]}
+{"id": "L157", "turn": "always use utc timestamps in the db", "sents": [["always use utc timestamps in the db", "rule"]]}
+{"id": "S006", "turn": "not that", "act": "reject"}
+{"id": "S007", "turn": "let's not", "act": "reject"}
+{"id": "S009", "turn": "no thanks", "act": "reject"}
+{"id": "S010", "turn": "skip it", "act": "reject"}
+{"id": "S017", "turn": "let's revisit", "act": "defer"}
+{"id": "S020", "turn": "tomorrow", "act": "defer"}
+{"id": "S022", "turn": "wait", "act": "defer"}
+{"id": "S029", "turn": "ship it", "act": "agree"}
+{"id": "S030", "turn": "sounds good", "act": "agree"}
+{"id": "S031", "turn": "perfect", "act": "agree"}
+{"id": "S032", "turn": "makes sense", "act": "agree"}
+{"id": "S033", "turn": "yes please", "act": "agree"}
+{"id": "S036", "turn": "ok cool", "act": "agree"}
+{"id": "S037", "turn": "alright", "act": "agree"}
+{"id": "S038", "turn": "works for me", "act": "agree"}
+{"id": "S041", "turn": "run the tests", "act": "directive"}
+{"id": "S042", "turn": "fix it", "act": "directive"}
+{"id": "S044", "turn": "rerun ci", "act": "directive"}
+{"id": "S046", "turn": "revert that", "act": "directive"}
+{"id": "S049", "turn": "done", "act": "status"}
+{"id": "S050", "turn": "pushed it", "act": "status"}
+{"id": "S051", "turn": "deployed", "act": "status"}
+{"id": "S052", "turn": "it crashed", "act": "status"}
+{"id": "S053", "turn": "still broken", "act": "status"}
+{"id": "S054", "turn": "works now", "act": "status"}
+{"id": "S055", "turn": "same error", "act": "status"}
+{"id": "S056", "turn": "ci is green", "act": "status"}
+{"id": "S057", "turn": "hmm", "act": "other"}
+{"id": "S058", "turn": "interesting", "act": "other"}
+{"id": "S059", "turn": "thanks", "act": "other"}
+{"id": "S060", "turn": "lol", "act": "other"}

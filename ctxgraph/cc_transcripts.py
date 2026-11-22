@@ -44,17 +44,27 @@ def is_short(text: str) -> bool:
 
 # Dialogue act of a short user turn (ISO 24617-2 / DAMSL classes, rules written before
 # the check). Checked in this order, the first that fires wins: reject / defer -> status -> agree -> directive -> other.
-ACT_REJECT = re.compile(r"^(нет|не надо|не нужно|не стоит|отмена|отменяй|стоп|no|nope|don'?t|cancel|stop)\b", re.I)
+ACT_REJECT = re.compile(r"^(нет|не надо|не нужно|не стоит|отмена|отменяй|стоп|no|nope|don'?t|cancel|stop|"
+                        # v2 (english_cues_v2_rule.md)
+                        r"nah|not that|let'?s not|skip( it| that)?|never ?mind|scratch that|scrap( it| that)?|forget)\b", re.I)
 ACT_DEFER = re.compile(r"\b(потом|позже|подожди|погоди|не сейчас|сначала обсудим|обсудим|later|wait|not now|hold on|"
-                       r"postpone|discuss first|let'?s discuss)\b", re.I)
+                       r"postpone|discuss first|let'?s discuss|"
+                       # v2 (english_cues_v2_rule.md)
+                       r"revisit|park( it| that)?|table( it| that)|punt|tomorrow|next (week|sprint|time)|hold off|hang on|"
+                       r"(a|one) (sec|second|minute|moment)|remind me|someday)\b", re.I)
 ACT_STATUS_WORDS = {"готово", "готов", "завершён", "завершен", "завершено", "закончилось", "ошибка", "ошибкой", "упал",
                     "упало", "done", "started", "finished", "failed", "error", "crashed", "deleted", "ready"}
 ACT_ED_EXCEPT = {"need", "seed", "feed", "speed", "bed"}
+# v2 (english_cues_v2_rule.md): "still broken", "works now", "ci is green"
+ACT_STATUS = re.compile(r"\b(still (broken|failing|red)|works now|working now|(is|are) (green|red|broken|passing|failing))\b")
 ACT_AGREE = re.compile(r"^(да|ага|угу|ок|окей|ok|okay|давай|давайте|согласен|согласна|конечно|хорошо|ладно|принято|yes|"
-                       r"yep|yeah|sure|go|fine|agreed|approved|lgtm|sounds good|go ahead|do it|let'?s go)\b", re.I)
+                       r"yep|yeah|sure|go|fine|agreed|approved|lgtm|sounds good|go ahead|do it|let'?s go|"
+                       # v2 (english_cues_v2_rule.md)
+                       r"ship it|perfect|makes sense|alright|all right|works for me|great|nice|cool)\b", re.I)
 ACT_EN_VERBS = {"fix", "do", "push", "start", "connect", "continue", "run", "delete", "check", "add", "make", "try",
                 "commit", "merge", "retry", "rerun", "proceed", "use", "keep", "remove", "revert", "apply", "deploy",
-                "publish", "send", "write", "go", "restart", "recreate", "rollback", "undo", "open", "show", "stop"}
+                "publish", "send", "write", "go", "restart", "recreate", "rollback", "undo", "open", "show", "stop",
+                "bump", "refactor", "rename", "update", "implement", "revert", "wire", "install", "upgrade"}
 _MORPH = None
 
 
@@ -75,7 +85,7 @@ def short_act(text: str) -> str:
         return "reject"
     if ACT_DEFER.search(s):
         return "defer"
-    if any(w in ACT_STATUS_WORDS for w in words) or any(re.fullmatch(r"[a-z]+ed", w) and w not in ACT_ED_EXCEPT
+    if ACT_STATUS.search(s) or any(w in ACT_STATUS_WORDS for w in words) or any(re.fullmatch(r"[a-z]+ed", w) and w not in ACT_ED_EXCEPT
                                                          for w in words):  # fmt: skip
         return "status"
     cyr = [w for w in words if re.search(r"[а-яё]", w)]

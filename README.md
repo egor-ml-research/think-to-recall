@@ -32,13 +32,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.10" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.11" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.10" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.11" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -46,10 +46,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.10" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.11" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.6.10 from GitHub. For finer English concepts in the
+The package is not on PyPI yet; the commands install release v0.6.11 from GitHub. For finer English concepts in the
 graph view, add the `english` extra and run `python -m spacy download en_core_web_sm`. **Installing through an AI assistant?** Point it to
 [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
@@ -347,7 +347,9 @@ and the conversation concepts and decisions that mention it. Re-importing replac
 ## Limits
 
 - **Rules, not an LLM.** Statuses, decisions, reports and confirmations are found by cue words and structure, tuned
-  on Russian and English conversations. They miss some decisions and mislabel others. The decisions list says so.
+  on Russian and English conversations. They miss some decisions and mislabel others. The decisions list says so. English cues are checked on a
+  synthetic held-out set of developer turns (`tests/realworld_en`, `scripts/eval_en_cues.py`): 64 of 81 sentence
+  labels and 25 of 29 short answers right in v0.6.11 (40 and 15 before).
 - **Recall searches conversations, not code.** The Graphify layer is shown in the graph view only.
 - **Name links are exact.** A code symbol is linked only when the chat names it exactly as written. Only concepts
   frequent enough to appear in the view get links drawn.

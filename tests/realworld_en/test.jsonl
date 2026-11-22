@@ -1,0 +1,107 @@
+{"id": "L001", "turn": "ok let's go with sqlite for the local cache", "sents": [["ok let's go with sqlite for the local cache", "do"]]}
+{"id": "L002", "turn": "we'll use pydantic v2 for the config models", "sents": [["we'll use pydantic v2 for the config models", "do"]]}
+{"id": "L003", "turn": "lets just use the stdlib logging module, no loguru", "sents": [["lets just use the stdlib logging module, no loguru", "do"]]}
+{"id": "L006", "turn": "i want the export to write parquet instead of csv", "sents": [["i want the export to write parquet instead of csv", "change"]]}
+{"id": "L007", "turn": "decided: the worker pool stays at 4 processes", "sents": [["decided: the worker pool stays at 4 processes", "do"]]}
+{"id": "L016", "turn": "we're going with option B, the queue based one", "sents": [["we're going with option B, the queue based one", "do"]]}
+{"id": "L017", "turn": "option 2 sounds right, implement that", "sents": [["option 2 sounds right, implement that", "do"]]}
+{"id": "L020", "turn": "use httpx instead of requests in the new client", "sents": [["use httpx instead of requests in the new client", "do"]]}
+{"id": "L023", "turn": "nah, skip the docker stuff", "sents": [["nah, skip the docker stuff", "not"]]}
+{"id": "L026", "turn": "scrap the websocket idea, polling is enough", "sents": [["scrap the websocket idea, polling is enough", "not"]]}
+{"id": "L028", "turn": "leave the migrations alone", "sents": [["leave the migrations alone", "not"]]}
+{"id": "L029", "turn": "we don't need a separate service for this", "sents": [["we don't need a separate service for this", "not"]]}
+{"id": "L030", "turn": "drop the idea of a plugin system, too much work", "sents": [["drop the idea of a plugin system, too much work", "not"]]}
+{"id": "L032", "turn": "dont bother with windows support", "sents": [["dont bother with windows support", "not"]]}
+{"id": "L033", "turn": "please don't rewrite the tests, just fix the import", "sents": [["please don't rewrite the tests, just fix the import", "not+do"]]}
+{"id": "L038", "turn": "ditch the custom json encoder", "sents": [["ditch the custom json encoder", "not"]]}
+{"id": "L039", "turn": "that's overkill, no kubernetes", "sents": [["that's overkill, no kubernetes", "not"]]}
+{"id": "L040", "turn": "not a fan of the singleton, lets avoid it", "sents": [["not a fan of the singleton, lets avoid it", "not"]]}
+{"id": "L041", "turn": "actually, go with postgres instead", "sents": [["actually, go with postgres instead", "change"]]}
+{"id": "L043", "turn": "scratch that, use pnpm not npm", "sents": [["scratch that, use pnpm not npm", "change"]]}
+{"id": "L045", "turn": "wait no, revert to the previous prompt template", "sents": [["wait no, revert to the previous prompt template", "change"]]}
+{"id": "L046", "turn": "instead of celery let's use rq", "sents": [["instead of celery let's use rq", "change"]]}
+{"id": "L047", "turn": "hmm actually make it a cli flag rather than an env var", "sents": [["hmm actually make it a cli flag rather than an env var", "change"]]}
+{"id": "L056", "turn": "let's park the i18n work for now", "sents": [["let's park the i18n work for now", "later"]]}
+{"id": "L057", "turn": "we'll revisit the caching strategy next sprint", "sents": [["we'll revisit the caching strategy next sprint", "later"]]}
+{"id": "L058", "turn": "add a todo for the rate limiter, not now", "sents": [["add a todo for the rate limiter, not now", "later"]]}
+{"id": "L059", "turn": "let's come back to the flaky test later", "sents": [["let's come back to the flaky test later", "later"]]}
+{"id": "L060", "turn": "put perf tuning on the backlog", "sents": [["put perf tuning on the backlog", "later"]]}
+{"id": "L062", "turn": "i'll deal with the docs after the release", "sents": [["i'll deal with the docs after the release", "later"]]}
+{"id": "L066", "turn": "that can wait until after the demo", "sents": [["that can wait until after the demo", "later"]]}
+{"id": "L068", "turn": "not a priority right now, keep it in mind", "sents": [["not a priority right now, keep it in mind", "later"]]}
+{"id": "L069", "turn": "we can tackle the windows build some other time", "sents": [["we can tackle the windows build some other time", "later"]]}
+{"id": "L071", "turn": "don't merge until i've reviewed it", "sents": [["don't merge until i've reviewed it", "hold"]]}
+{"id": "L073", "turn": "wait for ci before you tag the release", "sents": [["wait for ci before you tag the release", "hold"]]}
+{"id": "L074", "turn": "don't push yet, i want to look at the diff first", "sents": [["don't push yet, i want to look at the diff first", "hold"]]}
+{"id": "L075", "turn": "let's wait for the design review before touching the ui", "sents": [["let's wait for the design review before touching the ui", "hold"]]}
+{"id": "L076", "turn": "only deploy after i give the go-ahead", "sents": [["only deploy after i give the go-ahead", "hold"]]}
+{"id": "L079", "turn": "keep it local for now, no push", "sents": [["keep it local for now, no push", "hold"]]}
+{"id": "L081", "turn": "don't do anything until tom confirms the api contract", "sents": [["don't do anything until tom confirms the api contract", "hold"]]}
+{"id": "L082", "turn": "stop here and wait for my ok", "sents": [["stop here and wait for my ok", "hold"]]}
+{"id": "L085", "turn": "from now on use conventional commit messages", "sents": [["from now on use conventional commit messages", "rule"]]}
+{"id": "L086", "turn": "going forward put new endpoints under /api/v2", "sents": [["going forward put new endpoints under /api/v2", "rule"]]}
+{"id": "L089", "turn": "rule of thumb: no new deps without asking me", "sents": [["rule of thumb: no new deps without asking me", "rule"]]}
+{"id": "L092", "turn": "please stop adding emojis to commit messages", "sents": [["please stop adding emojis to commit messages", "rule"]]}
+{"id": "L093", "turn": "never use print for logging in this codebase", "sents": [["never use print for logging in this codebase", "rule"]]}
+{"id": "L094", "turn": "from here on, tests go next to the module they test", "sents": [["from here on, tests go next to the module they test", "rule"]]}
+{"id": "L096", "turn": "whenever you touch the api, update the openapi spec", "sents": [["whenever you touch the api, update the openapi spec", "rule"]]}
+{"id": "L097", "turn": "api keys only live in the .env, nowhere else", "sents": [["api keys only live in the .env, nowhere else", "rule"]]}
+{"id": "L098", "turn": "do not ever log user emails", "sents": [["do not ever log user emails", "rule"]]}
+{"id": "L100", "turn": "no more mocking the database in integration tests", "sents": [["no more mocking the database in integration tests", "rule"]]}
+{"id": "L102", "turn": "in the future ask me before running migrations", "sents": [["in the future ask me before running migrations", "rule"]]}
+{"id": "L105", "turn": "i don't get why the build is so slow", "sents": [["i don't get why the build is so slow", "none"]]}
+{"id": "L106", "turn": "the old service was using postgres", "sents": [["the old service was using postgres", "none"]]}
+{"id": "L107", "turn": "this worked yesterday on my machine", "sents": [["this worked yesterday on my machine", "none"]]}
+{"id": "L108", "turn": "tests pass locally but not in docker", "sents": [["tests pass locally but not in docker", "none"]]}
+{"id": "L113", "turn": "i don't know if the cache is even hit", "sents": [["i don't know if the cache is even hit", "none"]]}
+{"id": "L114", "turn": "the logs say connection refused on port 5432", "sents": [["the logs say connection refused on port 5432", "none"]]}
+{"id": "L116", "turn": "ok so the bug is in the date parser", "sents": [["ok so the bug is in the date parser", "none"]]}
+{"id": "L117", "turn": "i don't think that's the root cause", "sents": [["i don't think that's the root cause", "none"]]}
+{"id": "L118", "turn": "we used to deploy with fabric years ago", "sents": [["we used to deploy with fabric years ago", "none"]]}
+{"id": "L120", "turn": "for context, the api is consumed by the mobile app", "sents": [["for context, the api is consumed by the mobile app", "none"]]}
+{"id": "L121", "turn": "interesting, i didn't know pytest did that", "sents": [["interesting, i didn't know pytest did that", "none"]]}
+{"id": "L123", "turn": "thanks, that explains the 500s", "sents": [["thanks, that explains the 500s", "none"]]}
+{"id": "L124", "turn": "i ran it and got a keyerror on 'user_id'", "sents": [["i ran it and got a keyerror on 'user_id'", "none"]]}
+{"id": "L125", "turn": "here's the stack trace from prod", "sents": [["here's the stack trace from prod", "none"]]}
+{"id": "L129", "turn": "ok tests pass. let's hold the release until monday though", "sents": [["ok tests pass.", "none"], ["let's hold the release until monday though", "hold"]]}
+{"id": "L133", "turn": "the refactor is fine, but skip the renames for now", "sents": [["the refactor is fine, but skip the renames for now", "do+not"]]}
+{"id": "L134", "turn": "i looked at both. go with the second one", "sents": [["i looked at both.", "none"], ["go with the second one", "do"]]}
+{"id": "L135", "turn": "ugh that broke the build. revert the last commit", "sents": [["ugh that broke the build.", "none"], ["revert the last commit", "do"]]}
+{"id": "L143", "turn": "no wait, keep the mixin", "sents": [["no wait, keep the mixin", "change"]]}
+{"id": "L145", "turn": "we said redis earlier but let's do sqlite after all", "sents": [["we said redis earlier but let's do sqlite after all", "change"]]}
+{"id": "L146", "turn": "going back on what i said, the endpoint stays sync", "sents": [["going back on what i said, the endpoint stays sync", "change"]]}
+{"id": "L149", "turn": "add it to the todo list, we'll do it after launch", "sents": [["add it to the todo list, we'll do it after launch", "later"]]}
+{"id": "L151", "turn": "save that idea for later", "sents": [["save that idea for later", "later"]]}
+{"id": "L152", "turn": "someday we should rewrite this in rust lol", "sents": [["someday we should rewrite this in rust lol", "later"]]}
+{"id": "L153", "turn": "don't commit anything until i've run the smoke test", "sents": [["don't commit anything until i've run the smoke test", "hold"]]}
+{"id": "L154", "turn": "hang on, don't apply that migration yet", "sents": [["hang on, don't apply that migration yet", "hold"]]}
+{"id": "L155", "turn": "we must always pin exact versions in requirements.txt", "sents": [["we must always pin exact versions in requirements.txt", "rule"]]}
+{"id": "S001", "turn": "nah", "act": "reject"}
+{"id": "S002", "turn": "nope", "act": "reject"}
+{"id": "S003", "turn": "no don't", "act": "reject"}
+{"id": "S004", "turn": "scrap that", "act": "reject"}
+{"id": "S005", "turn": "nevermind", "act": "reject"}
+{"id": "S008", "turn": "forget it", "act": "reject"}
+{"id": "S011", "turn": "hard pass", "act": "reject"}
+{"id": "S012", "turn": "undo that", "act": "directive"}
+{"id": "S013", "turn": "not now", "act": "defer"}
+{"id": "S014", "turn": "later", "act": "defer"}
+{"id": "S015", "turn": "park it", "act": "defer"}
+{"id": "S016", "turn": "maybe later", "act": "defer"}
+{"id": "S018", "turn": "hold off", "act": "defer"}
+{"id": "S019", "turn": "not yet", "act": "defer"}
+{"id": "S021", "turn": "next week", "act": "defer"}
+{"id": "S023", "turn": "one sec", "act": "defer"}
+{"id": "S024", "turn": "table it", "act": "defer"}
+{"id": "S025", "turn": "yes", "act": "agree"}
+{"id": "S026", "turn": "yep go", "act": "agree"}
+{"id": "S027", "turn": "sure", "act": "agree"}
+{"id": "S028", "turn": "lgtm", "act": "agree"}
+{"id": "S034", "turn": "go for it", "act": "agree"}
+{"id": "S035", "turn": "do it", "act": "agree"}
+{"id": "S039", "turn": "fair enough", "act": "agree"}
+{"id": "S040", "turn": "yup", "act": "agree"}
+{"id": "S043", "turn": "commit and push", "act": "directive"}
+{"id": "S045", "turn": "try again", "act": "directive"}
+{"id": "S047", "turn": "bump the version", "act": "directive"}
+{"id": "S048", "turn": "add a test", "act": "directive"}
