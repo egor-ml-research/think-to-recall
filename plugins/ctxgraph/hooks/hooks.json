@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uvx --from think-to-recall==0.6.6 ctxgraph hook-stop",
+            "command": "uvx --from think-to-recall==0.6.7 ctxgraph hook-stop",
             "timeout": 30
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uvx --from think-to-recall==0.6.6 ctxgraph hook-start",
+            "command": "uvx --from think-to-recall==0.6.7 ctxgraph hook-start",
             "timeout": 30
           }
         ]

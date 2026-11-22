@@ -45,7 +45,7 @@ If you already connected ctxgraph by hand with `ctxgraph setup`, keep only one o
 The MCP server and the hooks run `uvx` with the package `think-to-recall` pinned to one exact version on PyPI:
 
 ```
-uvx --from think-to-recall==0.6.6 ctxgraph-mcp
+uvx --from think-to-recall==0.6.7 ctxgraph-mcp
 ```
 
 On the first run uv downloads that version and its Python dependencies from PyPI (pymorphy3, yake,
