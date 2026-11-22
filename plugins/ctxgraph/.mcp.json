@@ -5,7 +5,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "think-to-recall==0.6.9",
+        "think-to-recall==0.6.10",
         "ctxgraph-mcp"
       ]
     }
