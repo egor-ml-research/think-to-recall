@@ -217,9 +217,9 @@ ctxgraph view --3d
 ответа вызывает `save_chat` с новыми репликами. Если 12 часов ничего не сохранялось, один ответ `recall` содержит
 строку-напоминание (не в Claude Code — там каждую реплику записывает хук).
 
-**Расширение Claude Desktop (без режима разработчика).** Один раз установите ctxgraph в терминале (команда
-`uv tool install` или `pipx install` выше), затем скачайте `ctxgraph-0.6.2.mcpb` со
-[страницы релиза](https://github.com/egor-ml-research/think-to-recall/releases/tag/v0.6.2) и откройте его (или
+**Расширение Claude Desktop (без режима разработчика).** Один раз установите пакет в терминале
+(`uv tool install think-to-recall==0.6.12` или то же через `pipx install`), затем скачайте `ctxgraph-0.6.12.mcpb`
+со [страницы релиза](https://github.com/egor-ml-research/think-to-recall/releases/tag/v0.6.12) и откройте его (или
 перетащите в Claude Desktop → Settings → Extensions). Claude Desktop спросит папку проекта — используется память этой
 папки. В расширении нет кода: оно запускает установленный вами `ctxgraph-mcp` (`~/.local/bin`; в Windows — `ctxgraph-mcpw.exe`).
 Удалённый «custom connector» по URL не используется намеренно: коннектор работает на сервере, а эта память остаётся на

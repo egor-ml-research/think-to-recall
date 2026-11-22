@@ -1,7 +1,8 @@
 """Build the Claude Desktop extension `dist/ctxgraph-<version>.mcpb` (MCPB manifest spec 0.3).
 
-The extension holds no code: Claude Desktop runs `ctxgraph-mcp` from the user's own install
-(`uv tool install ...` or `pipx install ...`, both put it in ~/.local/bin). The user picks the project folder once
+The extension holds no code: Claude Desktop runs `ctxgraph-mcp` (`ctxgraph-mcpw.exe` on Windows: a GUI launcher, no
+console window) from the user's own install of the PyPI package (`uv tool install think-to-recall==<version>` or
+`pipx install ...`; both put it in ~/.local/bin). The user picks the project folder once
 at install time; it is passed as CTXGRAPH_PROJECT. The memory stays on the user's computer (~/.ctxgraph).
 
     python scripts/build_mcpb.py [--out dist/ctxgraph.mcpb] [--version 0.6.0]
@@ -40,16 +41,16 @@ def manifest(version: str) -> dict:
     return {
         "manifest_version": "0.3",
         "name": "ctxgraph",
-        "display_name": "ctxgraph — project decision memory",
+        "display_name": "ctxgraph",
         "version": version,
-        "description": "Local decision memory for your project: save chats, recall what was decided and why.",
+        "description": "Local decision memory: recalls what was decided, rejected or put off in this project's chats.",
         "long_description": (
             "ctxgraph keeps a local memory of a project's conversations: decisions, refusals, deferrals, reports of "
             "done work. Ask \"add this chat to memory\" to save the current chat; later questions find what was "
             "decided and why. Everything stays on your computer (~/.ctxgraph); nothing is sent anywhere.\n\n"
-            "**Prerequisite:** install ctxgraph once in a terminal: "
-            "`uv tool install git+https://github.com/egor-ml-research/think-to-recall@v" + version + "` "
-            "(or the same with `pipx install`). The extension runs that install's `ctxgraph-mcp`."
+            "**Prerequisite:** install the package once in a terminal: `uv tool install think-to-recall==" + version
+            + "` (or `pipx install think-to-recall==" + version + "`). The extension runs that install's "
+            "`ctxgraph-mcp` (`ctxgraph-mcpw.exe` on Windows, no console window) from ~/.local/bin."
         ),
         "author": {"name": "egor-ml-research", "url": "https://github.com/egor-ml-research"},
         "repository": {"type": "git", "url": "https://github.com/egor-ml-research/think-to-recall"},
@@ -57,7 +58,7 @@ def manifest(version: str) -> dict:
         "documentation": "https://github.com/egor-ml-research/think-to-recall#readme",
         "support": "https://github.com/egor-ml-research/think-to-recall/issues",
         "icon": "icon.png",
-        "license": "MIT",
+        "license": "Apache-2.0",
         "keywords": ["memory", "decisions", "local", "project", "history"],
         "server": {
             "type": "binary",

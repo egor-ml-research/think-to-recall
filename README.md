@@ -217,9 +217,9 @@ After that the assistant keeps saving on its own: when a conversation produces a
 "later" item, it calls `save_chat` with the new turns at the end of its answer. If nothing was saved for 12 hours,
 one `recall` answer carries a one-line reminder (not in Claude Code, which records every turn by its hook).
 
-**Claude Desktop extension (no developer mode).** Install ctxgraph once in a terminal (the `uv tool install` or
-`pipx install` command above), then download `ctxgraph-0.6.2.mcpb` from the
-[release page](https://github.com/egor-ml-research/think-to-recall/releases/tag/v0.6.2) and open it (or drag it
+**Claude Desktop extension (no developer mode).** Install the package once in a terminal
+(`uv tool install think-to-recall==0.6.12`, or the same with `pipx install`), then download `ctxgraph-0.6.12.mcpb`
+from the [release page](https://github.com/egor-ml-research/think-to-recall/releases/tag/v0.6.12) and open it (or drag it
 into Claude Desktop → Settings → Extensions). Claude Desktop asks for the project folder; the memory of that folder
 is used. The extension contains no code: it runs the `ctxgraph-mcp` you installed (`~/.local/bin`; on Windows `ctxgraph-mcpw.exe`).
 ctxgraph is not offered as a remote "custom connector" URL on purpose: a connector runs on a server, and this memory
