@@ -78,8 +78,8 @@ const COS = (() => {
   <div class="cosui">
     <div class="cg" id="cg"></div>
     <button class="chome cglass" id="cHome">Обзор</button>
-    <div class="ctr"><button class="pg cglass" id="cDash">Панель</button>
-      <div class="cseg cglass"><button data-mode="2d">2D</button><button data-mode="3d">3D</button><button data-mode="cosmos">Космос</button><button data-mode="waves">Волны</button><button data-mode="live">Живая</button></div></div>
+    <div class="ctr"><button class="pg cglass" id="cDash">Панель</button><button class="pg cglass" id="cLang" title="Язык">${I18N.lang === "ru" ? "EN" : "RU"}</button>
+      <div class="cseg cglass"><button data-mode="2d">2D</button><button data-mode="3d">3D</button><button data-mode="cosmos">Космос</button><button data-mode="live">Живая</button></div></div>
     <div class="cbar cglass"><button id="cOut" title="Отдалить">−</button><button id="cIn" title="Приблизить">+</button><span class="sep"></span>
       <button id="cReset" title="Вернуть вид">⟲</button><button id="cPause" title="Пауза вращения">❚❚</button><button id="cFull" title="Во весь экран">⛶</button></div>
     <div class="ctip" id="cTip"></div>
@@ -94,10 +94,10 @@ const COS = (() => {
   const gauss = () => { let u = 0; while (!u) u = rnd(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd()); };
   const T = DATA.topics, K = Math.max(1, T.length);
   const conv = DATA.nodes.filter(n => !isCode(n));
-  const tc = T.map((t, i) => {
-    const a = 2 * Math.PI * i / K + 0.35, r = (i % 2 ? 470 : 330) + 18 * Math.sqrt(i);
-    return { x: r * Math.cos(a), y: (rnd() - 0.5) * 50, z: r * Math.sin(a), spread: 24 + 7.5 * Math.sqrt(t.size) };
-  });
+  // cluster centres scattered in 3D (a Fibonacci sphere with random radius and jitter): not one plane
+  const sph = (i, n, r0, r1) => { const y = 1 - 2 * (i + 0.5) / Math.max(1, n), q = Math.sqrt(1 - y * y), a = i * 2.39996 + rnd() * 0.8, r = r0 + rnd() * (r1 - r0);
+    return { x: r * q * Math.cos(a) + gauss() * 40, y: r * y * 0.8 + gauss() * 40, z: r * q * Math.sin(a) + gauss() * 40 }; };
+  const tc = T.map((t, i) => ({ ...sph(i, K, 300, 560), spread: 24 + 7.5 * Math.sqrt(t.size) }));
   const P = new Map();  // concept id -> world position
   const byTopic = T.map(() => []);
   conv.forEach(n => { if (n.topic >= 0 && byTopic[n.topic]) byTopic[n.topic].push(n); });
@@ -106,11 +106,21 @@ const COS = (() => {
     const c = tc[t];
     ns.forEach((n, k) => {
       const s = c.spread * (0.35 + 0.75 * Math.sqrt((k + 1) / ns.length));
-      P.set(n.id, { x: c.x + gauss() * s * 0.6, y: c.y + gauss() * s * 0.22, z: c.z + gauss() * s * 0.6 });
+      P.set(n.id, { x: c.x + gauss() * s * 0.6, y: c.y + gauss() * s * 0.5, z: c.z + gauss() * s * 0.6 });
     });
   });
   conv.forEach(n => { if (!P.has(n.id)) { const a = rnd() * 2 * Math.PI, r = 620 + gauss() * 40;
     P.set(n.id, { x: r * Math.cos(a), y: gauss() * 20, z: r * Math.sin(a) }); } });
+  // the code (Graphify): one constellation per top folder, farther out, in its own colour
+  const codeN = DATA.nodes.filter(isCode), CODE_C = "#5f9fd8";
+  const top1 = f => (f || "").includes("/") ? f.split("/")[0] : (f || "code"), c1 = {};
+  codeN.forEach(n => { c1[top1(n.file)] = (c1[top1(n.file)] || 0) + 1; });
+  // a folder holding most of the code (app/, src/) is split one level deeper
+  const grp = f => { const t = top1(f), p = (f || "").split("/"); return c1[t] > 0.4 * codeN.length && p.length >= 3 ? p.slice(0, 2).join("/") : t; };
+  const kg = {}; codeN.forEach(n => { const d = grp(n.file); (kg[d] = kg[d] || []).push(n); });
+  const kc = Object.entries(kg).sort((a, b) => b[1].length - a[1].length).map(([name, ns], i, all) => ({ name, ns, ...sph(i + 0.5, all.length, 640, 820), spread: 22 + 6 * Math.sqrt(ns.length) }));
+  kc.forEach(c => c.ns.forEach((n, k) => { const s = c.spread * (0.35 + 0.75 * Math.sqrt((k + 1) / c.ns.length));
+    P.set(n.id, { x: c.x + gauss() * s * 0.6, y: c.y + gauss() * s * 0.5, z: c.z + gauss() * s * 0.6 }); }));
   const dust = Array.from({ length: 1100 }, () => {
     const r = 70 + Math.pow(rnd(), 1.6) * 680, arm = rnd() < 0.5 ? 0 : Math.PI;
     const a = arm + Math.log(r / 60) * 1.9 + gauss() * 0.42;
@@ -124,7 +134,7 @@ const COS = (() => {
   const orbits = [560, 690, 830, 980].map((r, i) => ({ r, inc: (i - 1.5) * 0.09, rot: i * 1.3, ph: rnd() * 6.28, sp: 0.05 + 0.03 * rnd() * (i % 2 ? -1 : 1), tail: 1.1 + 0.5 * rnd() }));
   const links = DATA.links.filter(l => P.has(l.source) && P.has(l.target)).map(l => {
     const a = byId.get(l.source), b = byId.get(l.target);
-    return { a, b, t: a.topic === b.topic ? a.topic : -1 };
+    return { a, b, t: isCode(a) || isCode(b) ? -1 : a.topic === b.topic ? a.topic : -1 };
   });
 
   // sprites: soft glow per colour
@@ -235,6 +245,11 @@ const COS = (() => {
       ctx.drawImage(glow(col(n.topic)), out.x - sz / 2, out.y - sz / 2, sz, sz);
       hits.push({ n, x: out.x, y: out.y, r: Math.max(5, r * 1.6), on });
     }
+    for (const n of codeN) { if (!vis(n) || !P.has(n.id) || !proj(P.get(n.id))) continue;
+      const on = lit(n), r = Math.max(0.7, (1.6 + 0.35 * Math.sqrt(n.deg || 0)) * out.s), sz = r * 4.5;
+      ctx.globalAlpha = on ? 0.6 : 0.1; ctx.drawImage(glow(CODE_C), out.x - sz / 2, out.y - sz / 2, sz, sz);
+      hits.push({ n, x: out.x, y: out.y, r: Math.max(5, r * 1.6), on });
+    }
     ctx.globalCompositeOperation = "source-over";
     // labels
     ctx.textAlign = "center";
@@ -252,9 +267,13 @@ const COS = (() => {
       const nm = t.name.split(" · ").slice(0, 2).join(" · ");
       ctx.fillText(nm, out.x, out.y - 8);
       ctx.font = "11px -apple-system, Segoe UI, sans-serif"; ctx.fillStyle = "#8f8f9a"; ctx.textBaseline = "top";
-      ctx.fillText(`${t.size} понятий`, out.x, out.y - 6); ctx.shadowBlur = 0;
+      ctx.fillText(tr("{0} понятий", t.size), out.x, out.y - 6); ctx.shadowBlur = 0;
       tHits.push({ t: i, x: out.x, y: out.y - 8, w: ctx.measureText(nm).width / 2 + 34 });
     });
+    if (showCode) kc.forEach(c => { if (!proj({ x: c.x, y: c.y + c.spread * 0.5, z: c.z })) return;
+      ctx.globalAlpha = 0.9; ctx.textBaseline = "bottom"; ctx.font = "600 12px -apple-system, Segoe UI, sans-serif"; ctx.fillStyle = "#bfe0ff";
+      ctx.shadowColor = "#000"; ctx.shadowBlur = 8; ctx.fillText(tr("код · {0}", c.name), out.x, out.y - 8);
+      ctx.font = "11px -apple-system, Segoe UI, sans-serif"; ctx.fillStyle = "#8f9aa8"; ctx.textBaseline = "top"; ctx.fillText(tr("{0} узлов · Graphify", c.ns.length), out.x, out.y - 6); ctx.shadowBlur = 0; });
     // concept labels when close to a topic, on search, or around the hovered/selected concept
     const close = cam.dist < 800;
     ctx.font = "11px -apple-system, Segoe UI, sans-serif"; ctx.textBaseline = "top"; ctx.shadowColor = "#000"; ctx.shadowBlur = 6;
@@ -366,7 +385,7 @@ const COS = (() => {
   $("#cIn").onclick = () => zoomBy(1 / 1.35); $("#cOut").onclick = () => zoomBy(1.35);
   const home = () => { closeInsp(); fly(HOME); };
   $("#cReset").onclick = home; $("#cHome").onclick = home;
-  $("#cPause").onclick = () => { paused = !paused; $("#cPause").textContent = paused ? "▶" : "❚❚"; $("#cPause").title = paused ? "Вращать" : "Пауза вращения"; };
+  $("#cPause").onclick = () => { paused = !paused; $("#cPause").textContent = paused ? "▶" : "❚❚"; $("#cPause").title = tr(paused ? "Вращать" : "Пауза вращения"); };
   $("#cFull").onclick = () => { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); };
 
   function flyTopic(t) { if (t === null || t === undefined || !tc[t]) return;
@@ -391,23 +410,23 @@ const COS = (() => {
     const newer = decs.filter(d => d.ts > since), turns = Object.entries(daily).filter(([d]) => d > since).reduce((a, [, v]) => a + v, 0);
     const tCount = new Map(); newer.forEach(d => d.topic >= 0 && tCount.set(d.topic, (tCount.get(d.topic) || 0) + 1));
     const tops = [...tCount].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([t]) => `«${esc(T[t].name.split(" · ")[0])}»`);
-    const h = new Date().getHours(), hi = h < 5 ? "Доброй ночи" : h < 12 ? "Доброе утро" : h < 18 ? "Добрый день" : "Добрый вечер";
+    const h = new Date().getHours(), hi = tr(h < 5 ? "Доброй ночи" : h < 12 ? "Доброе утро" : h < 18 ? "Добрый день" : "Добрый вечер");
     const ago = lastVisit ? daysBetween(lastVisit, today) : null;
     const yes = newer.filter(d => d.kind === "yes").length, no = newer.filter(d => d.kind === "no").length;
     let sum;
-    if (!turns && !newer.length) sum = `${lastVisit ? "С последнего визита" : "За последнюю неделю"} нового нет. Последняя активность — ${esc(st.to)}.`;
-    else sum = `С ${lastVisit ? "последнего визита" : "прошлой недели проекта"}: ${turns} реплик и ${newer.length} решений`
-      + (newer.length ? ` (делать — ${yes}, не делать — ${no})` : "") + (tops.length ? `; больше всего про ${tops.join(" и ")}.` : ".");
+    if (!turns && !newer.length) sum = tr(lastVisit ? "С последнего визита нового нет. Последняя активность — {0}." : "За последнюю неделю нового нет. Последняя активность — {0}.", esc(st.to));
+    else sum = tr(lastVisit ? "С последнего визита: {0} реплик и {1} решений" : "С прошлой недели проекта: {0} реплик и {1} решений", turns, newer.length)
+      + (newer.length ? tr(" (делать — {0}, не делать — {1})", yes, no) : "") + (tops.length ? tr("; больше всего про {0}.", tops.join(tr(" и "))) : ".");
     const recent = decs.slice(-4).reverse(), hold = decs.filter(d => d.kind === "hold").slice(-2).reverse();
     const row = d => `<div class="d ${d.kind}"><b>${ddmm(d.ts)}</b><span>${esc(short(d.t))}</span></div>`;
     $("#cg").innerHTML = `<button class="hide" id="cgHide" title="Свернуть">–</button>
-      <div class="p">${esc(DATA.name)}</div><div class="s">${esc(st.from)} — ${esc(st.to)} · ${st.turns} реплик · ${T.length} тем</div>
+      <div class="p">${esc(DATA.name)}</div><div class="s">${tr("{0} — {1} · {2} реплик · {3} тем", esc(st.from), esc(st.to), st.turns, T.length)}</div>
       <div class="body2"><h1>${hi}.</h1>
-      <div class="since">С последнего визита: ${lastVisit ? `${esc(lastVisit)}, ${ago} дн. назад` : "сегодня или впервые — показана последняя неделя проекта"} (${esc(addD(since, 1))} — ${esc(st.to)})</div>
+      <div class="since">${lastVisit ? tr("С последнего визита: {0}, {1} дн. назад", esc(lastVisit), ago) : tr("С последнего визита: сегодня или впервые — показана последняя неделя проекта")} (${esc(addD(since, 1))} — ${esc(st.to)})</div>
       <div class="sum">${sum}</div>
       ${recent.length ? `<div class="h">Последние решения</div>${recent.map(row).join("")}` : ""}
       ${hold.length ? `<div class="h">Отложено</div>${hold.map(row).join("")}` : ""}
-      <span class="ln" id="cgDec">${decs.length} решений в журнале →</span><span class="ln" id="cgDash">Панель проекта →</span></div>`;
+      <span class="ln" id="cgDec">${tr("{0} решений в журнале →", decs.length)}</span><span class="ln" id="cgDash">Панель проекта →</span></div>`;
     $("#cgHide").onclick = () => { $("#cg").classList.toggle("min"); $("#cgHide").textContent = $("#cg").classList.contains("min") ? "+" : "–"; };
     $("#cgDec").onclick = openDecisions; $("#cgDash").onclick = openDash;
     if (innerWidth < 900) { $("#cg").classList.add("min"); $("#cgHide").textContent = "+"; }  // narrow: keep the scene visible
@@ -429,13 +448,13 @@ const COS = (() => {
     const Wc = 600, Hc = 150, bw = Wc / 30;
     return `<svg class="ach" viewBox="0 0 ${Wc} ${Hc + 18}" width="100%" preserveAspectRatio="none" style="height:170px">
       <line x1="0" x2="${Wc}" y1="${Hc}" y2="${Hc}" stroke="rgba(255,255,255,.1)"/>
-      ${v.map((x, i) => `<rect x="${i * bw + 2}" y="${Hc - Hc * 0.92 * x / m}" width="${bw - 4}" height="${Hc * 0.92 * x / m}" rx="2" fill="#9b7cf2"><title>${ds[i]}: ${x} реплик, ${dv[i]} решений</title></rect>`
+      ${v.map((x, i) => `<rect x="${i * bw + 2}" y="${Hc - Hc * 0.92 * x / m}" width="${bw - 4}" height="${Hc * 0.92 * x / m}" rx="2" fill="#9b7cf2"><title>${tr("{0}: {1} реплик, {2} решений", ds[i], x, dv[i])}</title></rect>`
         + (dv[i] ? `<circle cx="${i * bw + bw / 2}" cy="${Hc - Hc * 0.92 * x / m - 6}" r="2.5" fill="#66c29a"/>` : "")).join("")}
       <text x="0" y="${Hc + 14}">${ddmm(ds[0])}</text><text x="${Wc / 2}" y="${Hc + 14}" text-anchor="middle">${ddmm(ds[15])}</text>
       <text x="${Wc}" y="${Hc + 14}" text-anchor="end">${ddmm(ds[29])}</text><text x="2" y="10">${m}</text></svg>`;
   }
   const decRow = d => `<div class="dd" data-t="${d.topic}" style="--c:${d.kind === "yes" ? "#66c29a" : d.kind === "no" ? "#e08479" : "#e0a46a"}">
-    <div class="x">${mk(d.t)}</div><div class="m"><span class="k">${d.kind === "yes" ? "делать" : d.kind === "no" ? "не делать" : "отложено"}</span><span>${esc(d.ts)}</span>
+    <div class="x">${mk(d.t)}</div><div class="m"><span class="k">${tr(d.kind === "yes" ? "Решили делать" : d.kind === "no" ? "Решили не делать" : "Пока не / отложено")}</span><span>${esc(d.ts)}</span>
     ${d.topic >= 0 ? `<span>${esc(T[d.topic].name.split(" · ")[0])}</span>` : ""}</div></div>`;
   let dq = "";
   const mk = s => { const e = esc(s); if (!dq) return e; const i = e.toLowerCase().indexOf(esc(dq)); return i < 0 ? e : e.slice(0, i) + "<mark>" + e.slice(i, i + esc(dq).length) + "</mark>" + e.slice(i + esc(dq).length); };
@@ -443,16 +462,16 @@ const COS = (() => {
     if (dq) {
       const cs = conv.filter(n => n.label.toLowerCase().includes(dq)).sort((a, b) => b.n - a.n).slice(0, 40);
       const ds = decs.filter(d => d.t.toLowerCase().includes(dq)).slice().reverse().slice(0, 40);
-      return `<div class="dg c2"><div class="dc"><div class="dcl">Понятия · ${cs.length}</div>${cs.map(n => `<div class="br" data-id="${esc(n.id)}" style="--c:${col(n.topic)}"><div class="l"><span class="nm">${mk(n.label)}</span><span class="v">${n.n}</span></div></div>`).join("") || `<div class="cap2">Нет.</div>`}</div>
-        <div class="dc"><div class="dcl">Решения · ${ds.length}</div>${ds.map(decRow).join("") || `<div class="cap2">Нет.</div>`}</div></div>`;
+      return `<div class="dg c2"><div class="dc"><div class="dcl">${tr("Понятия")} · ${cs.length}</div>${cs.map(n => `<div class="br" data-id="${esc(n.id)}" style="--c:${col(n.topic)}"><div class="l"><span class="nm">${mk(n.label)}</span><span class="v">${n.n}</span></div></div>`).join("") || `<div class="cap2">Нет.</div>`}</div>
+        <div class="dc"><div class="dcl">${tr("Решения")} · ${ds.length}</div>${ds.map(decRow).join("") || `<div class="cap2">Нет.</div>`}</div></div>`;
     }
     const tw8 = weeks(daily), dw8 = weeks(decDaily), fw8 = weeks(firstDaily), lw7 = wk.map(d => lastDaily[d] || 0);
     const maxT = Math.max(1, ...T.map(t => t.size)), top = conv.slice().sort((a, b) => b.deg - a.deg).slice(0, 8), maxD = Math.max(1, ...top.map(n => n.deg));
     return `<div class="dg c4">
-      ${card("#f08a4b", st.turns, "Реплики", `${Object.keys(daily).length} активных дней`, `+${tw8[7]} за неделю`, tw8)}
-      ${card("#52c98c", decs.length, "Решения", `делать ${decs.filter(d => d.kind === "yes").length} · не делать ${decs.filter(d => d.kind === "no").length}`, `+${dw8[7]} за неделю`, dw8)}
-      ${card("#5b8ff0", st.concepts, "Понятия", `${st.shown} на карте · ${T.length} тем`, `${st.bridges} общих`, fw8)}
-      ${card("#a271f0", upd, "Обновлено за неделю", "понятия, упомянутые за 7 дней", `${Math.round(100 * upd / Math.max(1, conv.length))}%`, lw7)}</div>
+      ${card("#f08a4b", st.turns, tr("Реплики"), tr("{0} активных дней", Object.keys(daily).length), tr("+{0} за неделю", tw8[7]), tw8)}
+      ${card("#52c98c", decs.length, tr("Решения"), tr("делать {0} · не делать {1}", decs.filter(d => d.kind === "yes").length, decs.filter(d => d.kind === "no").length), tr("+{0} за неделю", dw8[7]), dw8)}
+      ${card("#5b8ff0", st.concepts, tr("Понятия"), tr("{0} на карте · {1} тем", st.shown, T.length), tr("{0} общих", st.bridges), fw8)}
+      ${card("#a271f0", upd, tr("Обновлено за неделю"), tr("понятия, упомянутые за 7 дней"), `${Math.round(100 * upd / Math.max(1, conv.length))}%`, lw7)}</div>
     <div class="dg c3">
       <div class="dc" style="--c:#9b7cf2"><div class="t"><i></i>Активность</div><div class="t2">Реплик в день, последние 30 дней · точки — дни с решениями</div>${activity()}</div>
       <div class="dc" style="--c:#52c98c"><div class="t"><i></i>Темы по размеру</div><div class="t2">Понятий в теме · клик — перелететь</div>
@@ -468,12 +487,13 @@ const COS = (() => {
     $("#dashBody").querySelectorAll("[data-id]").forEach(el => el.onclick = () => { closeDash(); openNode(el.dataset.id); });
   }
   function openDash() {
-    $("#cdw").innerHTML = `<input id="dq" type="search" placeholder="Искать понятия и решения…" autocomplete="off"><div id="dashBody"></div>`;
+    $("#cdw").innerHTML = `<input id="dq" type="search" placeholder="${tr("Искать понятия и решения…")}" autocomplete="off"><div id="dashBody"></div>`;
     $("#dq").value = dq; $("#dq").oninput = e => { dq = e.target.value.trim().toLowerCase(); q = dq; drawDash(); };
     drawDash(); $("#cdash").classList.add("on"); setTimeout(() => $("#dq").focus(), 30);
   }
   function closeDash() { $("#cdash").classList.remove("on"); }
   $("#cDash").onclick = () => $("#cdash").classList.contains("on") ? closeDash() : openDash();
+  $("#cLang").onclick = () => I18N.set(I18N.lang === "ru" ? "en" : "ru");
   $("#cdash").onclick = e => { if (e.target.id === "cdash") closeDash(); };
   addEventListener("keydown", e => { if (e.key === "Escape" && running) { if ($("#cdash").classList.contains("on")) closeDash(); else home(); } });
   stage.querySelectorAll(".cosui [data-mode]").forEach(b => b.onclick = () => setMode(b.dataset.mode));

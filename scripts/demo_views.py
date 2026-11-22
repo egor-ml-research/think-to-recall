@@ -91,47 +91,78 @@ CHAT = [
 
 # each turn names its area in the same words, so the few dozen turns still form clear topics
 AREAS = [("синхронизация данных", ("sqlite", "синхрониз", "sync", "firebase", "офлайн", "postgres"),
-          ("модуль SyncEngine", "очередь отметок", "сервер HabitHub", "кэш устройства", "журнал конфликтов", "токен устройства")),
+          ("модуль SyncEngine", "очередь отметок", "сервер hb-sync", "кэш устройства", "журнал конфликтов", "токен устройства")),
          ("пейвол и подписка", ("пейвол", "подписк", "план"), ("экран PaywallView", "тариф Plus", "пробная неделя", "StoreKit", "чек покупки", "промокод")),
          ("пуш-напоминания", ("напомина", "пуш", "тихие часы"), ("сервис Nudger", "канал APNs", "расписание пушей", "экран уведомлений", "звук напоминания", "бейдж иконки")),
          ("графики серий", ("серия", "серии", "серий", "тепловая карт", "тепловую карт", "график"),
           ("компонент StreakChart", "HeatGrid", "льготный день", "экран статистики", "лучшая серия", "легенда графика")),
          ("онбординг и magic link", ("онбординг", "magic link", "регистрац"),
-          ("экран Welcome", "письмо входа", "сервис MailBird", "первая привычка", "deep link", "шаблон письма")),
+          ("экран Welcome", "письмо входа", "сервис LinkSender", "первая привычка", "deep link", "шаблон письма")),
          ("релиз 1.0", ("релиз", "виджет", "экспорт", "apple health", "тёмная тема"),
           ("план релиза", "TestFlight", "ветка release", "страница магазина", "скриншоты магазина", "release notes"))]
 
 
-def area(text: str) -> str:
+def area(text: str):
     t = text.lower()
     return next((x for x in AREAS if any(k in t for k in x[1])), None)
 
 
-def build(out: Path, mode: str = "live") -> Path:
+def build(out: Path, mode: str = "live", lang: str = "ru") -> Path:
+    """lang "ru": the Russian set above; "en": demo/habit_app.en.json (the same story in English, with side sessions)."""
+    import json
+
     from ctxgraph.viewer import export_html
 
     home = out / "home"
     m = ProjectMemory(out / "habit-app", encoder=HashingEncoder(), home=home)
     t0 = dt.datetime(2026, 9, 1, 9, 0, tzinfo=dt.UTC)
     turns, rnd = [], random.Random(7)
-    chat = list(CHAT)
-    for j, (_, _, v) in enumerate(AREAS):  # small follow-ups of each area spread over the six weeks
-        for k in range(6):
-            day = 2 + (k * 7 + j * 3) % 40
-            chat.append((day, f"Поправь {v[k]} вместе с {v[(k + 2) % 6]}.", f"Готово, коммит {rnd.getrandbits(28):07x}."))
+    uid = lambda: str(uuid.UUID(int=rnd.getrandbits(128)))  # noqa: E731
+    iso = lambda t: t.isoformat().replace("+00:00", "Z")  # noqa: E731
+    if lang == "en":
+        en = json.loads((Path(__file__).resolve().parents[1] / "demo" / "habit_app.en.json").read_text("utf-8"))
+        chat, areas = [tuple(c) for c in en["chat"]], [(a, tuple(k), v) for a, k, v in en["areas"]]
+        for j, (_, _, v) in enumerate(areas):  # small follow-ups of each area spread over the six weeks
+            for k in range(6):
+                fu, fr = en["followups"][(j + k) % len(en["followups"])], en["followup_reports"][(j * 6 + k) % len(en["followup_reports"])]
+                chat.append((2 + (k * 7 + j * 3) % 40, fu.replace("{A}", v[k]).replace("{B}", v[(k + 2) % 6]),
+                             fr.replace("{h}", f"{rnd.getrandbits(28):07x}")))  # fmt: skip
+        side = en["side"]
+    else:
+        chat, side = list(CHAT), []
+        for j, (_, _, v) in enumerate(AREAS):
+            for k in range(6):
+                chat.append((2 + (k * 7 + j * 3) % 40, f"Поправь {v[k]} вместе с {v[(k + 2) % 6]}.", f"Готово, коммит {rnd.getrandbits(28):07x}."))
     chat.sort(key=lambda c: c[0])
+    if lang == "en":
+        _en_turns(chat, en, areas, turns, t0, rnd, uid, iso)
+        chat = []
     for i, (day, user, report) in enumerate(chat):
-        ar = area(user)
-        if ar and not user.startswith("Поправь"):  # two of the area's names, in turn, so they co-occur
-            v = ar[2]
-            user = f"{user} Затрагивает {v[i % 6]} и {v[(i + 1) % 6]}."
+        if lang != "en":
+            ar = area(user)
+            if ar and not user.startswith("Поправь"):  # two of the area's names, in turn, so they co-occur
+                v = ar[2]
+                user = f"{user} Затрагивает {v[i % 6]} и {v[(i + 1) % 6]}."
         ts = t0 + dt.timedelta(days=day, hours=rnd.randint(0, 8), minutes=rnd.randint(0, 59))
-        turns.append({"id": str(uuid.UUID(int=rnd.getrandbits(128))), "session": f"s{day // 7}", "role": "user", "text": user, "source": "cc",
-                      "ts": ts.isoformat().replace("+00:00", "Z")})  # fmt: skip
+        turns.append({"id": uid(), "session": f"s{day // 7}", "role": "user", "text": user, "source": "cc", "ts": iso(ts)})
         if report:
-            turns.append({"id": str(uuid.UUID(int=rnd.getrandbits(128))), "session": f"s{day // 7}", "role": "assistant", "text": report,
-                          "source": "cc", "ts": (ts + dt.timedelta(minutes=4)).isoformat().replace("+00:00", "Z")})  # fmt: skip
+            turns.append({"id": uid(), "session": f"s{day // 7}", "role": "assistant", "text": report, "source": "cc",
+                          "ts": iso(ts + dt.timedelta(minutes=4))})  # fmt: skip
+    for k, (day, brief, rep, *par) in enumerate(side):  # side sessions started from a main chat: offshoots in the tree
+        ts = t0 + dt.timedelta(days=day, hours=10)
+        parent = f"{par[0].replace(' ', '-')}-{day // 14}" if par else f"s{day // 7}"
+        turns.append({"id": uid(), "session": f"side{k}", "role": "user", "text": brief, "source": "cc", "ts": iso(ts),
+                      "agent": {"kind": "brief", "parent": parent}})  # fmt: skip
+        for j, part in enumerate([rep, "Notes saved to the report; nothing else to change.", "Closing this session."]):
+            turns.append({"id": uid(), "session": f"side{k}", "role": "assistant", "text": part, "source": "cc",
+                          "ts": iso(ts + dt.timedelta(minutes=6 + 5 * j))})  # fmt: skip
     m.import_turns(turns)
+    # a synthetic Graphify graph of the app's code: the second tree and the code stars in Cosmos
+    from ctxgraph import graphify as GF
+
+    g = out / "graph.json"
+    g.write_text(json.dumps(_code_graph(random.Random(3))), "utf-8")
+    GF.import_graph(m.db_path, g)
     # a synthetic call log: an afternoon of recall / expand calls on the demo records (ids only, like the real one)
     ids = [e[:8] for (e,) in m.s.q("SELECT id FROM episodes WHERE role='user'")]
     (m.dir / "calls.jsonl").unlink(missing_ok=True)
@@ -144,8 +175,71 @@ def build(out: Path, mode: str = "live") -> Path:
     return export_html(m, out=out / "views.html", mode=mode)
 
 
+STEPS = ["Reading {f} first.", "Looking at how {A} handles this today.", "Updating {f}.", "Running the test suite.",
+         "Checking the edge cases around {B}.", "Two tests failed; fixing the fixture.", "Re-running the tests: green."]
+FILES = {"data sync": "sync.py", "paywall": "paywall.py", "reminders": "reminders.py", "streak charts": "streaks.py",
+         "onboarding": "onboarding.py", "release": "docs/release.md"}
+
+
+def _en_turns(chat, en, areas, turns, t0, rnd, uid, iso) -> None:
+    """English set: one chat per area and fortnight; between a message and its report the assistant's work steps."""
+    def area_of(t):
+        t = t.lower()
+        return next((x for x in areas if any(k in t for k in x[1])), areas[-1])
+    for day, user, report in chat:
+        ar = area_of(user)
+        ss = f"{ar[0].replace(' ', '-')}-{day // 14}"
+        ts = t0 + dt.timedelta(days=day, hours=rnd.randint(0, 8), minutes=rnd.randint(0, 59))
+        turns.append({"id": uid(), "session": ss, "role": "user", "text": user, "source": "cc", "ts": iso(ts)})
+        if not report:
+            continue
+        k = rnd.randint(2, 5)
+        for j, st in enumerate(rnd.sample(STEPS, k)):
+            turns.append({"id": uid(), "session": ss, "role": "assistant", "source": "cc", "ts": iso(ts + dt.timedelta(minutes=1 + j)),
+                          "text": st.format(f=FILES.get(ar[0], "app.py"), A=ar[2][0], B=ar[2][rnd.randint(1, 5)])})  # fmt: skip
+        turns.append({"id": uid(), "session": ss, "role": "assistant", "text": report, "source": "cc", "ts": iso(ts + dt.timedelta(minutes=k + 2))})
+
+
+def _code_graph(rnd) -> dict:
+    """A plausible Graphify graph.json for the demo app: folders, files, symbols, contains / imports / calls edges."""
+    mods = {"app/sync": ["sync_engine", "queue", "conflicts", "device_cache", "api_client", "tokens"],
+            "app/paywall": ["paywall_view", "plans", "storekit", "receipts", "promo"],
+            "app/reminders": ["nudge_worker", "apns", "schedule", "quiet_hours", "snooze"],
+            "app/charts": ["streak_chart", "heat_grid", "streaks", "legend", "stats_screen"],
+            "app/onboarding": ["welcome", "link_sender", "first_habit", "deep_links", "email_templates"],
+            "server": ["hb_sync", "routes", "rate_limit", "db", "migrations"],
+            "tests": ["test_sync", "test_paywall", "test_reminders", "test_streaks", "test_onboarding", "test_server"],
+            "scripts": ["load_test", "release", "seed_data"]}
+    verbs = ["load", "save", "apply", "render", "handle", "build", "check", "update", "parse", "send", "merge", "replay", "format", "validate"]
+    nodes, links, syms = [], [], []
+    for d, files in mods.items():
+        for f in files:
+            path = f"{d}/{f}.py"
+            fid = path.replace("/", "_")
+            nodes.append({"id": fid, "label": f"{f}.py", "source_file": path, "source_location": "L1", "file_type": "code"})
+            cls = "".join(w.title() for w in f.split("_"))
+            here = [fid]
+            if not d.startswith(("tests", "scripts")):
+                nodes.append({"id": fid + "_c", "label": cls, "source_file": path, "source_location": "L12", "file_type": "code"})
+                links.append({"source": fid, "target": fid + "_c", "relation": "contains", "confidence": "EXTRACTED"})
+                here.append(fid + "_c")
+            for k in range(rnd.randint(6, 16)):
+                v = rnd.choice(verbs)
+                nid = f"{fid}_{k}"
+                lab = f"test_{v}_{f.replace('test_', '')}_{k}()" if d == "tests" else f".{v}_{rnd.choice(f.split('_'))}()"
+                nodes.append({"id": nid, "label": lab, "source_file": path, "source_location": f"L{20 + 9 * k}", "file_type": "code"})
+                links.append({"source": here[-1], "target": nid, "relation": "contains" if d == "tests" else "method", "confidence": "EXTRACTED"})
+                syms.append(nid)
+    for _ in range(len(syms) // 2):
+        a, b = rnd.sample(syms, 2)
+        links.append({"source": a, "target": b, "relation": "calls", "confidence": rnd.choice(["EXTRACTED", "INFERRED"])})
+    return {"directed": False, "multigraph": False, "graph": {"schema_version": 1, "graphify_version": "0.9"}, "nodes": nodes, "links": links}
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
     ap.add_argument("--mode", default="live")
-    print(build(Path(ap.parse_args().out), ap.parse_args().mode))
+    ap.add_argument("--lang", default="ru", choices=["ru", "en"])
+    a = ap.parse_args()
+    print(build(Path(a.out), a.mode, a.lang))

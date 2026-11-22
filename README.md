@@ -32,13 +32,13 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.11" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.12" && ctxgraph setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.11" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.12" && ctxgraph setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -46,10 +46,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.11" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.12" && ctxgraph setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.6.11 from GitHub. For finer English concepts in the
+The package is not on PyPI yet; the commands install release v0.6.12 from GitHub. For finer English concepts in the
 graph view, add the `english` extra and run `python -m spacy download en_core_web_sm`. **Installing through an AI assistant?** Point it to
 [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
@@ -289,7 +289,7 @@ short reply gets no search slot of its own, and the report that follows it belon
 `ctxgraph view` writes one self-contained HTML file into the project's memory folder and opens it. The page needs
 no network: the graph libraries are vendored.
 
-- **Topics** are communities of concepts. A concept shared by several topics is drawn in their colours.
+- **Topics** are communities of concepts. A concept shared by several topics is drawn in their colors.
 - **Per topic**, the page shows what `recall` returns for it (the same block the assistant gets) and the decisions
   about it.
 - **The decisions journal** lists all decisions by date: do / not do / on hold.
@@ -297,18 +297,23 @@ no network: the graph libraries are vendored.
   [force-graph](https://github.com/vasturiano/force-graph) and 3D uses
   [3d-force-graph](https://github.com/vasturiano/3d-force-graph) (both MIT).
 - **Cosmos**: `ctxgraph view --cosmos` (or the «Космос» switch) draws the project as a galaxy on plain Canvas 2D:
-  the core is the project, topics are constellations, concepts are stars. It has a greeting card with what changed
+  the core is the project, topics are constellations scattered in 3D, concepts are stars; the Graphify code is shown as
+  constellations of its own. It has a greeting card with what changed
   since your last visit and a dashboard («Панель») with activity, topics, most connected concepts, recent decisions
   and search. Without a flag, the page opens in the mode you used last.
-- **Waves** (`ctxgraph view --waves`, the «Волны» switch): topics over time as a streamgraph
-  ([d3](https://github.com/d3/d3), ISC) with marks for decisions, changes of decision, reports and "later" items.
-- **Live memory** («Живая память»; `ctxgraph view --live` serves it on 127.0.0.1): a tree of topics along the project's
-  time; each `recall` the assistant makes sends a pulse to the records it returned, `expand` lights the record's chain of
-  decision changes. The MCP server logs its calls to `calls.jsonl` next to the store (tool, record ids, duration; no
-  query or record text; at most ~2 MB); the page can also replay a period of that log.
+- **Live memory** (`ctxgraph view --live` serves it on 127.0.0.1 and streams new calls): the project as two trees in
+  3D ([three.js](https://github.com/mrdoob/three.js), MIT). Conversations: the trunk is the project's time, each chat
+  is a branch, sessions started by another session (subagents) are side branches, every message is a glowing bead;
+  decisions are bigger. Code (if a Graphify graph is imported): a branch per folder, a twig per file, a bead per symbol.
+  Each `recall` the assistant makes sends a pulse up the trunk to the messages it returned; `expand` lights the record
+  and its chain of decision changes. The MCP server logs its calls to `calls.jsonl` next to the store (tool, record ids,
+  duration; no query or record text; at most ~2 MB); the page can also replay a period of that log.
+- **Language**: English by default, Russian with the EN / RU switch (or `?lang=ru` in the page URL).
 
-![Waves and live memory on a synthetic project](docs/media/views_waves.png)
-![Live memory](docs/media/views_live.png)
+![Live memory and Cosmos on a synthetic project: chats and code as two trees, recall pulses, the Cosmos greeting](docs/media/views.en.gif)
+
+The demo is synthetic (a fictional habit tracker): `python scripts/demo_views.py OUT --lang en` builds it from
+`demo/habit_app.en.json`.
 
 ### Code from Graphify
 

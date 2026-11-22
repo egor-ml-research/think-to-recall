@@ -168,8 +168,11 @@ def layer(db_path: str | Path, concepts: set[str], cap: int = 220) -> dict:
     for k in list(keep):
         keep += [x for x in sorted(nb[k], key=lambda x: -deg[x])[:4] if x not in keep]
     keep += [x for x in sorted(deg, key=lambda x: (-deg[x], x)) if x not in keep]
-    keep_set = set(keep[:cap])
     info = {r[0]: r for r in db.execute("SELECT id, label, file, loc, file_type, community FROM code_nodes")}
+    # vendored / minified libraries are not the project's code (their symbols are short names with many edges)
+    junk = {i for i, r in info.items() if "/vendor/" in "/" + (r[2] or "") or (r[2] or "").endswith(".min.js")}
+    keep = [x for x in keep if x not in junk]
+    keep_set = set(keep[:cap])
     if not deg:
         keep_set |= set(list(info)[:cap])
     nodes = [{"id": "code:" + i, "label": info[i][1], "file": info[i][2], "loc": info[i][3], "ftype": info[i][4],

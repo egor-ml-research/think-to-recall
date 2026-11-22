@@ -33,13 +33,13 @@ Code. Перед ответом ассистент может спросить �
 Одна строка (Python 3.11+ и [uv](https://docs.astral.sh/uv/)), из папки проекта, который хотите подключить:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.11" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.12" && ctxgraph setup
 ```
 
 С [pipx](https://pipx.pypa.io/) вместо uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.11" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.12" && ctxgraph setup
 ```
 
 **Работает сразу, без загрузки модели.** Поиск — BM25 по вашим разговорам; установка около 125 МБ. Режим качества —
@@ -47,10 +47,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 ещё несколько ответов, сформулированных иначе, чем вопрос:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.11" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.12" && ctxgraph setup --quality
 ```
 
-Пакета пока нет в PyPI; команды ставят релиз v0.6.11 с GitHub. Для более точных английских понятий на карте графа
+Пакета пока нет в PyPI; команды ставят релиз v0.6.12 с GitHub. Для более точных английских понятий на карте графа
 добавьте набор `english` и выполните `python -m spacy download en_core_web_sm`. **Ставите через ИИ-ассистента?** Дайте ему [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
 **Плагин для Claude Code.** Та же память в виде плагина (MCP-сервер, навык о том, когда вызывать инструменты, и хуки):
@@ -296,18 +296,22 @@ ctxgraph view --3d
   [force-graph](https://github.com/vasturiano/force-graph), 3D — [3d-force-graph](https://github.com/vasturiano/3d-force-graph)
   (обе MIT).
 - **Космос**: `ctxgraph view --cosmos` (или переключатель «Космос») рисует проект как галактику на Canvas 2D: ядро —
-  проект, темы — созвездия, понятия — звёзды. Есть приветственная карточка с тем, что изменилось с прошлого визита, и
+  проект, темы — созвездия, разбросанные в объёме, понятия — звёзды; код из Graphify — свои созвездия. Есть приветственная карточка с тем, что изменилось с прошлого визита, и
   «Панель» с активностью, темами, самыми связанными понятиями, последними решениями и поиском. Без флага страница
   открывается в режиме, который вы выбирали последним.
-- **Волны** (`ctxgraph view --waves`, переключатель «Волны»): темы во времени как поток-диаграмма
-  ([d3](https://github.com/d3/d3), ISC) с отметками решений, смен решений, отчётов и пунктов «на потом».
-- **Живая память** (`ctxgraph view --live` поднимает страницу на 127.0.0.1): дерево тем вдоль времени проекта; каждый
-  `recall` ассистента пускает импульс к найденным записям, `expand` подсвечивает цепочку смен решения. MCP-сервер пишет
-  свои вызовы в `calls.jsonl` рядом с базой (инструмент, id записей, длительность; без текста запроса и записей; не
-  больше ~2 МБ); страница умеет и проигрывать журнал за период.
+- **Живая память** (`ctxgraph view --live` поднимает страницу на 127.0.0.1 и показывает новые вызовы): проект как два
+  дерева в 3D ([three.js](https://github.com/mrdoob/three.js), MIT). Разговоры: ствол — время проекта, каждый чат —
+  ветка, сессии, запущенные из другой сессии (субагенты), — боковые ветки, каждая реплика — светящаяся бусина; решения
+  крупнее. Код (если импортирован граф Graphify): ветка — папка, веточка — файл, бусина — символ. Каждый `recall`
+  ассистента пускает импульс по стволу к найденным репликам, `expand` подсвечивает запись и цепочку смен решения.
+  MCP-сервер пишет свои вызовы в `calls.jsonl` рядом с базой (инструмент, id записей, длительность; без текста запроса и
+  записей; не больше ~2 МБ); страница умеет и проигрывать журнал за период.
+- **Язык**: по умолчанию английский, русский — переключатель EN / RU (или `?lang=ru` в адресе страницы).
 
-![Волны и живая память на синтетическом проекте](docs/media/views_waves.png)
-![Живая память](docs/media/views_live.png)
+![Живая память и Космос на синтетическом проекте: разговоры и код двумя деревьями, импульсы recall, приветствие Космоса](docs/media/views.ru.gif)
+
+Демо синтетическое (вымышленный трекер привычек): `python scripts/demo_views.py OUT --lang ru` (английская версия —
+`--lang en`, данные в `demo/habit_app.en.json`).
 
 ### Код из Graphify
 

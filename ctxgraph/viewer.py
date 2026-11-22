@@ -12,6 +12,7 @@ import math
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from ctxgraph.flow import clean_name
 from ctxgraph.memory import clause_kinds
 
 # units and filler words that co-occur with everything in chat about experiments (would become hubs)
@@ -25,8 +26,8 @@ PALETTE = ["#8b7fd6", "#4fa58a", "#d39a4a", "#c96a62", "#5b9ac7", "#b878a8", "#9
 
 
 
-def export_html(mem, top: int = 320, out: Path | None = None, mode: str | None = None, live: bool = False) -> Path:
-    """mode: "2d" / "3d" / "cosmos" / "waves" / "live", or None to open the mode last used in the page (localStorage)."""
+def export_html(mem, top: int = 700, out: Path | None = None, mode: str | None = None, live: bool = False) -> Path:
+    """mode: "2d" / "3d" / "cosmos" / "live", or None to open the mode last used in the page (localStorage)."""
     import networkx as nx
 
     s = mem.s
@@ -57,7 +58,7 @@ def export_html(mem, top: int = 320, out: Path | None = None, mode: str | None =
     topics = []
     for i, c in enumerate(comms):
         lead = sorted(c, key=lambda n: -G.degree(n, weight="weight"))[:3]
-        topics.append({"id": i, "name": " · ".join(G.nodes[n]["label"] for n in lead), "size": len(c),
+        topics.append({"id": i, "name": clean_name(" · ".join(G.nodes[n]["label"] for n in lead)), "size": len(c),
                        "color": PALETTE[i % len(PALETTE)]})  # fmt: skip
     # quotes, dates, sessions per concept
     frags = defaultdict(list)
@@ -94,7 +95,7 @@ def export_html(mem, top: int = 320, out: Path | None = None, mode: str | None =
     # the code layer imported from Graphify (`ctxgraph import-graphify`), if any: origin "code" / "inferred"
     from ctxgraph.graphify import layer
 
-    code = layer(mem.db_path, set(G))
+    code = layer(mem.db_path, set(G), cap=600)
     nodes += code["nodes"]
     links += code["links"]
     # decisions: the user's own sentences with decision cues, attached to the topic of their concepts
@@ -134,11 +135,13 @@ def export_html(mem, top: int = 320, out: Path | None = None, mode: str | None =
                       "from": min((v["ts"] for v in meta.values() if v["ts"]), default="")[:10],
                       "to": max((v["ts"] for v in meta.values() if v["ts"]), default="")[:10]},
             "daily": dict(sorted(Counter(v["ts"][:10] for v in meta.values() if v["ts"]).items()))}  # fmt: skip
-    # «Волны» / «Живая память»: records by topic and status (flow.py), the MCP call log (calls.py: ids only)
+    # «Живая память»: records by topic and status, the chat and code trees (flow.py), the MCP call log (calls.py: ids only)
     from ctxgraph import calls as CL
     from ctxgraph.flow import build as flow_build
+    from ctxgraph.flow import trees as flow_trees
 
     data["flow"] = flow_build(mem)
+    data["trees"] = flow_trees(mem, {r["id"]: r["st"] for r in data["flow"]["records"]})
     data["calls"] = CL.read_calls(mem.dir)
     data["live"], data["offset"] = bool(live), CL.size(mem.dir)
     html = render(data)
@@ -156,11 +159,12 @@ def _lib(name: str) -> str:
 
 def render(data: dict) -> str:
     here = Path(__file__).parent
-    html = (here / "viewer_template.html").read_text("utf-8").replace("/*__FORCE_GRAPH__*/", _lib("force-graph"))
+    html = (here / "viewer_template.html").read_text("utf-8").replace("/*__I18N__*/", (here / "viewer_i18n.js").read_text("utf-8"))
+    html = html.replace("/*__FORCE_GRAPH__*/", _lib("force-graph"))
     html = html.replace("/*__FORCE_GRAPH_3D__*/", _lib("3d-force-graph"))
-    html = html.replace("/*__D3__*/", _lib("d3"))  # ISC, for the «Волны» streamgraph
+    html = html.replace("/*__THREE__*/", _lib("three"))  # MIT, the 3D «Живая память»
     html = html.replace("/*__COSMOS__*/", (here / "viewer_cosmos.js").read_text("utf-8"))  # the cosmic mode, plain Canvas 2D
-    html = html.replace("/*__FLOW__*/", (here / "viewer_flow.js").read_text("utf-8"))  # «Волны» and «Живая память»
+    html = html.replace("/*__FLOW__*/", (here / "viewer_flow.js").read_text("utf-8"))  # «Живая память»
     return html.replace("/*__DATA__*/null", json.dumps(data, ensure_ascii=False).replace("</", r"<\/"))
 
 

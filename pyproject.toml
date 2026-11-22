@@ -1,6 +1,6 @@
 [project]
 name = "think-to-recall"
-version = "0.6.11"
+version = "0.6.12"
 description = "ctxgraph: local decision memory for AI coding assistants (MCP server for Claude Code)"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.11"
@@ -45,7 +45,7 @@ build-backend = "setuptools.build_meta"
 include = ["ctxgraph*"]
 
 [tool.setuptools.package-data]
-ctxgraph = ["viewer_template.html", "viewer_cosmos.js", "viewer_flow.js", "vendor/*"]
+ctxgraph = ["viewer_template.html", "viewer_cosmos.js", "viewer_flow.js", "viewer_i18n.js", "vendor/*"]
 
 [tool.ruff]
 line-length = 100

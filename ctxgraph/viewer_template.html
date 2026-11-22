@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Память проекта</title>
+<script>/*__I18N__*/</script>
 <script>/*__FORCE_GRAPH__*/</script>
 <script>/*__FORCE_GRAPH_3D__*/</script>
-<script>/*__D3__*/</script>
+<script>/*__THREE__*/</script>
 <style>
 :root {
   --canvas: #030306; --side: rgba(14,14,20,.8); --solid: #0e0e15; --raise: rgba(255,255,255,.04); --hover: rgba(255,255,255,.07);
@@ -106,8 +107,9 @@ mark { background: color-mix(in srgb, var(--accent) 28%, transparent); color: in
       <input class="search" id="q" type="search" placeholder="Найти понятие" autocomplete="off">
       <div class="toggle"><button id="vAll" class="on">Все понятия</button><button id="vShared">Общие для тем</button></div>
       <div class="toggle"><button data-mode="2d" class="on">2D</button><button data-mode="3d">3D</button><button data-mode="cosmos">Космос</button></div>
-      <div class="toggle"><button data-mode="waves">Волны</button><button data-mode="live">Живая память</button></div>
+      <div class="toggle"><button data-mode="live">Живая память</button></div>
       <div class="toggle"><button data-theme-set="dark" class="on">Тёмная</button><button data-theme-set="light">Светлая</button></div>
+      <div class="toggle"><button data-lang="en">EN</button><button data-lang="ru">RU</button></div>
     </div>
     <div class="sec" id="layers" hidden><div class="lbl">Слои</div>
       <label class="chk"><input type="checkbox" id="lConv" checked>Разговор <span class="ct" id="nConv"></span></label>
@@ -147,11 +149,11 @@ const nCode = DATA.nodes.filter(isCode).length, nInf = DATA.links.filter(l => l.
 
 const st = DATA.stats;
 $("#proj").textContent = DATA.name;
-$("#sub").textContent = `${st.from} — ${st.to} · ${st.turns} реплик · ${DATA.topics.length} тем` + (nCode ? ` · ${nCode} узлов кода` : "");
+$("#sub").textContent = tr("{0} — {1} · {2} реплик · {3} тем", st.from, st.to, st.turns, DATA.topics.length) + (nCode ? tr(" · {0} узлов кода", nCode) : "");
 $("#decN").textContent = DATA.decisions.length;
 if (nCode) {
   $("#layers").hidden = false; $("#codeLegend").hidden = false;
-  $("#nConv").textContent = st.shown; $("#nCode").textContent = nCode + (DATA.code.total_nodes > nCode ? ` из ${DATA.code.total_nodes}` : "");
+  $("#nConv").textContent = st.shown; $("#nCode").textContent = nCode + (DATA.code.total_nodes > nCode ? tr(" из {0}", DATA.code.total_nodes) : "");
   $("#nInf").textContent = nInf;
 }
 
@@ -225,7 +227,7 @@ function make3d() {
     .graphData({ nodes: DATA.nodes.map(n => ({ ...n })), links: DATA.links.map(l => ({ ...l })) })
     .nodeId("id").nodeVal(n => R(n) ** 2 / 3).nodeRelSize(1.6).nodeOpacity(0.92).nodeResolution(10)
     .nodeColor(n => lit(n) ? colOf(n) : css("--line2"))
-    .nodeLabel(n => `<div style="font:12px -apple-system,Segoe UI,sans-serif;padding:2px 6px;background:rgba(20,20,22,.85);color:#e6e6ea;border-radius:4px">${esc(n.label)}${isCode(n) ? ` <span style="opacity:.6">· код</span>` : ""}</div>`)
+    .nodeLabel(n => `<div style="font:12px -apple-system,Segoe UI,sans-serif;padding:2px 6px;background:rgba(20,20,22,.85);color:#e6e6ea;border-radius:4px">${esc(n.label)}${isCode(n) ? ` <span style="opacity:.6">· ${tr("код")}</span>` : ""}</div>`)
     .nodeVisibility(vis).linkVisibility(lvis)
     .linkColor(linkCol).linkOpacity(0.35)
     .linkWidth(l => touches(l, hover || nodeSel) ? 0.9 : l.origin === "inferred" ? 0.5 : 0)
@@ -242,7 +244,7 @@ function setMode(m) {
   mode = m; try { localStorage.setItem("ctxgraph.mode", m); } catch (e) {}
   $("#stage").classList.toggle("d3", m === "3d"); $("#app").classList.toggle("cos", m === "cosmos");
   document.querySelectorAll("[data-mode]").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
-  if (m === "waves" || m === "live") { fg.pauseAnimation(); if (fg3) fg3.pauseAnimation(); if (window.COS) COS.stop(); FLOW.start(m); return; }
+  if (m === "live") { fg.pauseAnimation(); if (fg3) fg3.pauseAnimation(); if (window.COS) COS.stop(); FLOW.start(m); return; }
   if (window.FLOW) FLOW.stop();
   if (m === "cosmos") { fg.pauseAnimation(); if (fg3) fg3.pauseAnimation(); COS.start(); return; }
   if (window.COS) COS.stop();
@@ -278,9 +280,9 @@ function resize() {
 }
 function showInsp(html) { $("#app").classList.remove("no-insp"); $("#insp").innerHTML = html; setTimeout(resize, 0); refresh3d(); }
 function closeInsp() { $("#app").classList.add("no-insp"); topicSel = null; nodeSel = null; renderTopics(); setTimeout(resize, 0); refresh3d(); }
-const who = r => r === "user" ? "вы" : "ассистент";
+const who = r => tr(r === "user" ? "вы" : "ассистент");
 const decItem = d => `<div class="item dec ${d.kind}"><div class="bar"></div><div>
-  <div class="when"><span class="tag">${d.kind === "yes" ? "Решили делать" : d.kind === "hold" ? "Пока не / отложено" : "Решили не делать"}</span><span>${esc(d.ts)}</span>
+  <div class="when"><span class="tag">${tr(d.kind === "yes" ? "Решили делать" : d.kind === "hold" ? "Пока не / отложено" : "Решили не делать")}</span><span>${esc(d.ts)}</span>
   ${d.topic >= 0 ? `<span style="display:inline-flex;align-items:center;gap:4px"><span class="sw" style="background:${col(d.topic)}"></span>${esc(DATA.topics[d.topic].name.split(" · ")[0])}</span>` : ""}</div>
   <div class="tx">${esc(d.t)}</div></div></div>`;
 const pillOf = m => `<span class="pill" data-id="${esc(m.id)}"><span class="sw" style="background:${colOf(m)}${isCode(m) ? ";border-radius:1px" : ""}"></span>${esc(m.label)}</span>`;
@@ -291,12 +293,12 @@ function openTopic(t) {
   const yes = decs.filter(d => d.kind === "yes").length, no = decs.filter(d => d.kind === "no").length;
   showInsp(`<div class="ih"><button class="x" onclick="closeInsp()">×</button>
       <div class="kind"><span class="sw" style="background:${tp.color}"></span>Тема</div><h2>${esc(tp.name)}</h2>
-      <div class="meta">${tp.size} понятий · ${tp.n_mentions} упоминаний · ${decs.length} решений</div></div>
+      <div class="meta">${tr("{0} понятий · {1} упоминаний · {2} решений", tp.size, tp.n_mentions, decs.length)}</div></div>
     <div class="tabs"><button class="on" data-tab="recall">Что подскажет память</button><button data-tab="dec">Решения<span class="n">${decs.length}</span></button><button data-tab="con">Понятия</button></div>
     <div class="body" id="tabBody"></div>`);
-  const body = { recall: () => `<div class="hint">Это блок, который получит ассистент, если спросить про «${esc(tp.query)}» — тот же поиск, что в инструменте <code>recall</code>.</div>`
+  const body = { recall: () => `<div class="hint">${tr("Это блок, который получит ассистент, если спросить про «{0}» — тот же поиск, что в инструменте {1}.", esc(tp.query), "<code>recall</code>")}</div>`
       + (tp.recall.length ? tp.recall.map(h => `<div class="item"><div class="when"><span>${esc(h.ts)}</span><span>${who(h.role)}</span><span>#${esc(h.ep)}</span></div><div class="tx">${esc(h.t)}</div></div>`).join("") : `<div class="empty">Поиск недоступен при экспорте.</div>`),
-    dec: () => `<div class="seg"><button class="on" data-k="all">Все ${decs.length}</button><button data-k="yes">Делать ${yes}</button><button data-k="no">Не делать ${no}</button></div>
+    dec: () => `<div class="seg"><button class="on" data-k="all">${tr("Все {0}", decs.length)}</button><button data-k="yes">${tr("Делать {0}", yes)}</button><button data-k="no">${tr("Не делать {0}", no)}</button></div>
       <div class="hint">Ваши фразы с признаками решения («выбираем», «не меняем», «убираем»…). Найдены правилами, без LLM — возможны пропуски и ложные.</div><div id="decList"></div>`,
     con: () => `<div class="cols">${tp.concepts.map(c => `<span class="pill" data-id="${esc(c.id)}">${esc(c.label)}<span style="color:var(--faint)">${c.n}</span></span>`).join("")}</div>` };
   const setTab = k => { document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === k)); $("#tabBody").innerHTML = body[k]();
@@ -338,8 +340,8 @@ function openNode(id) {
   const code = near.filter(isCode);
   showInsp(`<div class="ih"><button class="x" onclick="closeInsp()">×</button>
       <div class="kind">${n.bridge ? "Общее понятие" : "Понятие"}</div><h2>${esc(n.label)}</h2>
-      <div class="meta">${n.n} упоминаний · ${n.sessions} сесс. · ${esc(n.first)} — ${esc(n.last)}</div>
-      <div class="cols">${ts.map(t => `<span class="pill" data-t="${t}"><span class="sw" style="background:${col(t)}"></span>${esc((DATA.topics[t] || {}).name || "без темы")}</span>`).join("")}</div></div>
+      <div class="meta">${tr("{0} упоминаний · {1} сесс. · {2} — {3}", n.n, n.sessions, esc(n.first), esc(n.last))}</div>
+      <div class="cols">${ts.map(t => `<span class="pill" data-t="${t}"><span class="sw" style="background:${col(t)}"></span>${esc((DATA.topics[t] || {}).name || tr("без темы"))}</span>`).join("")}</div></div>
     <div class="body">
       ${decs.length ? `<div class="lbl" style="margin-top:14px">Решения с этим понятием</div>${decs.slice(0, 6).map(decItem).join("")}` : ""}
       ${code.length ? `<div class="lbl" style="margin-top:14px">В коде <span style="font-weight:400;text-transform:none;letter-spacing:0">(выведено по имени)</span></div><div class="cols">${code.map(pillOf).join("")}</div>` : ""}
@@ -356,7 +358,7 @@ function openDecisions() {
   topicSel = null; nodeSel = null; renderTopics();
   const all = DATA.decisions.slice().reverse(), yes = all.filter(d => d.kind === "yes").length;
   showInsp(`<div class="ih"><button class="x" onclick="closeInsp()">×</button><div class="kind">Журнал</div><h2>Решения</h2>
-      <div class="meta">${all.length} фраз · делать ${yes} · не делать ${all.filter(d => d.kind === "no").length} · отложено ${all.filter(d => d.kind === "hold").length}</div></div>
+      <div class="meta">${tr("{0} фраз · делать {1} · не делать {2} · отложено {3}", all.length, yes, all.filter(d => d.kind === "no").length, all.filter(d => d.kind === "hold").length)}</div></div>
     <div class="body"><div class="seg"><button class="on" data-k="all">Все</button><button data-k="yes">Делать</button><button data-k="no">Не делать</button><button data-k="hold">Отложено</button></div>
     <div class="hint">Ваши фразы с признаками решения, по датам. Найдены правилами, без LLM.</div><div id="decList"></div></div>`);
   const draw = f => { $("#decList").innerHTML = all.filter(d => f === "all" || d.kind === f).map(decItem).join(""); };
@@ -380,6 +382,8 @@ function setTheme(t) {
 }
 document.querySelectorAll("[data-theme-set]").forEach(b => b.onclick = () => setTheme(b.dataset.themeSet));
 if (document.documentElement.dataset.theme === "light") setTheme("light");
+document.querySelectorAll("[data-lang]").forEach(b => { b.classList.toggle("on", b.dataset.lang === I18N.lang); b.onclick = () => I18N.set(b.dataset.lang); });
+I18N.watch();
 addEventListener("resize", resize);
 resize();
 </script>

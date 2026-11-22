@@ -1,4 +1,5 @@
-// «Волны» (topic streamgraph, d3) and «Живая память» (topic tree with pulses of the memory's MCP calls, Canvas 2D).
+// «Живая память»: the project's chats and code as two trees (three.js) with pulses of the memory's MCP calls;
+// a 2D Canvas fallback without WebGL.
 // Data: DATA.flow (ctxgraph/flow.py: records with status / topic, topics), DATA.calls (calls.jsonl, ctxgraph/calls.py),
 // DATA.live (the page is served by `ctxgraph view --live`: it polls `calls?offset=` for new calls).
 // Shares the globals of the main viewer script (DATA, $, esc, css, showInsp, closeInsp, setMode, setTheme).
@@ -6,22 +7,25 @@ const FLOW = (() => {
   const F = DATA.flow || { records: [], topics: [] }, RECS = F.records, TOP = F.topics;
   const byRid = new Map(RECS.map(r => [r.id, r]));
   const find = id => byRid.get(String(id).slice(0, 8)) || (String(id).length < 8 ? RECS.find(r => r.id.startsWith(id)) : null);
-  const ST = { decision: ["решение", "#6fd3a0", "#2f8a64"], change: ["смена решения", "#ffb347", "#b8741a"],
-    report: ["отчёт", "#7aa7ff", "#3a64c2"], later: ["на потом", "#c3a6ff", "#7652c4"] };
+  const ST = { decision: [tr("решение"), "#6fd3a0", "#2f8a64"], change: [tr("смена решения"), "#ffb347", "#b8741a"],
+    report: [tr("отчёт"), "#7aa7ff", "#3a64c2"], later: [tr("на потом"), "#c3a6ff", "#7652c4"] };
   const light = () => document.documentElement.dataset.theme === "light" && mode !== "live";
   const stCol = (s, l = light()) => ST[s] ? ST[s][l ? 2 : 1] : (l ? "#a3a3aa" : "rgba(230,230,238,.34)");
   const tcol = k => k < 0 ? "#6b6b74" : (TOP[k] || {}).color || "#7d7d86";
-  const tname = k => k < 0 ? "без темы" : (TOP[k] || {}).name || "";
+  const tname = k => { if (k < 0) return tr("без темы"); const t = TOP[k] || {}; return t.other ? tr("другие темы ({0})", t.merged || "") : t.name || ""; };
   const DAY = 864e5, dms = s => Date.parse(s.slice(0, 10) + "T00:00:00Z");
   const fmtD = s => s ? `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(2, 4)}` : "";
   const CORAL = "#FF5F6D", GOLD = "#FFC371";
 
   document.head.insertAdjacentHTML("beforeend", `<style>
-#waves, #livecv { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+#livecv { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
 .flowui { display: none; }
 .app.flow aside, .app.flow #graph, .app.flow #graph3d, .app.flow .zoom, .app.flow #sky, .app.flow #cosmos, .app.flow .cosui { display: none !important; }
 .app.flow .flowui { display: block; }
-.app.flow.waves #waves, .app.flow.live #livecv { display: block; }
+.app.flow.live #livecv { display: block; }
+#live3d { position: absolute; inset: 0; display: none; background: #000; overflow: hidden; } #live3d canvas { display: block; cursor: grab; }
+.app.flow.live.l3 #livecv { display: none; } .app.flow.live.l3 #live3d { display: block; }
+.l3labs { position: absolute; inset: 0; pointer-events: none; } .l3lab.k { color: #a9dcff; } .l3lab.root { font-size: 13px; font-weight: 600; letter-spacing: .02em; } .l3lab { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: 11.5px; color: #ffd9b0; text-shadow: 0 0 8px #000, 0 0 2px #000; }
 .app.flow.live { --canvas: #000; --side: rgba(12,10,12,.86); --solid: #0d0b0d; --raise: rgba(255,255,255,.04); --hover: rgba(255,255,255,.07);
   --line: rgba(255,255,255,.08); --line2: rgba(255,255,255,.13); --text: #ece8e6; --dim: #aca6a3; --faint: #77716e; --accent: #ff9a6b; }
 .app.flow.live .stage { background: #000; } .app.flow.live .insp { color: var(--text); }
@@ -54,15 +58,13 @@ const FLOW = (() => {
 .ftick div { white-space: nowrap; } .ftick b { color: ${GOLD}; font-weight: 500; }
 .fempty.side { left: auto; top: auto; right: 16px; bottom: 84px; transform: none; text-align: left; padding: 10px 14px; background: var(--side); border: 1px solid var(--line2); border-radius: 12px; max-width: 360px; font-size: 12px; }
 .fempty { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: var(--faint); font-size: 13px; text-align: center; max-width: 420px; display: none; z-index: 3; }
-#waves .ax text { fill: var(--faint); font-size: 11px; } #waves .ax path, #waves .ax line { stroke: var(--line2); }
 .rec .tx { margin: 10px 0; } .rec .rp { color: var(--dim); border-left: 2px solid var(--line2); padding-left: 10px; margin: 8px 0; }
 .rec .ch { cursor: pointer; } .rec .ch:hover .tx { color: var(--accent); }
 </style>`);
   const stage = $("#stage");
-  stage.insertAdjacentHTML("beforeend", `<svg id="waves"></svg><canvas id="livecv"></canvas>
+  stage.insertAdjacentHTML("beforeend", `<canvas id="livecv"></canvas>
     <div class="flowui"><div class="ftop"><div class="fhdr fglass"><div><div class="p">${esc(DATA.name)}</div><div class="s" id="fSub"></div></div>
-      <div class="fseg"><button data-fmode="2d">2D</button><button data-fmode="3d">3D</button><button data-fmode="cosmos">Космос</button><button data-fmode="waves">Волны</button><button data-fmode="live">Живая память</button></div>
-      <button class="fbtn" id="fTheme" title="Тема">Тема</button></div>
+      <div class="fseg"><button data-fmode="2d">2D</button><button data-fmode="3d">3D</button><button data-fmode="cosmos">Космос</button><button data-fmode="live">Живая память</button></div><button class="fbtn" id="fLang" title="Язык">${I18N.lang === "ru" ? "EN" : "RU"}</button></div>
       <div class="fleg fglass" id="fLeg"></div></div><div class="ftip" id="fTip"></div><div class="fempty" id="fEmpty"></div>
       <div class="ftick fglass" id="fTick"></div>
       <div class="fbar fglass"><button class="fbtn" id="fPlay">▶</button><button class="fbtn" id="fRe" title="С начала">↺</button>
@@ -71,7 +73,7 @@ const FLOW = (() => {
         <div class="fprog" id="fProg"><b id="fProgB"></b></div><span class="fclock" id="fClock"></span>
         <button class="fbtn flive" id="fLive" title="Новые вызовы из calls.jsonl">● эфир</button></div></div>`);
   stage.querySelectorAll("[data-fmode]").forEach(b => b.onclick = () => setMode(b.dataset.fmode));
-  $("#fTheme").onclick = () => setTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
+  $("#fLang").onclick = () => I18N.set(I18N.lang === "ru" ? "en" : "ru");
   const tip = $("#fTip");
   function showTip(html, x, y) {
     tip.innerHTML = html; tip.style.display = "block";
@@ -79,7 +81,7 @@ const FLOW = (() => {
     tip.style.left = Math.min(W - w - 8, x + 14) + "px"; tip.style.top = Math.max(8, y - h - 10) + "px";
   }
   const hideTip = () => { tip.style.display = "none"; };
-  const recTip = r => `<div class="w">${fmtD(r.d)} · <span style="color:${stCol(r.st)}">${ST[r.st] ? ST[r.st][0] : "запись"}</span> · ${esc(tname(r.topic))} · #${r.id}</div>${esc(r.t)}`;
+  const recTip = r => `<div class="w">${fmtD(r.d)} · <span style="color:${stCol(r.st)}">${ST[r.st] ? ST[r.st][0] : tr("запись")}</span> · ${esc(tname(r.topic))} · #${r.id}</div>${esc(r.t)}`;
   const legend = () => Object.entries(ST).map(([k, v]) => `<span><i style="background:${stCol(k)}"></i>${v[0]}</span>`).join("");
 
   // ── the record in the inspector, as the other views open a node ──
@@ -88,18 +90,18 @@ const FLOW = (() => {
     if (!r) return;
     const link = id => { const x = find(id); return x ? `<div class="item ch" data-rid="${x.id}"><div class="when"><span>${fmtD(x.d)}</span><span>#${x.id}</span></div><div class="tx">${esc(x.t)}</div></div>` : ""; };
     showInsp(`<div class="ih"><button class="x" onclick="closeInsp()">×</button>
-      <div class="kind"><span class="sw" style="background:${stCol(r.st)};border-radius:50%"></span>${ST[r.st] ? ST[r.st][0] : "запись"} · #${r.id}</div>
+      <div class="kind"><span class="sw" style="background:${stCol(r.st)};border-radius:50%"></span>${ST[r.st] ? ST[r.st][0] : tr("запись")} · #${r.id}</div>
       <h2>${esc(tname(r.topic))}</h2><div class="meta">${esc(r.ts.replace("T", " "))}</div></div>
-      <div class="body rec"><div class="tx">${esc(r.t)}</div>${r.rep ? `<div class="rp">Отчёт: ${esc(r.rep)}</div>` : ""}
+      <div class="body rec"><div class="tx">${esc(r.t)}</div>${r.rep ? `<div class="rp">${tr("Отчёт: {0}", esc(r.rep))}</div>` : ""}
       ${r.chg.length ? `<div class="lbl" style="margin-top:16px">Меняет решение</div>${r.chg.map(link).join("")}` : ""}
       ${r.by.length ? `<div class="lbl" style="margin-top:16px">Решение изменено позже</div>${r.by.map(link).join("")}` : ""}
-      <div class="hint">Полностью — в ассистенте: expand("#${r.id}").</div></div>`);
+      <div class="hint">${tr("Полностью — в ассистенте: {0}.", `<code>expand("#${r.id}")</code>`)}</div></div>`);
     $("#insp").querySelectorAll("[data-rid]").forEach(el => el.onclick = () => { openRecord(el.dataset.rid); if (mode === "live") LIVE.flare(el.dataset.rid, 1); });
   }
   function openTopicRecs(k) {
     const rs = RECS.filter(r => r.topic === k).slice().reverse(), t = TOP[k];
     showInsp(`<div class="ih"><button class="x" onclick="closeInsp()">×</button><div class="kind"><span class="sw" style="background:${tcol(k)}"></span>Тема</div>
-      <h2>${esc(tname(k))}</h2><div class="meta">${rs.length} записей${t ? ` · ${fmtD(t.first)} — ${fmtD(t.last)}` : ""}</div></div>
+      <h2>${esc(tname(k))}</h2><div class="meta">${tr("{0} записей", rs.length)}${t ? ` · ${fmtD(t.first)} — ${fmtD(t.last)}` : ""}</div></div>
       <div class="body">${rs.map(r => `<div class="item ch" data-rid="${r.id}" style="cursor:pointer"><div class="when"><span>${fmtD(r.d)}</span>
         <span style="color:${stCol(r.st)}">${ST[r.st] ? ST[r.st][0] : ""}</span><span>#${r.id}</span></div><div class="tx">${esc(r.t)}</div></div>`).join("")}</div>`);
     $("#insp").querySelectorAll("[data-rid]").forEach(el => el.onclick = () => openRecord(el.dataset.rid));
@@ -107,68 +109,8 @@ const FLOW = (() => {
   const keys = [...TOP.map(t => t.id), ...(RECS.some(r => r.topic < 0) ? [-1] : [])];
   const d0 = RECS.length ? dms(RECS[0].d) : Date.now(), d1 = RECS.length ? dms(RECS[RECS.length - 1].d) : Date.now();
 
-  // ── «Волны»: x - days (weeks for a project longer than 70 days), y - records per topic ──
-  const WAVES = (() => {
-    const weekly = (d1 - d0) / DAY > 70, step = weekly ? 7 * DAY : DAY;
-    const bin = t => weekly ? (Math.floor(t / DAY) - ((Math.floor(t / DAY) + 3) % 7)) * DAY : t;  // weeks from Monday
-    const b0 = bin(d0) - step, b1 = bin(d1) + step, nb = Math.round((b1 - b0) / step) + 1;
-    const rows = Array.from({ length: nb }, (_, i) => { const o = { date: new Date(b0 + i * step) }; keys.forEach(k => o[k] = 0); return o; });
-    const ib = r => Math.round((bin(dms(r.d)) - b0) / step);
-    RECS.forEach(r => { rows[ib(r)][r.topic]++; });
-    const K = weekly ? [1, 2, 1] : [1, 2, 3, 2, 1];  // a light moving average: days with no record do not cut a stream
-    const sm = rows.map((o, i) => { const q = { date: o.date }; keys.forEach(k => { let a = 0, w = 0;
-      K.forEach((c, j) => { const x = rows[i + j - (K.length >> 1)]; if (x) { a += c * x[k]; w += c; } }); q[k] = a / w; }); return q; });
-    let hl = null;
-    const isOther = k => +k < 0 || (TOP[+k] || {}).other;  // merged small topics and records without a topic: at the edge
-    const edgeOrder = ser => { const o = d3.stackOrderInsideOut(ser); return [...o.filter(i => !isOther(ser[i].key)), ...o.filter(i => isOther(ser[i].key))]; };
-    const op = k => isOther(k) ? 0.32 : (light() ? 0.78 : 0.7);
-    function draw() {
-      const svg = d3.select("#waves"), W = Math.max(1, stage.clientWidth), H = Math.max(1, stage.clientHeight);
-      svg.attr("viewBox", `0 0 ${W} ${H}`).selectAll("*").remove();
-      if (!RECS.length) return;
-      const top = Math.max(96, stage.querySelector(".ftop").getBoundingClientRect().bottom + 14), bot = 44, side = 28;
-      const series = d3.stack().keys(keys).value((d, k) => d[k]).offset(d3.stackOffsetSilhouette).order(edgeOrder)(sm);
-      const lo = d3.min(series, s => d3.min(s, p => p[0])), hi = d3.max(series, s => d3.max(s, p => p[1]));
-      const x = d3.scaleUtc([rows[0].date, rows[nb - 1].date], [side, W - side]);
-      const y = d3.scaleLinear([lo, hi], [H - bot, top]);
-      const area = d3.area().x(p => x(p.data.date)).y0(p => y(p[0])).y1(p => y(p[1])).curve(d3.curveBasis);
-      const g = svg.append("g");
-      const paths = g.selectAll("path").data(series).join("path").attr("d", area).attr("fill", s => tcol(s.key))
-        .attr("fill-opacity", s => hl === null || hl === s.key ? op(s.key) : .14).attr("stroke", light() ? "#fff" : "#000").attr("stroke-width", .6)
-        .style("cursor", "pointer")
-        .on("mousemove", (ev, s) => { const i = Math.max(0, Math.min(nb - 1, Math.round((x.invert(ev.offsetX) - b0) / step))), n = rows[i][s.key];
-          showTip(`<div class="w">${weekly ? "неделя с " : ""}${fmtD(rows[i].date.toISOString())}</div><b>${esc(tname(+s.key))}</b><br>${n} ${n === 1 ? "запись" : "записей"} · всего ${RECS.filter(r => r.topic === +s.key).length}`, ev.offsetX, ev.offsetY);
-          if (hl !== s.key) { hl = s.key; paths.attr("fill-opacity", t => t.key === hl ? (light() ? .85 : .78) : .18); } })
-        .on("mouseleave", () => { hl = null; hideTip(); paths.attr("fill-opacity", t => op(t.key)); })
-        .on("click", (ev, s) => openTopicRecs(+s.key));
-      // stream names where the stream is thick enough
-      const used = [];
-      series.map(s => { let bi = 0, bw = 0; s.forEach((p, i) => { if (p[1] - p[0] > bw) { bw = p[1] - p[0]; bi = i; } }); return [s, bi, y(s[bi][0]) - y(s[bi][1])]; })
-        .sort((a, b) => b[2] - a[2]).forEach(([s, bi, px]) => { if (px < 18) return;
-        const lx = Math.min(W - side - 160, Math.max(side + 4, x(rows[bi].date) - 70)), ly = (y(s[bi][0]) + y(s[bi][1])) / 2 + 4;
-        if (used.some(([ux, uy]) => Math.abs(ux - lx) < 190 && Math.abs(uy - ly) < 15)) return; used.push([lx, ly]);
-        g.append("text").attr("x", lx).attr("y", ly)
-          .attr("fill", light() ? "rgba(20,20,26,.78)" : "rgba(255,255,255,.86)").attr("font-size", 11.5).attr("pointer-events", "none")
-          .text(tname(+s.key).length > 30 ? tname(+s.key).slice(0, 29) + "…" : tname(+s.key)); });
-      // decision marks on their stream: x - the record's day, y - inside its stream at that bin
-      const byKey = new Map(series.map(s => [s.key, s])), seen = {};
-      const marks = RECS.filter(r => ST[r.st]).map(r => { const s = byKey.get(r.topic), i = ib(r), p = s[i], k = r.topic + ":" + i;
-        seen[k] = (seen[k] || 0) + 1; const j = seen[k], n = rows[i][r.topic] || 1, f = n > 1 ? (j - 0.5) / n : 0.5;
-        const tx = dms(r.d) + (weekly ? 0 : (j % 5) * DAY * 0.16 - DAY * 0.3);
-        return { r, x: x(new Date(Math.max(b0, tx))), y: y(p[0] + (p[1] - p[0]) * (0.2 + 0.6 * f)) }; });
-      g.selectAll("circle").data(marks).join("circle").attr("cx", m => m.x).attr("cy", m => m.y).attr("r", m => m.r.st === "change" ? 4.4 : m.r.st === "report" ? 2.1 : 3.4).attr("fill-opacity", m => m.r.st === "report" ? 0.6 : 1)
-        .attr("fill", m => stCol(m.r.st)).attr("stroke", light() ? "#fff" : "#08080c").attr("stroke-width", m => m.r.st === "report" ? 0.5 : 1.2).style("cursor", "pointer")
-        .on("mousemove", (ev, m) => showTip(recTip(m.r), ev.offsetX, ev.offsetY)).on("mouseleave", hideTip)
-        .on("click", (ev, m) => { ev.stopPropagation(); openRecord(m.r); });
-      const ax = svg.append("g").attr("class", "ax").attr("transform", `translate(0,${H - bot + 8})`)
-        .call(d3.axisBottom(x).ticks(Math.max(2, Math.floor(W / 120))).tickFormat(d3.utcFormat("%d.%m")).tickSizeOuter(0));
-      ax.select(".domain").remove();
-    }
-    return { draw };
-  })();
-
   // ── «Живая память»: trunk = project time, branches = topics, beads = records; pulses of recall / expand ──
-  const LIVE = (() => {
+  const LIVE2 = (() => {  // the 2D fallback when WebGL / three.js is not available
     const cv = $("#livecv"), ctx = cv.getContext("2d");
     let W = 1, H = 1, DPR = 1, L = 0, Rr = 1, ty = 0, dx = 60, raf = 0, on = false, hover = null, hlb = null;
     const branches = TOP.map(t => ({ t, k: t.id }));
@@ -217,7 +159,7 @@ const FLOW = (() => {
         chain.forEach(([a, b], i) => { arcs.push({ a: beadOf.get(a.id), b: beadOf.get(b.id), t0: now + 300 + i * 420, dur: 900 }); flare(b.id, 1.2, 300 + i * 420 + 800); });
         os.slice(1).forEach((x, i) => flare(x.r.id, 0.45, 200 + i * 40));
       } else os.forEach((o, i) => flare(o.r.id, 0.6, i * 60));
-      const hh = new Date(c.t); tick.unshift(`<div>${String(hh.getHours()).padStart(2, "0")}:${String(hh.getMinutes()).padStart(2, "0")}:${String(hh.getSeconds()).padStart(2, "0")} · <b>${esc(c.tool)}</b> · ${os.length} зап. · ${c.ms} мс</div>`);
+      const hh = new Date(c.t); tick.unshift(`<div>${String(hh.getHours()).padStart(2, "0")}:${String(hh.getMinutes()).padStart(2, "0")}:${String(hh.getSeconds()).padStart(2, "0")} · <b>${esc(c.tool)}</b> · ${tr("{0} зап. · {1} мс", os.length, c.ms)}</div>`);
       tick.length = Math.min(tick.length, 5); $("#fTick").innerHTML = tick.join(""); $("#fTick").classList.add("has");
     }
     function frame(t) {
@@ -278,13 +220,235 @@ const FLOW = (() => {
     const label = (x, y) => branches.find(b => b.lx !== undefined && x >= b.lx - 4 && x <= b.lx + b.lw && Math.abs(y - b.ly) < 9);
     cv.addEventListener("mousemove", e => { const o = near(e.offsetX, e.offsetY), lb = o ? null : label(e.offsetX, e.offsetY);
       hover = o; cv.style.cursor = o || lb ? "pointer" : "default"; hlb = lb ? lb.k : null;
-      if (o) showTip(recTip(o.r), e.offsetX, e.offsetY); else if (lb) showTip(`<b>${esc(lb.t.name)}</b><br>${lb.t.n} записей · ${fmtD(lb.t.first)} — ${fmtD(lb.t.last)}`, e.offsetX, e.offsetY); else hideTip(); });
+      if (o) showTip(recTip(o.r), e.offsetX, e.offsetY); else if (lb) showTip(`<b>${esc(lb.t.name)}</b><br>${tr("{0} записей", lb.t.n)} · ${fmtD(lb.t.first)} — ${fmtD(lb.t.last)}`, e.offsetX, e.offsetY); else hideTip(); });
     cv.addEventListener("mouseleave", () => { hover = null; hlb = null; hideTip(); });
     cv.addEventListener("click", e => { const o = near(e.offsetX, e.offsetY); if (o) { openRecord(o.r); flare(o.r.id, 1); return; }
       const lb = label(e.offsetX, e.offsetY); if (lb) openTopicRecs(lb.k); });
     return { clear() { tick.length = 0; $("#fTick").innerHTML = ""; $("#fTick").classList.remove("has"); }, start() { layout(); if (!on) { on = true; raf = requestAnimationFrame(frame); } }, stop() { on = false; cancelAnimationFrame(raf); },
       layout, fire, flare, get on() { return on; } };
   })();
+
+  // ── «Живая память» in 3D (three.js, MIT): two trees growing up from one ground. Chats: the trunk is the project's
+  // time (bottom = first day), a branch per chat session leaves it at the session's first turn and forks as it grows,
+  // side sessions (subagents) are offshoots of their parent branch; every turn is a glowing bead. Code (Graphify): a
+  // branch per top folder, a twig per file, a bead per symbol. Fog dims the far beads; the camera turns by itself.
+  // Pulses: recall runs from the root up the trunk and along the branch to each returned turn; expand lights the turn
+  // and runs along its chain of decision changes.
+  const LIVE3 = !window.THREE ? null : (() => {
+    const T = THREE, TR = DATA.trees || { sessions: [], turns: [], code: [] };
+    const C0 = new T.Color(CORAL), C1 = new T.Color(GOLD), WHITE = new T.Color("#fff3e6"), K0 = new T.Color("#3f7fc4"), K1 = new T.Color("#9fe0ff");
+    const host = document.createElement("div"); host.id = "live3d"; stage.appendChild(host);
+    const labs = document.createElement("div"); labs.className = "l3labs"; host.appendChild(labs);
+    let R = null, scene, cam, on = false, raf = 0, W = 1, H = 1, DPR = 1, last = 0, now = 0, built = false;
+    let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const jit = s => new T.Vector3(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(s);
+    const tms = x => Date.parse(x.length > 10 ? x + "Z" : x + "T00:00:00Z");
+    const tt = TR.turns.map(r => tms(r[2])), tA = tt.length ? Math.min(...tt) : 0, tB = tt.length ? Math.max(...tt) : 1;
+    const t01 = x => tB > tA ? (tms(x) - tA) / (tB - tA) : 0.5;
+    const age = u => C0.clone().lerp(C1, Math.max(0, Math.min(1, u)));
+    const SIZE = { change: 15, decision: 12.5, later: 10, report: 7 };
+    const orb = { r: 2150, th: 1.45, ph: 1.36, auto: 1, drag: null, tx: 0, ty: 430, tz: 0 };
+    const UP = new T.Vector3(0, 1, 0);
+    let beads = [], geo, pts, pulsePts, pulses = [], tips = [], tick = [], lines = [], beadOf = new Map();
+    const CHAT_X = -330, CODE_X = 380;
+    // a session is named by the topic most of its records belong to
+    const sesTopic = i => { const c = {}; TR.turns.forEach(r => { if (r[1] !== i) return; const x = find(r[0]); if (x && x.topic >= 0 && !(TOP[x.topic] || {}).other) c[x.topic] = (c[x.topic] || 0) + 1; });
+      const k = Object.keys(c).sort((a, b) => c[b] - c[a])[0]; return k === undefined ? tr("чат") : tname(+k).split(" · ").slice(0, 2).join(" · "); };
+    // a branch: from point A, growing out along azimuth `az` and upward, length L, a little crooked
+    function branch(A, az, elev, L, bend = 0.25) {
+      const d = new T.Vector3(Math.cos(az) * Math.cos(elev), Math.sin(elev), Math.sin(az) * Math.cos(elev));
+      const side = new T.Vector3().crossVectors(d, UP).normalize();
+      const p = [A.clone()];
+      for (let i = 1; i <= 4; i++) { const f = i / 4; p.push(A.clone().add(d.clone().multiplyScalar(L * f)).add(UP.clone().multiplyScalar(L * bend * f * f))
+        .add(side.clone().multiplyScalar(Math.sin(f * 3 + az) * L * 0.08)).add(jit(L * 0.05 * f))); }
+      return new T.CatmullRomCurve3(p);
+    }
+    const trunkOf = (x, h) => new T.CatmullRomCurve3([0, 0.25, 0.5, 0.75, 1].map((f, i) => new T.Vector3(x + Math.sin(f * 4.1 + x) * 18 * f, h * f, Math.cos(f * 3.3) * 16 * f + (i ? (rnd() - 0.5) * 10 : 0))));
+    function build() {
+      built = true;
+      R = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+      R.setClearColor(0x000000, 1); host.insertBefore(R.domElement, labs);
+      scene = new T.Scene(); scene.fog = new T.FogExp2(0x000000, 0.00042);
+      cam = new T.PerspectiveCamera(46, 1, 1, 9000);
+      const tube = (curve, r, seg, ca, cb, op) => { const g = new T.TubeGeometry(curve, seg, r, 8, false), n = g.attributes.position.count, col = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) { const c = ca.clone().lerp(cb, Math.floor(i / 9) / seg); col.set([c.r, c.g, c.b], i * 3); }
+        g.setAttribute("color", new T.BufferAttribute(col, 3));
+        scene.add(new T.Mesh(g, new T.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: op, blending: T.AdditiveBlending, depthWrite: false }))); };
+      const line = (curve, ca, cb, n = 24) => { for (let i = 0; i < n; i++) { const a = curve.getPoint(i / n), b = curve.getPoint((i + 1) / n), c = ca.clone().lerp(cb, i / n);
+        lines.push(a.x, a.y, a.z, b.x, b.y, b.z, c.r, c.g, c.b, c.r, c.g, c.b); } };
+      const add = (pos, col, size, info, path) => { const b = { pos, col, size, info, path, flash: 0, f0: 0, i: beads.length }; beads.push(b); return b; };
+      // ── the chat tree
+      const ss = TR.sessions, turnsOf = ss.map(() => []);
+      TR.turns.forEach(r => turnsOf[r[1]] && turnsOf[r[1]].push(r));
+      const HC = 760, trunk = trunkOf(CHAT_X, HC);
+      tube(trunk, 5, 200, C0, C1, 0.95); tube(trunk, 15, 100, C0, C1, 0.12);
+      const pathTrunk = u => ({ curve: trunk, a: 0, b: u });
+      const placed = [];  // session index -> {pts: [bead], dir}
+      const grow = (i, A, az, elev, L, basePath, uColor) => {
+        const rs = turnsOf[i], chunks = [], CH = 70;
+        for (let k = 0; k < rs.length; k += CH) chunks.push(rs.slice(k, k + CH));
+        const main = branch(A, az, elev, L * Math.min(1, 0.55 + 0.45 * Math.min(1, chunks.length / 3)));
+        const isSide = ss[i].side, cA = isSide ? C1.clone().lerp(WHITE, 0.25) : age(uColor), cB = isSide ? WHITE : age(Math.min(1, uColor + 0.25));
+        if (isSide) line(main, cA, cB, 20); else { tube(main, 2.2, 60, cA, cB, 0.85); tube(main, 6, 30, cA, cB, 0.07); }
+        const bs = [];
+        chunks.forEach((ch, k) => {
+          let curve = main, path = [...basePath, { curve: main, a: 0, b: 0 }];
+          if (k > 0) { const s0 = Math.min(0.92, 0.25 + 0.6 * k / chunks.length), P = main.getPointAt(s0);
+            curve = branch(P, az + (k % 2 ? 0.9 : -0.9) + (rnd() - 0.5) * 0.5, elev + 0.35, L * 0.5 * (0.7 + rnd() * 0.5), 0.35);
+            line(curve, cA, cB, 18); path = [...basePath, { curve: main, a: 0, b: s0 }, { curve, a: 0, b: 0 }]; }
+          ch.forEach((r, j) => { const s = k > 0 ? 0.08 + 0.92 * (j + 0.5) / ch.length : 0.06 + 0.94 * (j + 0.5) / Math.max(ch.length, 12);
+            const p = curve.getPointAt(Math.min(1, s)).add(jit(r[3] === "u" ? 9 : 16));
+            const imp = r[3] === "u" ? (SIZE[r[4]] || 6.5) : 3.6;
+            let c = isSide ? C1.clone().lerp(WHITE, 0.35) : age(t01(r[2])); if (r[4] === "change") c = c.lerp(WHITE, 0.3);
+            const pp = path.slice(); pp[pp.length - 1] = { ...pp[pp.length - 1], b: s };
+            const b = add(p, c, imp, { kind: "turn", r, s: i }, pp); bs.push(b); beadOf.set(r[0], b); });
+        });
+        placed[i] = { bs, main, az };
+        tips.push({ sesI: i, p: main.getPointAt(1), text: isSide ? "" : `${ss[i].src === "claude.ai" ? "claude.ai · " : ""}${sesTopic(i)} · ${ss[i].n} · ${fmtD(ss[i].last.slice(0, 10))}`, side: isSide });
+      };
+      ss.forEach((sx, i) => { if (sx.side) return; const u = 0.04 + 0.92 * t01(sx.first), A = trunk.getPointAt(u);
+        grow(i, A, i * 2.39996 + 0.3, 0.55 + rnd() * 0.35, 170 + 22 * Math.sqrt(sx.n), [pathTrunk(u)], t01(sx.first)); });
+      ss.forEach((sx, i) => { if (!sx.side) return; const par = placed[sx.parent];
+        if (!par) { const u = 0.04 + 0.92 * t01(sx.first); grow(i, trunk.getPointAt(u), i * 2.4, 0.7, 60 + 12 * Math.sqrt(sx.n), [pathTrunk(u)], t01(sx.first)); return; }
+        const t0 = tms(sx.first), host = par.bs.reduce((a, b) => Math.abs(tms(b.info.r[2]) - t0) < Math.abs(tms(a.info.r[2]) - t0) ? b : a, par.bs[0]);
+        grow(i, host.pos.clone(), par.az + (rnd() < 0.5 ? 1 : -1) * (0.8 + rnd() * 0.8), 0.6 + rnd() * 0.5, 45 + 14 * Math.sqrt(sx.n), host.path, t01(sx.first)); });
+      // ── the code tree (Graphify)
+      const code = TR.code || [];
+      if (code.length) {
+        const HK = 620, ktr = trunkOf(CODE_X, HK); tube(ktr, 5, 160, K0, K1, 0.9); tube(ktr, 15, 80, K0, K1, 0.1);
+        code.forEach((d, i) => { const u = 0.12 + 0.82 * (code.length > 1 ? i / (code.length - 1) : 0.5), A = ktr.getPointAt(1 - u * 0.9);
+          const az = i * 2.39996 + 1.1, L = 120 + 9 * Math.sqrt(d.n), main = branch(A, az, 0.45 + rnd() * 0.3, L);
+          const ca = K0.clone().lerp(K1, 0.3 + 0.5 * rnd()), cb = K1.clone().lerp(WHITE, 0.2); tube(main, 1.8, 50, ca, cb, 0.75);
+          tips.push({ p: main.getPointAt(1), text: `${d.name} · ${d.n}`, code: true });
+          d.files.forEach((f, j) => { const s0 = 0.15 + 0.8 * (j + 0.5) / d.files.length, P = main.getPointAt(s0);
+            const tw = branch(P, az + (j % 2 ? 1 : -1) * (0.6 + rnd() * 1.2), 0.4 + rnd() * 0.8, 18 + 4.2 * Math.sqrt(f.nodes.length), 0.3);
+            line(tw, ca, cb, 10);
+            f.nodes.forEach((nd, k) => { const s = 0.1 + 0.9 * (k + 0.5) / f.nodes.length, p = tw.getPointAt(s).add(jit(5));
+              add(p, K0.clone().lerp(K1, 0.25 + 0.75 * rnd()), 3.3, { kind: "code", nd, f: f.name }, [{ curve: ktr, a: 0, b: 1 - u * 0.9 }, { curve: main, a: 0, b: s0 }, { curve: tw, a: 0, b: s }]); }); }); });
+      }
+      // lines (forks, side sessions, file twigs): one LineSegments
+      const lg = new T.BufferGeometry(), nl = lines.length / 12, LP = new Float32Array(nl * 6), LC = new Float32Array(nl * 6);
+      for (let i = 0; i < nl; i++) { LP.set(lines.slice(i * 12, i * 12 + 6), i * 6); LC.set(lines.slice(i * 12 + 6, i * 12 + 12), i * 6); }
+      lg.setAttribute("position", new T.BufferAttribute(LP, 3)); lg.setAttribute("color", new T.BufferAttribute(LC, 3));
+      scene.add(new T.LineSegments(lg, new T.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, blending: T.AdditiveBlending, depthWrite: false })));
+      // ground glow under the trees
+      const gr = new T.Mesh(new T.CircleGeometry(520, 64), new T.MeshBasicMaterial({ color: 0x1c0a0c, transparent: true, opacity: 0.25, blending: T.AdditiveBlending, depthWrite: false }));
+      gr.rotation.x = -Math.PI / 2; gr.position.y = -2; scene.add(gr);
+      // beads: one Points object with a glow shader
+      const n = beads.length, P = new Float32Array(n * 3), Cc = new Float32Array(n * 3), S = new Float32Array(n), F = new Float32Array(n);
+      beads.forEach((b, i) => { P.set([b.pos.x, b.pos.y, b.pos.z], i * 3); Cc.set([b.col.r, b.col.g, b.col.b], i * 3); S[i] = b.size; });
+      geo = new T.BufferGeometry(); geo.setAttribute("position", new T.BufferAttribute(P, 3)); geo.setAttribute("acol", new T.BufferAttribute(Cc, 3));
+      geo.setAttribute("size", new T.BufferAttribute(S, 1)); geo.setAttribute("flash", new T.BufferAttribute(F, 1));
+      pts = new T.Points(geo, glow()); scene.add(pts);
+      const dn = 2200, D = new Float32Array(dn * 3), DC = new Float32Array(dn * 3), DS = new Float32Array(dn), DF = new Float32Array(dn);
+      for (let i = 0; i < dn; i++) { const r = 900 + rnd() * 2600, th = rnd() * 6.283, ph = Math.acos(2 * rnd() - 1);
+        D.set([r * Math.sin(ph) * Math.cos(th), 300 + r * Math.cos(ph) * 0.7, r * Math.sin(ph) * Math.sin(th)], i * 3); const g = 0.3 + rnd() * 0.35; DC.set([g, g * 0.88, g * 0.85], i * 3); DS[i] = 1.6 + rnd() * 2; }
+      const dg = new T.BufferGeometry(); dg.setAttribute("position", new T.BufferAttribute(D, 3)); dg.setAttribute("acol", new T.BufferAttribute(DC, 3));
+      dg.setAttribute("size", new T.BufferAttribute(DS, 1)); dg.setAttribute("flash", new T.BufferAttribute(DF, 1)); scene.add(new T.Points(dg, glow()));
+      const pn = 64 * 10, pg = new T.BufferGeometry(); pg.setAttribute("position", new T.BufferAttribute(new Float32Array(pn * 3), 3));
+      pg.setAttribute("acol", new T.BufferAttribute(new Float32Array(pn * 3), 3)); pg.setAttribute("size", new T.BufferAttribute(new Float32Array(pn), 1));
+      pg.setAttribute("flash", new T.BufferAttribute(new Float32Array(pn), 1)); pulsePts = new T.Points(pg, glow()); pulsePts.frustumCulled = false; scene.add(pulsePts);
+      tips.push({ p: trunk.getPointAt(0).add(new T.Vector3(-20, -26, 0)), text: tr("разговоры"), root: true });
+      if (code.length) tips.push({ p: new T.Vector3(CODE_X - 20, -26, 0), text: tr("код · Graphify"), root: true, code: true });
+      // frame the trees: the camera distance and height follow the beads' extent (a small demo or a large store)
+      { const box = new T.Box3(); beads.forEach(b => box.expandByPoint(b.pos)); const sz = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
+        orb.tx = c.x; orb.ty = c.y + sz.y * 0.1; orb.tz = c.z; orb.r = Math.max(500, 1.4 * Math.max(sz.x, sz.y * 1.3, sz.z)); }
+      // labels: the biggest chats only, so they do not pile up
+      const big = new Set(TR.sessions.map((x, i) => [x.n, i]).filter(([, i]) => !TR.sessions[i].side).sort((a, b) => b[0] - a[0]).slice(0, 9).map(([, i]) => i));
+      tips.forEach(tp => { if (tp.sesI !== undefined && !big.has(tp.sesI)) tp.text = ""; });
+      tips.forEach(tp => { if (!tp.text) return; tp.el = document.createElement("div"); tp.el.className = "l3lab" + (tp.code ? " k" : "") + (tp.root ? " root" : ""); tp.el.textContent = tp.text; labs.appendChild(tp.el); });
+      const cvs = R.domElement;
+      cvs.addEventListener("pointerdown", e => { orb.drag = [e.clientX, e.clientY, e.clientX, e.clientY]; orb.auto = 0; cvs.setPointerCapture(e.pointerId); });
+      cvs.addEventListener("pointermove", e => { if (orb.drag) { orb.th += (e.clientX - orb.drag[0]) * 0.005; orb.ph = Math.max(0.3, Math.min(1.75, orb.ph - (e.clientY - orb.drag[1]) * 0.005));
+        orb.drag[0] = e.clientX; orb.drag[1] = e.clientY; return; } hoverAt(e); });
+      cvs.addEventListener("pointerup", e => { const d = orb.drag; orb.drag = null; setTimeout(() => { orb.auto = 1; }, 2500);
+        if (d && Math.hypot(e.clientX - d[2], e.clientY - d[3]) < 4) { const b = pick(e); if (b) open(b); } });
+      cvs.addEventListener("wheel", e => { e.preventDefault(); orb.r = Math.max(200, Math.min(4000, orb.r * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
+      cvs.addEventListener("pointerleave", () => hideTip());
+    }
+    function glow() {
+      return new T.ShaderMaterial({ transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+        uniforms: { uPix: { value: 1 }, uFog: { value: 0.00034 } },
+        vertexShader: `attribute float size; attribute float flash; attribute vec3 acol; varying vec3 vC; varying float vA; varying float vF;
+          uniform float uPix; uniform float uFog;
+          void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); float d = max(1.0, -mv.z); vA = exp(-d * d * uFog * uFog);
+            vC = acol; vF = flash; gl_PointSize = min(64.0, size * (1.0 + flash * 1.8) * uPix * (1500.0 / d)); gl_Position = projectionMatrix * mv; }`,
+        fragmentShader: `varying vec3 vC; varying float vA; varying float vF;
+          void main() { vec2 p = gl_PointCoord - 0.5; float r = length(p) * 2.0; if (r > 1.0) discard;
+            float core = smoothstep(0.36, 0.0, r), halo = pow(1.0 - r, 2.3) * 0.65;
+            vec3 c = vC * (halo + core * 0.9) + vec3(1.0, 0.94, 0.86) * core * (0.35 + vF);
+            gl_FragColor = vec4(c * vA * (1.0 + vF * 1.4), 1.0); }` });
+    }
+    function size() {
+      DPR = Math.min(2, devicePixelRatio || 1); W = Math.max(1, stage.clientWidth); H = Math.max(1, stage.clientHeight);
+      R.setPixelRatio(DPR); R.setSize(W, H); cam.aspect = W / H; cam.updateProjectionMatrix();
+      scene.traverse(o => { if (o.material && o.material.uniforms) o.material.uniforms.uPix.value = DPR; });
+    }
+    const ray = new T.Raycaster(); ray.params.Points.threshold = 5;
+    function pick(e) { const r = R.domElement.getBoundingClientRect(); ray.setFromCamera({ x: (e.clientX - r.left) / r.width * 2 - 1, y: -(e.clientY - r.top) / r.height * 2 + 1 }, cam);
+      const h = ray.intersectObject(pts)[0]; return h ? beads[h.index] : null; }
+    const sesName = i => (TR.sessions[i] || {}).label || "";
+    function tipOf(b) { const x = b.info;
+      if (x.kind === "code") return `<div class="w">${tr("код")} · ${esc(x.f)}${x.nd[1] ? ":" + esc(x.nd[1]) : ""}</div>${esc(x.nd[0])}`;
+      const r = x.r, s = TR.sessions[x.s] || {}; return `<div class="w">${fmtD(r[2].slice(0, 10))} ${r[2].slice(11, 16)} · ${tr(r[3] === "u" ? "вы" : "ассистент")}${ST[r[4]] ? " · " + ST[r[4]][0] : ""} · ${tr(s.side ? "сессия-субагент" : "чат")} #${r[0]}</div>${esc(r[5])}`; }
+    function hoverAt(e) { const b = pick(e); R.domElement.style.cursor = b ? "pointer" : "grab"; const r = R.domElement.getBoundingClientRect();
+      if (b) showTip(tipOf(b), e.clientX - r.left, e.clientY - r.top); else hideTip(); }
+    function open(b) { flare(b, 1); const x = b.info;
+      if (x.kind === "turn" && find(x.r[0])) return openRecord(x.r[0]);
+      showInsp(`<div class="ih"><button class="x" onclick="closeInsp()">×</button><div class="kind">${tr(x.kind === "code" ? "Код · Graphify" : (x.r[3] === "u" ? "Ваша реплика" : "Ответ ассистента"))}</div>
+        <h2>${esc(x.kind === "code" ? x.nd[0] : sesName(x.s))}</h2><div class="meta">${esc(x.kind === "code" ? x.f + (x.nd[1] ? ":" + x.nd[1] : "") : x.r[2].replace("T", " "))}</div></div>
+        <div class="body rec"><div class="tx">${esc(x.kind === "code" ? "" : x.r[5])}</div>${x.kind === "turn" ? `<div class="hint">${tr("Полностью — в ассистенте: {0}.", `<code>expand("#${x.r[0]}")</code>`)}</div>` : ""}</div>`); }
+    // a pulse path: from the root up the trunk, along the branch (and its forks / parents) to the bead
+    function pathOf(b) {
+      const segs = b.path.filter(s => s.b > s.a).map(s => { const c = s.curve, a = s.a, z = s.b; return { len: c.getLength() * (z - a), at: f => c.getPointAt(a + (z - a) * f) }; });
+      const end = segs.length ? segs[segs.length - 1].at(1) : b.pos.clone(); segs.push({ len: end.distanceTo(b.pos), at: f => end.clone().lerp(b.pos, f) });
+      const len = segs.reduce((a, s) => a + s.len, 0) || 1;
+      return { len, at: x => { let d = x * len; for (const s of segs) { if (d <= s.len || s === segs[segs.length - 1]) return s.at(s.len ? Math.min(1, d / s.len) : 1); d -= s.len; } } };
+    }
+    const bead = id => { const k = String(id).slice(0, 8); return beadOf.get(k) || [...beadOf.entries()].find(([x]) => x.startsWith(k))?.[1]; };
+    function flare(b, s = 1, delay = 0) { if (typeof b === "string") b = bead(b); if (b) { b.f0 = now + delay; b.flash = s; } }
+    function fire(c) {
+      if (!built) return;
+      const bs = (c.ids || []).map(bead).filter(Boolean);
+      if (c.tool === "recall") bs.forEach((b, i) => { const p = pathOf(b); pulses.push({ p, b, t0: now + i * 120, dur: 1000 + p.len * 0.9 }); });
+      else if (c.tool === "expand" && bs.length) { const b = bs[0], p = pathOf(b); pulses.push({ p, b, t0: now, dur: 1000 + p.len * 0.9, s: 1.8 });
+        const r0 = find(b.info.r ? b.info.r[0] : ""), seen = new Set(r0 ? [r0.id] : []), q = r0 ? [r0] : []; let k = 0;
+        while (q.length) { const r = q.shift(); [...r.chg, ...r.by].forEach(id => { const x = find(id), xb = x && bead(x.id), from = bead(r.id); if (xb && from && !seen.has(x.id)) { seen.add(x.id); q.push(x); k++;
+          pulses.push({ p: { len: 1, at: f => from.pos.clone().lerp(xb.pos, f).add(new T.Vector3(0, Math.sin(f * Math.PI) * 40, 0)) }, b: xb, t0: now + 1600 + k * 500, dur: 900, s: 1.3 }); } }); } }
+      else bs.forEach((b, i) => flare(b, 0.6, i * 60));
+      const hh = new Date(c.t); tick.unshift(`<div>${String(hh.getHours()).padStart(2, "0")}:${String(hh.getMinutes()).padStart(2, "0")}:${String(hh.getSeconds()).padStart(2, "0")} · <b>${esc(c.tool)}</b> · ${tr("{0} зап. · {1} мс", bs.length, c.ms)}</div>`);
+      tick.length = Math.min(tick.length, 5); $("#fTick").innerHTML = tick.join(""); $("#fTick").classList.add("has");
+    }
+    const V = new T.Vector3();
+    function frame(t) {
+      if (!on) return; raf = requestAnimationFrame(frame); const dt = last ? Math.min(64, t - last) : 16; last = t; now = t;
+      if (orb.auto && !orb.drag) orb.th += dt * 0.00005;
+      cam.position.set(orb.tx + orb.r * Math.sin(orb.ph) * Math.cos(orb.th), orb.ty + orb.r * Math.cos(orb.ph), orb.tz + orb.r * Math.sin(orb.ph) * Math.sin(orb.th)); cam.lookAt(orb.tx, orb.ty, orb.tz);
+      const F = geo.attributes.flash.array; let dirty = false;
+      for (const b of beads) { if (!b.flash) continue; const e = (now - b.f0) / 2400, v = e < 0 ? 0 : e >= 1 ? 0 : b.flash * (1 - e) * (1 - e); if (e >= 1) b.flash = 0; F[b.i] = v; dirty = true; }
+      if (dirty) geo.attributes.flash.needsUpdate = true;
+      const pp = pulsePts.geometry.attributes, PP = pp.position.array, PC = pp.acol.array, PS = pp.size.array; PS.fill(0);
+      let slot = 0;
+      for (let i = pulses.length - 1; i >= 0; i--) { const q = pulses[i], u = (now - q.t0) / q.dur; if (u < 0) continue;
+        if (u >= 1) { flare(q.b, q.s || 1); pulses.splice(i, 1); continue; } if (slot >= 64) continue;
+        const e = u * u * (3 - 2 * u);
+        for (let j = 0; j < 10; j++) { const p = q.p.at(Math.max(0, e - j * 0.016)), k = slot * 10 + j; PP[k * 3] = p.x; PP[k * 3 + 1] = p.y; PP[k * 3 + 2] = p.z;
+          const c = j ? C0.clone().lerp(C1, 1 - j / 10) : WHITE; PC.set([c.r, c.g, c.b], k * 3); PS[k] = (j ? 11 * (1 - j / 10) : 16) * (q.s || 1); }
+        slot++; }
+      pp.position.needsUpdate = pp.acol.needsUpdate = pp.size.needsUpdate = true;
+      R.render(scene, cam);
+      tips.forEach(tp => { if (!tp.el) return; V.copy(tp.p).project(cam); const vis = V.z < 1 && Math.abs(V.x) < 1.05 && Math.abs(V.y) < 1.05;
+        tp.el.style.display = vis ? "" : "none"; if (!vis) return; const d = cam.position.distanceTo(tp.p);
+        tp.el.style.transform = `translate(${(V.x + 1) / 2 * W + 8}px, ${(1 - V.y) / 2 * H - 8}px)`; tp.el.style.opacity = tp.root ? 0.95 : Math.max(0.12, Math.min(0.9, 1.6 - d / 1500)); });
+      PLAY.step(t);
+    }
+    return { l3: true, legend: `<span><i style="background:linear-gradient(90deg,${CORAL},${GOLD})"></i>${tr("разговоры: старое → новое")}</span><span><i style="background:${GOLD};box-shadow:0 0 6px #fff"></i>${tr("боковые ветки — сессии-субагенты")}</span><span><i style="background:#6fb0e8"></i>${tr("код (Graphify)")}</span><span>${tr("крупнее — решения и смены решений")}</span>`,
+      start() { if (!built) build(); $("#app").classList.add("l3"); size(); if (!on) { on = true; last = 0; raf = requestAnimationFrame(frame); } },
+      stop() { on = false; cancelAnimationFrame(raf); $("#app").classList.remove("l3"); }, layout() { if (built) size(); }, fire, flare,
+      count: () => beads.length,
+      clear() { tick.length = 0; $("#fTick").innerHTML = ""; $("#fTick").classList.remove("has"); } };
+  })();
+  const LIVE = LIVE3 || LIVE2;
 
   // ── playback of calls.jsonl over a period, and live calls when served by `ctxgraph view --live` ──
   const CALLS = (DATA.calls || []).slice();
@@ -295,10 +459,10 @@ const FLOW = (() => {
       list = CALLS.filter(c => !h || Date.parse(c.t) >= last - h * 36e5); i = 0; next = 0; ui(); }
     function ui() { $("#fPlay").textContent = playing ? "❚❚" : "▶"; $("#fProgB").style.width = list.length ? (100 * i / list.length) + "%" : "0";
       const c = list[Math.min(i, list.length - 1)], d = c ? new Date(c.t) : null;
-      $("#fClock").textContent = d ? `${d.toLocaleDateString("ru-RU")} ${d.toLocaleTimeString("ru-RU")} · ${i}/${list.length}` : "нет вызовов за период";
-      $("#fLive").classList.toggle("on", live); $("#fLive").title = DATA.live ? "Новые вызовы из calls.jsonl" : "Живой эфир — через ctxgraph view --live";
+      $("#fClock").textContent = d ? `${d.toLocaleDateString(I18N.lang === "ru" ? "ru-RU" : "en-US")} ${d.toLocaleTimeString(I18N.lang === "ru" ? "ru-RU" : "en-US")} · ${i}/${list.length}` : tr("нет вызовов за период");
+      $("#fLive").classList.toggle("on", live); $("#fLive").title = tr(DATA.live ? "Новые вызовы из calls.jsonl" : "Живой эфир — через ctxgraph view --live");
       const empty = !CALLS.length; $("#fEmpty").classList.toggle("side", !!RECS.length); $("#fEmpty").style.display = empty && mode === "live" ? "block" : "none";
-      $("#fEmpty").innerHTML = RECS.length ? `Журнал вызовов пуст. Он пишется, когда ассистент вызывает recall / expand через MCP-сервер ctxgraph:<br><span class="mono">~/.ctxgraph/&lt;проект&gt;/calls.jsonl</span>${DATA.live ? "<br>Жду вызовов…" : "<br>Живой эфир: <span class=\"mono\">ctxgraph view --live</span>"}` : "В памяти пока нет записей."; }
+      $("#fEmpty").innerHTML = RECS.length ? `${tr("Журнал вызовов пуст. Он пишется, когда ассистент вызывает recall / expand через MCP-сервер ctxgraph:")}<br><span class="mono">${esc(tr("~/.ctxgraph/<проект>/calls.jsonl"))}</span>${DATA.live ? "<br>" + tr("Жду вызовов…") : "<br>" + tr("Живой эфир:") + " <span class=\"mono\">ctxgraph view --live</span>"}` : tr("В памяти пока нет записей."); }
     function step(t) {
       if (!playing || !list.length) return;
       if (!next) next = t;
@@ -325,21 +489,19 @@ const FLOW = (() => {
 
   let cur = "";
   function sub() { const n = RECS.length, c = k => RECS.filter(r => r.st === k).length;
-    return `${fmtD(RECS[0] ? RECS[0].d : "")} — ${fmtD(RECS.length ? RECS[n - 1].d : "")} · ${n} записей · решений ${c("decision")} · смен ${c("change")} · на потом ${c("later")}` + (cur === "live" ? ` · вызовов в журнале ${CALLS.length}` : ""); }
+    return tr("{0} — {1} · {2} записей · решений {3} · смен {4} · на потом {5}", fmtD(RECS[0] ? RECS[0].d : ""), fmtD(RECS.length ? RECS[n - 1].d : ""), n, c("decision"), c("change"), c("later")) + (cur === "live" ? tr(" · вызовов в журнале {0}", CALLS.length) : ""); }
   function start(m) {
     cur = m; hideTip();
-    $("#app").classList.add("flow"); $("#app").classList.toggle("waves", m === "waves"); $("#app").classList.toggle("live", m === "live");
+    $("#app").classList.add("flow"); $("#app").classList.toggle("live", m === "live");
     stage.querySelectorAll("[data-fmode]").forEach(b => b.classList.toggle("on", b.dataset.fmode === m));
-    $("#fTheme").style.display = m === "waves" ? "" : "none"; $("#fSub").textContent = sub(); $("#fLeg").innerHTML = legend();
+    $("#fSub").textContent = sub(); $("#fLeg").innerHTML = m === "live" && LIVE.l3 ? LIVE.legend : legend();
     $("#fEmpty").style.display = "none";
-    if (m === "waves") { LIVE.stop(); if (!RECS.length) { $("#fEmpty").textContent = "В памяти пока нет записей."; $("#fEmpty").style.display = "block"; } WAVES.draw(); }
-    else { LIVE.start(); PLAY.start(); }
+    LIVE.start(); PLAY.start();
   }
-  function stop() { cur = ""; LIVE.stop(); hideTip(); ["flow", "waves", "live"].forEach(c => $("#app").classList.remove(c)); }
-  addEventListener("resize", () => { if (cur === "waves") WAVES.draw(); else if (cur === "live") LIVE.layout(); });
-  new MutationObserver(() => { if (cur === "waves") { WAVES.draw(); $("#fLeg").innerHTML = legend(); } }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  function stop() { cur = ""; LIVE.stop(); hideTip(); ["flow", "live"].forEach(c => $("#app").classList.remove(c)); }
+  addEventListener("resize", () => { if (cur === "live") LIVE.layout(); });
   return { start, stop, openRecord, get mode() { return cur; }, fire: c => LIVE.fire(c) };
 })();
 window.FLOW = FLOW;
 { let m0 = DATA.mode; if (!m0) try { m0 = localStorage.getItem("ctxgraph.mode"); } catch (e) {}
-  if (m0 === "waves" || m0 === "live") setMode(m0); }
+  if (m0 === "live") setMode(m0); }

@@ -1,0 +1,349 @@
+{
+  "about": "Synthetic demo project (fictional habit tracker, six weeks of chat). No real data. Each chat line: [day, user message, assistant report or empty]. Area terms are woven into the messages so the topics cluster; names are invented.",
+  "chat": [
+    [
+      0,
+      "We're keeping habit data in SQLite on the device: offline-first, the SyncEngine module just writes to the device cache, no sync server for now.",
+      "Done: SQLite schema for habits and check-ins, migrations in db/schema.sql. Commit 3f2a9c1, tests green."
+    ],
+    [
+      1,
+      "Sign-up via magic link, no passwords: the Welcome screen asks for an email and the LinkSender service mails the sign-in email.",
+      "Done: magic-link sign-up, onboarding screens 1-3. Commit 8b41d07."
+    ],
+    [
+      2,
+      "How should a streak handle a missed day on the StreakChart component?",
+      ""
+    ],
+    [
+      2,
+      "Let's go with: a streak survives one missed day per week, and StreakChart shows that grace day as a gray dot.",
+      "Done: streak rule in streaks.py with one grace day per week, gray dots on the chart. Commit 51c0e8a."
+    ],
+    [
+      3,
+      "StreakChart needs a chart legend that explains the grace day.",
+      "Done: grace-day legend under the streak chart. Commit 1e5f0d3."
+    ],
+    [
+      4,
+      "No Firebase for sync. The SQLite file stays in the device cache and SyncEngine stays local.",
+      "Got it. Removed the Firebase sync stub; sync stays local in SQLite. Commit 2d7b3e4."
+    ],
+    [
+      5,
+      "Reminders: one push per habit from the nudge-worker over the APNs channel, quiet hours 10 pm to 8 am.",
+      "Done: per-habit push reminders with quiet hours in reminders.py. Commit 0c9f6aa."
+    ],
+    [
+      6,
+      "A home-screen widget with today's habits is a nice idea for the release plan, but parking it for later.",
+      ""
+    ],
+    [
+      7,
+      "Paywall after the third habit: PaywallView offers the Plus plan with a 7-day trial week through StoreKit.",
+      "Done: paywall after the third habit, 7-day trial. Commit e47d2b9."
+    ],
+    [
+      8,
+      "Add a HeatGrid of check-ins for the last 12 weeks on the stats screen.",
+      "Done: 12-week check-in heatmap in charts/heatmap.py. Commit 9a1c3f0."
+    ],
+    [
+      9,
+      "Onboarding: drop the email step from the Welcome screen; LinkSender sends the magic link after the first habit.",
+      "Done: onboarding without the email step; the magic link goes out after the first habit. Commit 4be8d12."
+    ],
+    [
+      10,
+      "Sync conflicts: last check-in wins, no merge dialog. SyncEngine just records the loser in the conflict log.",
+      "Done: last-write-wins for check-in conflicts in sync.py. Commit 77e0b5c."
+    ],
+    [
+      11,
+      "HeatGrid weeks should start on Monday on the stats screen.",
+      "Done: heatmap weeks start on Monday. Commit 3a7e9b0."
+    ],
+    [
+      12,
+      "Reminders: kill the evening digest push from the push schedule; nudge-worker keeps only the per-habit reminder.",
+      "Done: evening digest removed; per-habit reminders unchanged. Commit c3a84f1."
+    ],
+    [
+      13,
+      "CSV export of habit data goes on the release plan as later.",
+      ""
+    ],
+    [
+      14,
+      "Decided to move off on-device SQLite to a small sync server, hb-sync on Postgres: people want their streaks on two phones. The device cache stays as a local copy.",
+      "Done: hb-sync server on Postgres, habit data over HTTPS; SQLite is now only the device cache. Commit 6f12d9e."
+    ],
+    [
+      15,
+      "Pricing for the Plus plan: $3 a month, $24 a year in PaywallView.",
+      "Done: prices in the paywall, $3 monthly and $24 yearly. Commit a90b7c2."
+    ],
+    [
+      16,
+      "Rate-limit hb-sync to 60 requests a minute per device.",
+      "Done: 60 req/min per device on the sync server. Commit d48f1a3."
+    ],
+    [
+      17,
+      "What happens to check-ins made offline while hb-sync is down?",
+      ""
+    ],
+    [
+      18,
+      "Offline check-ins go into the check-in queue and SyncEngine replays them to hb-sync on reconnect.",
+      "Done: offline check-in queue, replayed on reconnect in sync.py. Commit 5d3c2a7."
+    ],
+    [
+      19,
+      "Onboarding copy: shorter, three screens max after the Welcome screen.",
+      "Done: onboarding cut to three screens. Commit b2e9f41."
+    ],
+    [
+      20,
+      "Importing steps from Apple Health as a first habit: later, after the release plan.",
+      ""
+    ],
+    [
+      21,
+      "Paywall: instead of after the third habit, PaywallView shows up at the end of the first trial week.",
+      "Done: paywall moved to the end of the first trial week. Commit 0f7a6c8."
+    ],
+    [
+      22,
+      "Push reminders: add a 'snooze for 1 hour' action on the notification screen.",
+      "Done: 1-hour snooze as a notification action in reminders.py. Commit 8c1d5e2."
+    ],
+    [
+      23,
+      "HeatGrid colors from the brand palette, and the chart legend to match.",
+      "Done: heatmap uses the brand palette. Commit 2c8f6a1."
+    ],
+    [
+      25,
+      "The widget isn't going into 1.0: it stays off the release plan for now.",
+      ""
+    ],
+    [
+      26,
+      "No lifetime plan next to the Plus plan.",
+      "Noted: no lifetime plan in the paywall. Commit 72b0c9e."
+    ],
+    [
+      27,
+      "SyncEngine crashes on reconnect when the check-in queue is empty, please fix.",
+      "Fixed: an empty offline queue no longer crashes sync on reconnect; test added. Commit 1b7e4d9."
+    ],
+    [
+      28,
+      "Streaks: instead of one grace day a week, give two grace days a month, and update the chart legend.",
+      "Done: two grace days per month in streaks.py and the chart legend. Commit e1d6a07."
+    ],
+    [
+      29,
+      "Let people change quiet hours on the notification screen.",
+      "Done: quiet-hours setting for reminders. Commit 4c9b2f5."
+    ],
+    [
+      30,
+      "Sign-in email: the app icon and a single line of text in the email template.",
+      "Done: magic-link email template with the icon. Commit 9e3f7d1."
+    ],
+    [
+      31,
+      "Release checklist for 1.0 on the release branch: sync, paywall, reminders, charts.",
+      "Done: checklist in docs/release.md, all four areas green. Commit 6b2a0e4."
+    ],
+    [
+      32,
+      "StreakChart: show the best streak ever on the stats screen.",
+      "Done: best streak on the streak chart. Commit 7d1e0c4."
+    ],
+    [
+      33,
+      "Dark theme for the charts: later.",
+      ""
+    ],
+    [
+      34,
+      "We ship 1.0 on Monday through TestFlight first: hb-sync plus the paywall after the trial week.",
+      "Done: 1.0 build tagged v1.0.0, store copy ready. Commit f05c8a2."
+    ],
+    [
+      35,
+      "PaywallView: list the yearly Plus plan first.",
+      "Done: yearly plan listed first. Commit 3e8b1f6."
+    ],
+    [
+      36,
+      "SyncEngine: gzip the requests to hb-sync.",
+      "Done: gzip on sync requests. Commit 0a4d7c3."
+    ],
+    [
+      38,
+      "Onboarding: returning users skip the Welcome screen through a deep link.",
+      "Done: returning users skip onboarding. Commit 6c2f9a8."
+    ],
+    [
+      40,
+      "Reminders: make snooze 30 minutes instead of an hour on the notification screen.",
+      "Done: snooze is now 30 minutes. Commit 8a0d3e7."
+    ],
+    [
+      41,
+      "CSV export after all: let's put it on the release plan for 1.1.",
+      "Done: CSV export of habits and check-ins. Commit 5f3a2e9."
+    ]
+  ],
+  "areas": [
+    [
+      "data sync",
+      [
+        "sqlite",
+        "sync",
+        "firebase",
+        "offline",
+        "postgres",
+        "check-in queue"
+      ],
+      [
+        "SyncEngine",
+        "check-in queue",
+        "hb-sync",
+        "device cache",
+        "conflict log",
+        "retry policy"
+      ]
+    ],
+    [
+      "paywall",
+      [
+        "paywall",
+        "plus plan",
+        "subscription",
+        "lifetime",
+        "pricing"
+      ],
+      [
+        "PaywallView",
+        "Plus plan",
+        "trial week",
+        "StoreKit",
+        "purchase receipt",
+        "promo code"
+      ]
+    ],
+    [
+      "reminders",
+      [
+        "remind",
+        "push",
+        "quiet hours",
+        "snooze"
+      ],
+      [
+        "nudge-worker",
+        "APNs channel",
+        "push schedule",
+        "notification screen",
+        "reminder sound",
+        "icon badge"
+      ]
+    ],
+    [
+      "streak charts",
+      [
+        "streak",
+        "heatgrid",
+        "heatmap",
+        "chart"
+      ],
+      [
+        "StreakChart",
+        "HeatGrid",
+        "grace day",
+        "stats screen",
+        "best streak",
+        "chart legend"
+      ]
+    ],
+    [
+      "onboarding",
+      [
+        "onboarding",
+        "magic link",
+        "sign-up",
+        "sign-in",
+        "welcome"
+      ],
+      [
+        "Welcome screen",
+        "sign-in email",
+        "LinkSender",
+        "first habit",
+        "deep link",
+        "email template"
+      ]
+    ],
+    [
+      "release",
+      [
+        "release",
+        "widget",
+        "export",
+        "apple health",
+        "dark theme",
+        "testflight"
+      ],
+      [
+        "release plan",
+        "TestFlight",
+        "release branch",
+        "store page",
+        "store screenshots",
+        "release notes"
+      ]
+    ]
+  ],
+  "followups": [
+    "Clean up {A} and {B}.",
+    "{A} should respect {B}.",
+    "Add tests for {A} and {B}.",
+    "{A} breaks when {B} is empty.",
+    "Simplify {A} before touching {B}.",
+    "Log a bit more in {A} around {B}."
+  ],
+  "followup_reports": [
+    "Done. Commit {h}.",
+    "Fixed in {h}.",
+    "Pushed as {h}, tests green.",
+    "Done, commit {h}."
+  ],
+  "side": [
+    [
+      14,
+      "Load-test the new sync server: 500 devices replaying offline queues at once.",
+      "p95 210 ms at 500 devices, no dropped check-ins; one slow query fixed with an index on checkins.device_id.",
+      "data sync"
+    ],
+    [
+      21,
+      "Check the paywall copy against the App Store review guidelines.",
+      "Two issues: the trial length must be in the button text, and the yearly price needs the per-month figure. Both fixed.",
+      "paywall"
+    ],
+    [
+      31,
+      "Go through the 1.0 checklist on a clean device and report anything broken.",
+      "All green except the magic-link email landing in spam with one provider; added SPF and DKIM.",
+      "release"
+    ]
+  ]
+}
