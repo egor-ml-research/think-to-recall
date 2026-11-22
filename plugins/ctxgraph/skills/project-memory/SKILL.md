@@ -49,12 +49,18 @@ Tools that act only when the user asks: `import_history`, `import_claude_ai`, `f
 - Name the decision and its date in your answer when it shapes what you recommend. If memory and the user's current
   message disagree, follow the user and mention the earlier decision in one line.
 
-## save_chat
+## Save this chat
 
-- Only when the user asks. Send the turns verbatim (the user's exact text and your exact answers, no summaries, no
-  translation), with the right roles, at most 30 turns per call, oldest first; `offset` is the index of the
-  portion's first turn. Keep the same `title` on every call. Repeating is safe: saved turns are skipped.
-- In Claude Code the plugin's Stop hook records every turn automatically, so save_chat is not needed there.
+- When the user says "save this chat", "save this conversation", "add this chat to memory", "remember this
+  conversation", «сохрани этот чат», «сохрани разговор», «добавь этот чат в память», «запомни этот разговор», call
+  `save_chat` with this chat's turns VERBATIM (the user's exact text and your exact answers, no summary, no
+  translation), with the right roles, in portions of at most 30 turns, oldest first, with the same `title` on every
+  call. `offset` is the index (0-based) of the portion's first turn in the whole chat.
+- Saving the same chat again: send only the turns after the ones already saved, with `offset` = the index of the
+  first new turn. save_chat skips duplicates anyway; sending only the new turns saves tokens.
+- Claude Code records chats by the plugin's Stop hook: there save_chat is needed only for chats from other clients.
+- claude.ai on the web has no MCP: to add claude.ai chats, the user downloads the export (Settings → Privacy →
+  Export data) and asks to import it (`import_claude_ai`).
 
 ## Subagents
 
