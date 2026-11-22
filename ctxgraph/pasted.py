@@ -77,6 +77,43 @@ def primary(text: str, lookup) -> tuple[str, str] | None:
     return ref, "\n".join(keep)
 
 
+# ctxgraph's own output pasted back into a chat (`ctxgraph rules`, recall, decisions, later): never a new rule, a
+# decision or a "later" item. Every printed item starts with a date and a record / rule id.
+_RID = r"#[0-9a-z]{4,16}"
+_DATE = r"(?:\d{4}-)?\d{2}-\d{2}"
+CTX_LINE = re.compile(
+    r"^\s*(?:[-*•]\s*)?(?:"
+    rf"{_RID}\s+(?:\d{{4}}-\d{{2}}-\d{{2}}|\?)\s+\((?:auto|manual|global)\)\s*:"  # rules: - #id date (origin): text
+    rf"|(?:{_DATE}|\?)\s*·[^\n]*?{_RID}\s*:"  # recall lines, the rules header, later: - date · ... · #id: text
+    rf"|(?:{_DATE}|\?)\s*\[[^\]\n]+\]\s*:"  # decisions: - date [kind]: text
+    rf"|\[{_DATE}\s*·[^\]\n]*{_RID}\]"  # [date · ... · #id]
+    r"|Project rules \(pinned|Memories from earlier conversations in this project"
+    r")", re.I)
+_CONT = re.compile(r"^(\s{2,}\S|\s*→)")  # an indented continuation of a printed item ("    → done ...")
+
+
+def ctx_output(text: str) -> list[str]:
+    """The normalized runs of ctxgraph's own output in a turn (consecutive printed items joined), [] when none."""
+    runs, cur, inside = [], [], False
+    for ln in (text or "").splitlines():
+        if CTX_LINE.match(ln) or (inside and _CONT.match(ln)):
+            cur.append(norm(ln))
+            inside = True
+        else:
+            if cur:
+                runs.append(" ".join(x for x in cur if x))
+            cur, inside = [], False
+    if cur:
+        runs.append(" ".join(x for x in cur if x))
+    return [r for r in runs if r]
+
+
+def in_ctx_output(frag: str, runs: list[str]) -> bool:
+    """A stored sentence lies inside pasted ctxgraph output."""
+    f = norm(frag)
+    return bool(f) and any(f" {f} " in f" {r} " for r in runs)
+
+
 def frag_pasted(frag: str, spans: str) -> bool:
     """A stored sentence of the turn lies in its pasted runs."""
     ws = words(frag)

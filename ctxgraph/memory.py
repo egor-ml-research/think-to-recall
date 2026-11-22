@@ -421,8 +421,20 @@ def ui_lang(home: Path | None = None) -> str:
     return "ru" if cyr > lat else "en"
 
 
+# a rule copied from ctxgraph's own output: "- #7c9b63 2026-10-28 (auto): text", "- 2026-10-28 · #7c9b63: text (global)"
+_RULE_PREFIX = re.compile(r"^\s*(?:[-*•]\s*)?(?:#[0-9a-z]{4,16}\s+(?:\d{4}-\d{2}-\d{2}|\?)\s+\((?:auto|manual|global)\)"
+                          r"|(?:(?:\d{4}-)?\d{2}-\d{2}|\?)\s*·\s*#[0-9a-z]{4,16})\s*:\s*", re.I)
+
+
+def clean_rule(text: str) -> str:
+    """The rule's own text: a pasted `#id date (origin):` prefix and a trailing "(global)" mark removed."""
+    t = _RULE_PREFIX.sub("", text or "", count=1).strip()
+    return re.sub(r"\s*\(global\)\s*$", "", t).strip() or (text or "").strip()
+
+
 def _rule_id(text: str) -> str:
-    return hashlib.sha1(re.sub(r"\W+", " ", text).strip().lower().encode()).hexdigest()[:6]
+    """Same id for the same rule whatever its case, spacing, punctuation or a pasted ctxgraph prefix."""
+    return hashlib.sha1(re.sub(r"\W+", " ", clean_rule(text)).strip().lower().encode()).hexdigest()[:6]
 
 
 def global_rules_path(home: Path | None = None) -> Path:
@@ -465,6 +477,7 @@ def global_rules(home: Path | None = None) -> list[dict]:
 
 def pin_global_rule(text: str, home: Path | None = None) -> str:
     """Pin a rule for every project (shown in each project's rules, recall header and SessionStart). Returns its id."""
+    text = clean_rule(text)
     rid, rows = _rule_id(text), _read_global(home)
     for r in rows:
         if r["id"] == rid:
@@ -849,11 +862,16 @@ class ProjectMemory:
         final = role == "assistant" and episode in self._finals()
         short = self._short_status(episode) if role == "user" else None
         paste = self._paste_row(episode) if role == "user" else None
+        ctx = PS.ctx_output(raw) if role == "user" else []  # ctxgraph's own output pasted back: rules, recall, ...
         block, lead = "", ""  # "поменяй приоритеты:" -> the list items after it are that decision too
         for fid, text in self.s.q("SELECT id, text FROM fragments WHERE episode_id=? AND kind='sentence' ORDER BY idx",
                                   (episode,)):  # fmt: skip
             if paste and PS.frag_pasted(text, paste[2]):  # not a decision, a rule or a "later" item
                 self.s.db.execute("INSERT OR REPLACE INTO frag_status VALUES(?,?,?)", (fid, paste[0], paste[1]))
+                self.s.db.execute("DELETE FROM pinned_rules WHERE fragment=? AND origin='auto' AND removed=0", (fid,))
+                continue
+            if ctx and PS.in_ctx_output(text, ctx):  # not a decision, a rule or a "later" item either
+                self.s.db.execute("INSERT OR REPLACE INTO frag_status VALUES(?,?,?)", (fid, "pasted_md", ""))
                 self.s.db.execute("DELETE FROM pinned_rules WHERE fragment=? AND origin='auto' AND removed=0", (fid,))
                 continue
             st, ref = classify(role, text)
@@ -883,7 +901,11 @@ class ProjectMemory:
 
     # ── pinned rules ─────────────────────────────────────────────────────────────────────────────────────────────────
     def _pin(self, text: str, origin: str, fragment: str = "", ts: str | None = None) -> str:
+        """A rule with the same normalized text as a pinned one (project or global) is not pinned again."""
+        text = clean_rule(text)
         rid = _rule_id(text)
+        if origin == "auto" and rid in {g["id"] for g in global_rules(self.dir.parent)}:
+            return rid
         if ts is None:
             ep = fragment.split(":")[1] if fragment.count(":") >= 1 else ""
             row = self.s.q("SELECT ts FROM turn_meta WHERE episode=?", (ep,)) if ep else []
@@ -906,7 +928,8 @@ class ProjectMemory:
     def pin_rule(self, text: str) -> str:
         """The user pins a standing rule explicitly ("keys only in .env"). Returns its id."""
         rid = self._pin(text, origin="manual")
-        self.s.db.execute("UPDATE pinned_rules SET removed=0 WHERE id=?", (rid,))
+        # an existing auto rule pinned by hand becomes manual (one rule, not two)
+        self.s.db.execute("UPDATE pinned_rules SET removed=0, origin='manual' WHERE id=?", (rid,))
         self.s.db.commit()
         return rid
 
