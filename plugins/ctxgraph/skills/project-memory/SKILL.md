@@ -56,6 +56,18 @@ Tools that act only when the user asks: `import_history`, `import_claude_ai`, `f
   portion's first turn. Keep the same `title` on every call. Repeating is safe: saved turns are skipped.
 - In Claude Code the plugin's Stop hook records every turn automatically, so save_chat is not needed there.
 
+## Subagents
+
+- When you start a subagent for a task in this project, add this line to its brief: "Before you start, call ctxgraph
+  recall with the task's wording (detail="brief") and follow the pinned rules in its answer."
+- Do not copy earlier decisions or the project's history into the brief when the subagent can find them with
+  recall: state the task, the files and what done looks like, and let the subagent recall the rest.
+- Claude Code subagents that inherit all tools (for example general-purpose) see the ctxgraph tools. A custom agent
+  with a `tools:` allow-list sees them only if the list names them (`mcp__plugin_ctxgraph_ctxgraph__recall`, or
+  the whole server). If a subagent says it has no ctxgraph tools, give it the needed facts in the brief instead.
+- Recall in brief mode may rank older records above the newest ones. When the task depends on the latest state (a
+  version just released, a decision made in this session), put that fact in the brief yourself.
+
 ## Saving tokens
 
 - One `overview` per new chat, one `recall` before an answer that needs history; no speculative calls.
