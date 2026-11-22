@@ -11,7 +11,13 @@ computer; there is no account, no API key and no cloud service.
 
 ![Before and after: in a new session, asked "which database did we choose?", the assistant without memory does not know; with ctxgraph it answers SQLite, with the change of decision and the commit](media/before_after.en.gif)
 
-The example in the animation is synthetic.
+The graph view (`show_graph`, or `ctxgraph view` in a terminal) shows the same memory as a local HTML page: 2D
+and 3D maps, Cosmos, and Live memory, where the project's chats grow as a tree with subagent sessions as side
+branches next to the Graphify code tree, and MCP calls pulse as they happen:
+
+![Graph views of a synthetic project: 2D, 3D, Cosmos and Live memory with the chat tree, subagent branches, the code tree and live recall calls](media/views.en.gif)
+
+The examples in both animations are synthetic.
 
 ## What the plugin adds
 
