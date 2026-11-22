@@ -2,6 +2,7 @@
 
 import json
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -12,7 +13,8 @@ from ctxgraph.embed import HashingEncoder
 from ctxgraph.memory import ProjectMemory
 
 
-def test_setup_merges_mcp_json_and_hook(tmp_path):
+def test_setup_merges_mcp_json_and_hook(tmp_path, monkeypatch):
+    monkeypatch.setattr(S, "WINDOWS", False)
     proj = tmp_path / "proj"
     (proj / ".claude").mkdir(parents=True)
     (proj / ".mcp.json").write_text(json.dumps({"mcpServers": {"other": {"command": "x"}}}), "utf-8")
@@ -188,6 +190,7 @@ def test_viewer_cosmos_mode(tmp_path):
 def test_setup_registers_locally_with_the_claude_cli(tmp_path, monkeypatch):
     """With the `claude` CLI: `claude mcp add --scope local`, nothing in the repository; an old .mcp.json entry with
     absolute paths (written by an earlier version) is removed."""
+    monkeypatch.setattr(S, "WINDOWS", False)
     proj = tmp_path / "proj"
     proj.mkdir()
     old = {"mcpServers": {"ctxgraph": {"command": "C:/x/python.exe", "args": ["-m", "ctxgraph.memory_mcp"]},
@@ -206,6 +209,42 @@ def test_setup_registers_locally_with_the_claude_cli(tmp_path, monkeypatch):
     assert add == ["/usr/bin/claude", "mcp", "add", "--scope", "local", "ctxgraph", "--", "ctxgraph-mcp"]
     assert all(cwd == proj for _, cwd in calls)
     assert json.loads((proj / ".mcp.json").read_text("utf-8")) == {"mcpServers": {"other": {"command": "y"}}}
+
+
+def test_windows_uses_the_console_free_launcher(tmp_path, monkeypatch):
+    """Windows: `ctxgraph-mcpw` (GUI launcher: no console window from Claude Desktop / Claude Code desktop) in
+    `claude mcp add`, in the path-free `.mcp.json` and in the Cursor snippet; other systems keep `ctxgraph-mcp`.
+    An entry of either name (or a hand-written pythonw command) is recognised as ours."""
+    monkeypatch.setattr(S, "WINDOWS", True)
+    assert S.mcp_entry() == {"type": "stdio", "command": "ctxgraph-mcpw", "args": []}
+    calls = []
+
+    class R:
+        returncode, stdout, stderr = 0, "", ""
+
+    found = {"claude": "C:/bin/claude.exe", "ctxgraph-mcpw": "C:/u/.local/bin/ctxgraph-mcpw.exe"}
+    monkeypatch.setattr(S.shutil, "which", lambda name: found.get(name))
+    monkeypatch.setattr(S.subprocess, "run", lambda argv, **kw: calls.append(argv) or R())
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    S.write_mcp(proj, None)
+    assert next(a for a in calls if a[1:3] == ["mcp", "add"])[-1] == "C:/u/.local/bin/ctxgraph-mcpw.exe"
+    found.pop("claude")  # no claude CLI: the path-free .mcp.json entry
+    S.write_mcp(proj, None)
+    assert json.loads((proj / ".mcp.json").read_text("utf-8"))["mcpServers"]["ctxgraph"]["command"] == "ctxgraph-mcpw"
+    for c in ("ctxgraph-mcp", "ctxgraph-mcpw", "C:/x/Scripts/pythonw.exe -m ctxgraph.memory_mcp"):
+        assert S._ours({"command": c})
+    monkeypatch.setattr(S, "WINDOWS", False)
+    assert S.mcp_entry()["command"] == "ctxgraph-mcp"
+
+
+def test_gui_launcher_is_declared():
+    """The package declares the GUI entry point next to the console one (same server)."""
+    import tomllib
+
+    meta = tomllib.loads((Path(__file__).resolve().parents[1] / "pyproject.toml").read_text("utf-8"))
+    assert meta["project"]["gui-scripts"] == {"ctxgraph-mcpw": "ctxgraph.memory_mcp:main"}
+    assert meta["project"]["scripts"]["ctxgraph-mcp"] == "ctxgraph.memory_mcp:main"
 
 
 def test_download_failure_is_a_message_not_a_traceback(tmp_path, monkeypatch, capsys):

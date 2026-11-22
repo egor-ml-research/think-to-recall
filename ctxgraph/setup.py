@@ -2,8 +2,8 @@
 
 1. The `ctxgraph` MCP server, registered without any path that could leak into git: with the `claude` CLI -
    `claude mcp add --scope local` (stored in the user's Claude Code config, not in the repository); without it - the
-   project's `.mcp.json` gets only the command `ctxgraph-mcp` (no paths, no env). The server takes the project from
-   its working directory.
+   project's `.mcp.json` gets only the command `ctxgraph-mcp` (`ctxgraph-mcpw` on Windows: no console window; no paths,
+   no env). The server takes the project from its working directory.
 2. `.claude/settings.local.json`: the Claude Code Stop hook `ctxgraph hook-stop` (the project comes from the hook's
    input; merged, an earlier ctxgraph hook is replaced, other hooks are kept). `settings.local.json` is per-user.
 3. Nothing to download by default: recall is BM25 over the stored sentences. `--quality` adds multilingual-e5-base
@@ -67,11 +67,19 @@ def _write_json(p: Path, data: dict) -> None:
 
 
 SERVER = "ctxgraph-mcp"  # console script of the package; the server takes the project from its working directory
+SERVER_W = "ctxgraph-mcpw"  # gui script, same server: on Windows a GUI client starting it opens no console window
+WINDOWS = os.name == "nt"
+
+
+def server_command() -> str:
+    """`ctxgraph-mcpw` on Windows (a console launcher started by Claude Desktop / Claude Code desktop pops up a console
+    window; the GUI one keeps stdio and shows none), `ctxgraph-mcp` elsewhere."""
+    return SERVER_W if WINDOWS else SERVER
 
 
 def mcp_entry(project: Path | None = None, home: str | None = None) -> dict:
     """The server entry for a shared config (.mcp.json, Cursor): a command name only - no paths, no env."""
-    return {"type": "stdio", "command": SERVER, "args": []}
+    return {"type": "stdio", "command": server_command(), "args": []}
 
 
 def hook_command(project: Path | None = None, home: str | None = None) -> str:
@@ -87,7 +95,7 @@ def _ours(entry: dict) -> bool:
 
 def register_local(project: Path, home: str | None, claude: str) -> tuple[str, str]:
     """`claude mcp add --scope local`: the entry lives in the user's Claude Code config for this project only."""
-    cmd = shutil.which(SERVER) or SERVER  # local scope may hold a path: it never reaches the repository
+    cmd = shutil.which(server_command()) or server_command()  # local scope may hold a path: it never reaches the repository
     env = ["-e", f"CTXGRAPH_HOME={Path(home).as_posix()}"] if home else []
     subprocess.run([claude, "mcp", "remove", "--scope", "local", "ctxgraph"], cwd=project, capture_output=True)
     r = subprocess.run([claude, "mcp", "add", "--scope", "local", *env, "ctxgraph", "--", cmd], cwd=project,
@@ -122,8 +130,8 @@ def write_mcp(project: Path, home: str | None) -> tuple[Path | str, str]:
     _write_json(p, data)
     if home:
         print(f"  Note: .mcp.json holds no paths; set CTXGRAPH_HOME={Path(home).as_posix()} in your environment.")
-    if not shutil.which(SERVER):
-        print(f"  Note: `{SERVER}` is not on PATH here; install with uv/pipx (see README) so Claude Code can start it.")
+    if not shutil.which(server_command()):
+        print(f"  Note: `{server_command()}` is not on PATH here; install with uv/pipx (see README) so Claude Code can start it.")
     return p, state
 
 

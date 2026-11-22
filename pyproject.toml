@@ -1,6 +1,6 @@
 [project]
 name = "think-to-recall"
-version = "0.6.7"
+version = "0.6.8"
 description = "ctxgraph: local decision memory for AI coding assistants (MCP server for Claude Code)"
 requires-python = ">=3.11"
 # The decision memory (ctxgraph CLI + MCP server) needs only these: recall is BM25, no model. `quality` adds the
@@ -18,6 +18,11 @@ dependencies = [
 [project.scripts]
 ctxgraph = "ctxgraph.cli:main"
 ctxgraph-mcp = "ctxgraph.memory_mcp:main"
+
+[project.gui-scripts]
+# Windows: a GUI-subsystem launcher, so a GUI client (Claude Desktop, Claude Code desktop) starting the server over
+# stdio opens no console window. Same server as `ctxgraph-mcp`; on macOS / Linux it is an ordinary script.
+ctxgraph-mcpw = "ctxgraph.memory_mcp:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]

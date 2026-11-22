@@ -174,6 +174,6 @@ def test_mcpb_manifest(tmp_path):
     assert man["user_config"]["project"]["type"] == "directory" and man["user_config"]["project"]["required"]
     cfg = man["server"]["mcp_config"]
     assert cfg["env"]["CTXGRAPH_PROJECT"] == "${user_config.project}"
-    assert cfg["platform_overrides"]["win32"]["command"].endswith("ctxgraph-mcp.exe")
+    assert cfg["platform_overrides"]["win32"]["command"].endswith("ctxgraph-mcpw.exe")  # no console
     names = {t["name"] for t in man["tools"]}
     assert {"recall", "save_chat", "import_claude_ai"} <= names

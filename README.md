@@ -76,6 +76,8 @@ Then it does four things:
    config for this project, not in the repository. Without the CLI it adds to the project's `.mcp.json` only
    `{"command": "ctxgraph-mcp"}` (no home folder, no Python path, no project path); other servers in that file are
    kept. The server takes the project from the folder Claude Code starts it in.
+   On Windows it registers `ctxgraph-mcpw` instead: the same server behind a GUI launcher, so Claude Desktop and
+   the Claude Code desktop app open no console window for it.
 2. Adds a Claude Code **Stop hook** `ctxgraph hook-stop` to `.claude/settings.local.json`. After every turn it queues
    the session transcript; the project comes from the hook's input. The hook is fast: it only appends a path, and the
    server reads the transcript later. Other hooks and settings are kept, and an earlier ctxgraph hook is replaced.
@@ -202,7 +204,7 @@ one `recall` answer carries a one-line reminder (not in Claude Code, which recor
 `pipx install` command above), then download `ctxgraph-0.6.2.mcpb` from the
 [release page](https://github.com/egor-ml-research/think-to-recall/releases/tag/v0.6.2) and open it (or drag it
 into Claude Desktop → Settings → Extensions). Claude Desktop asks for the project folder; the memory of that folder
-is used. The extension contains no code: it runs the `ctxgraph-mcp` you installed (`~/.local/bin`).
+is used. The extension contains no code: it runs the `ctxgraph-mcp` you installed (`~/.local/bin`; on Windows `ctxgraph-mcpw.exe`).
 ctxgraph is not offered as a remote "custom connector" URL on purpose: a connector runs on a server, and this memory
 stays on your computer.
 

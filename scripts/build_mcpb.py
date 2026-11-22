@@ -66,7 +66,7 @@ def manifest(version: str) -> dict:
                 "command": "${HOME}/.local/bin/ctxgraph-mcp",
                 "args": [],
                 "env": {"CTXGRAPH_PROJECT": "${user_config.project}", "PYTHONIOENCODING": "utf-8"},
-                "platform_overrides": {"win32": {"command": "${HOME}/.local/bin/ctxgraph-mcp.exe"}},
+                "platform_overrides": {"win32": {"command": "${HOME}/.local/bin/ctxgraph-mcpw.exe"}},  # no console window
             },
         },
         "tools": [{"name": n, "description": d} for n, d in TOOLS],

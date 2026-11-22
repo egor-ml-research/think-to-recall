@@ -76,6 +76,8 @@ uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/e
    Claude Code для этого проекта, а не в репозитории. Без `claude` он добавляет в `.mcp.json` проекта только
    `{"command": "ctxgraph-mcp"}` (без домашней папки, пути к Python и пути проекта); другие серверы в этом файле
    сохраняются. Проект сервер берёт из папки, в которой его запускает Claude Code.
+   В Windows регистрируется `ctxgraph-mcpw`: тот же сервер через GUI-лаунчер, поэтому Claude Desktop и
+   десктопное приложение Claude Code не открывают для него окно консоли.
 2. Добавляет **хук Stop** Claude Code `ctxgraph hook-stop` в `.claude/settings.local.json`. После каждого хода он ставит
    транскрипт сессии в очередь; проект берётся из данных хука. Хук быстрый: он только дописывает путь, а сервер читает
    транскрипт позже. Другие хуки и настройки сохраняются, прежний хук ctxgraph заменяется.
@@ -202,7 +204,7 @@ ctxgraph view --3d
 `uv tool install` или `pipx install` выше), затем скачайте `ctxgraph-0.6.2.mcpb` со
 [страницы релиза](https://github.com/egor-ml-research/think-to-recall/releases/tag/v0.6.2) и откройте его (или
 перетащите в Claude Desktop → Settings → Extensions). Claude Desktop спросит папку проекта — используется память этой
-папки. В расширении нет кода: оно запускает установленный вами `ctxgraph-mcp` (`~/.local/bin`).
+папки. В расширении нет кода: оно запускает установленный вами `ctxgraph-mcp` (`~/.local/bin`; в Windows — `ctxgraph-mcpw.exe`).
 Удалённый «custom connector» по URL не используется намеренно: коннектор работает на сервере, а эта память остаётся на
 вашем компьютере.
 
