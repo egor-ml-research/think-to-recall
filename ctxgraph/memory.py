@@ -389,6 +389,14 @@ def known_projects(home: Path | None = None) -> list[dict]:
     return out
 
 
+def projects_json(home: Path | None = None) -> list[dict]:
+    """`ctxgraph projects --json`: the same common keys as the other commands (id = the store folder, date = the last
+    record, text = the project path)."""
+    return [{"id": k["slug"], "date": k["last"], "status": "project", "topic": "", "text": k["path"], "path": k["path"],
+             "records": k["records"], "store": k["store"], "exact_path": k["exact"]}
+            for k in sorted(known_projects(home), key=lambda k: k["last"], reverse=True)]
+
+
 def ui_lang(home: Path | None = None) -> str:
     """The label language outside a project store: CTXGRAPH_LANG, else "lang" in <home>/config.json, else the
     language of most user turns of the known stores, else English."""
@@ -1927,7 +1935,8 @@ class ProjectMemory:
             kinds = [x for x in ref.split("+") if x]
             ck = {"yes": L("confirmed"), "no": L("rejected"), "hold": L("deferred"), "done": L("done_by_user")}
             row = {"date": ts[:10], "decision": whole, "kind": ck.get(ref, ref) if fid.startswith("confirm:") else kind_label(ref),
-                   "done": None, "resolved": None}
+                   "done": None, "resolved": None, "id": ep[:8], "episode": ep, "ts": ts, "ref": ref,
+                   "status": "confirm" if fid.startswith("confirm:") else "decision"}
             if "yes" in kinds:
                 row["done"] = self.done_for(ep, fid)
             if kinds == ["hold"] or (whole != text.strip() and not row["done"] and HOLD.search(whole)):
@@ -1937,6 +1946,43 @@ class ProjectMemory:
             if len(out) >= limit:
                 break
         return out
+
+    # ── JSON output (`--json`): a stable schema, no labels; see README "JSON output" ─────────────────────────────────
+    def _topic_of(self, eps: list[str]) -> str:
+        eps = [e for e in eps if e]
+        return self._topic_name(eps) if eps else ""
+
+    def recall_json(self, hits: list[Hit]) -> list[dict]:
+        out = []
+        for h in hits:
+            rep = h.report
+            out.append({"id": h.episode[:8], "date": h.ts[:10], "status": h.status, "topic": self._topic_of(self._record_eps(h)),
+                        "text": h.text.strip(), "kind": h.ref, "gist": self._gist(h), "role": h.role, "ts": h.ts,
+                        "line": h.line, "score": round(float(h.score), 4), "source": h.origin or "claude-code",
+                        "session": h.session,
+                        "report": {"id": rep.episode[:8], "date": rep.ts[:10], "text": rep.text.strip()} if rep else None})
+        return out
+
+    def decisions_json(self, limit: int = 30) -> list[dict]:
+        out = []
+        for r in self.decisions(limit):
+            done, res = r.get("done"), r.get("resolved")
+            out.append({"id": r["id"], "date": r["date"], "status": r["status"], "topic": self._topic_of([r["episode"]]),
+                        "text": r["decision"], "kind": r["ref"], "ts": r["ts"],
+                        "commit": (done or res or {}).get("commit") or "",
+                        "done": {"date": done["date"], "commit": done["commit"] or "", "text": done["report"]} if done else None,
+                        "resolved": {"date": res.get("date", ""), "commit": res.get("commit") or "",
+                                     "confirmed": res.get("confirmed") or "", "text": res.get("report", "")} if res else None})
+        return out
+
+    def later_json(self, limit: int = 50) -> list[dict]:
+        return [{"id": r["id"], "date": r["date"] or "", "status": "later", "topic": self._topic_of([r.get("episode", "")]),
+                 "text": r["text"], "kind": "hold", "source": r["source"], "ts": r.get("ts") or ""}
+                for r in self.later(limit)]
+
+    def rules_json(self) -> list[dict]:
+        return [{"id": r["id"], "date": r["date"] or "", "status": "rule", "topic": "", "text": r["text"],
+                 "origin": r["origin"]} for r in self.rules()]
 
     def forget(self, episode: str) -> bool:
         cur = self.s.db.execute("UPDATE episodes SET t_expired=strftime('%s','now') WHERE id LIKE ? AND t_expired IS NULL",

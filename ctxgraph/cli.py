@@ -59,6 +59,12 @@ def _existing(a):
              "Run from the project folder or add --project <path>.")
 
 
+def _json(rows) -> None:
+    """`--json`: UTF-8 whatever the console code page, no labels or colors."""
+    sys.stdout.buffer.write((json.dumps(rows, ensure_ascii=False, indent=1) + "\n").encode("utf-8"))
+    sys.stdout.flush()
+
+
 def _rule_row(r: dict) -> str:
     return f"- #{r['id']} {r['date']} ({r['origin']}): {r['text']}"
 
@@ -117,7 +123,10 @@ def _consent(question: str) -> bool:
 def cmd_recall(a) -> None:
     m = _existing(a)
     k = a.k or (12 if a.detail == "brief" else 6)
-    print(m.render(m.recall(a.question, a.step or None, k=k), detail=a.detail))
+    hits = m.recall(a.question, a.step or None, k=k)
+    if a.json:
+        return _json(m.recall_json(hits))
+    print(m.render(hits, detail=a.detail))
 
 
 def cmd_expand(a) -> None:
@@ -127,7 +136,10 @@ def cmd_expand(a) -> None:
 def cmd_decisions(a) -> None:
     from ctxgraph.memory import format_decisions
 
-    print(format_decisions(_existing(a).decisions(a.limit)))
+    m = _existing(a)
+    if a.json:
+        return _json(m.decisions_json(a.limit))
+    print(format_decisions(m.decisions(a.limit)))
 
 
 def cmd_rules(a) -> None:
@@ -138,6 +150,9 @@ def cmd_rules(a) -> None:
             print(f"Pinned as #{M.pin_global_rule(a.add)} (global)")
         for rid in a.remove or []:
             print(f"#{rid}: " + ("removed (global)" if M.unpin_global_rule(rid) else "not found"))
+        if a.json:
+            return _json([{"id": r["id"], "date": r["date"], "status": "rule", "topic": "", "text": r["text"],
+                           "origin": "global"} for r in M.global_rules()])
         for r in M.global_rules():
             print(_rule_row(r))
         return
@@ -156,6 +171,8 @@ def cmd_rules(a) -> None:
             print(f"#{rid}: removed")
         else:
             print(f"#{rid}: " + ("removed (global)" if M.unpin_global_rule(rid) else "not found"))
+    if a.json:
+        return _json(m.rules_json())
     for r in m.rules():
         print(_rule_row(r))
 
@@ -170,8 +187,10 @@ def cmd_pin_rule(a) -> None:
 
 
 def cmd_projects(a) -> None:
-    from ctxgraph.memory import known_projects, ui_lang
+    from ctxgraph.memory import known_projects, projects_json, ui_lang
 
+    if a.json:
+        return _json(projects_json())
     rows = sorted(known_projects(), key=lambda k: k["last"], reverse=True)
     ru = ui_lang() == "ru"
     if not rows:
@@ -255,7 +274,10 @@ def cmd_overview(a) -> None:
 def cmd_later(a) -> None:
     from ctxgraph.memory import format_later
 
-    print(format_later(_existing(a).later(a.limit)))
+    m = _existing(a)
+    if a.json:
+        return _json(m.later_json(a.limit))
+    print(format_later(m.later(a.limit)))
 
 
 def cmd_setup(a) -> None:
@@ -311,24 +333,28 @@ def main(argv=None) -> None:
     p.add_argument("-k", type=int, default=None, help="records (default 6; 12 with --detail brief)")
     p.add_argument("--detail", choices=["full", "brief", "mixed"], default="full",
                    help="full: the records' text (default); brief: one line each with #id; mixed: the best in full")
+    p.add_argument("--json", action="store_true", help="a JSON array (README: JSON output) instead of the text block")
     p.set_defaults(f=cmd_recall)
     p = sub.add_parser("expand", help="a record in full and the thread of its topic")
     p.add_argument("id", help="the record id shown by recall (#...)")
     p.set_defaults(f=cmd_expand)
     p = sub.add_parser("decisions")
     p.add_argument("--limit", type=int, default=20)
+    p.add_argument("--json", action="store_true", help="a JSON array (README: JSON output)")
     p.set_defaults(f=cmd_decisions)
     p = sub.add_parser("rules", help="pinned rules (this project's + global ones): list, --add, --remove")
     p.add_argument("--add", help="pin a rule (text)")
     p.add_argument("--remove", action="append", help="rule id; repeatable")
     p.add_argument("--global", dest="global_", action="store_true", help="the rules shared by all projects")
+    p.add_argument("--json", action="store_true", help="a JSON array (README: JSON output)")
     p.set_defaults(f=cmd_rules)
     p = sub.add_parser("pin-rule", help="pin a standing rule for this project (or for all projects: --global)")
     p.add_argument("text")
     p.add_argument("--global", dest="global_", action="store_true", help="for all projects (~/.ctxgraph/global_rules)")
     p.set_defaults(f=cmd_pin_rule)
-    sub.add_parser("projects", help="every project with a memory: path, records, date of the last record"
-                   ).set_defaults(f=cmd_projects)
+    p = sub.add_parser("projects", help="every project with a memory: path, records, date of the last record")
+    p.add_argument("--json", action="store_true", help="a JSON array (README: JSON output)")
+    p.set_defaults(f=cmd_projects)
     sub.add_parser("status").set_defaults(f=cmd_status)
     p = sub.add_parser("view")
     p.add_argument("--no-open", action="store_true")
@@ -351,6 +377,7 @@ def main(argv=None) -> None:
     p.set_defaults(f=cmd_overview)
     p = sub.add_parser("later", help="open 'later' items: deferred decisions, 'later' answers, deferred Beads issues")
     p.add_argument("--limit", type=int, default=50)
+    p.add_argument("--json", action="store_true", help="a JSON array (README: JSON output)")
     p.set_defaults(f=cmd_later)
     p = sub.add_parser("setup", help="connect this project: MCP server, Stop hook; then the questions once (history, "
                                      "code graph, WordNet; --quality: + model)")

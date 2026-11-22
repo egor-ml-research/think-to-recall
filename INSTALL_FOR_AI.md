@@ -40,10 +40,10 @@ want any downloads, use `--wordnet no`.
 ## 3. Install
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.9"
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.10"
 ```
 
-Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.9"`.
+Without uv: `pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.10"`.
 
 Optional extras (only if the user asks):
 - `[quality]` - better recall: BM25 + multilingual-e5-base (int8 ONNX, about 300 MB, downloaded once). Install
@@ -126,3 +126,11 @@ Labels follow the project's language; `ctxgraph --lang en|ru ...` or `CTXGRAPH_L
 - "no terminal to ask" in the output: expected when you run setup; pass the flags from step 2.
 - `--quality` without the `[quality]` extra: setup prints the reinstall command.
 - A download failed (network): recall still works; rerun the command listed under "Skipped".
+
+## JSON output for scripts
+
+For bulk work (e.g. "all decisions of the month on topic X, grouped") use the CLI with `--json` in a script, not many
+MCP calls: `ctxgraph recall "..." --json`, `decisions --json`, `later --json`, `rules --json`, `projects --json`.
+Each prints a JSON array (UTF-8); every object has `id`, `date`, `status`, `topic`, `text`, plus per command: recall
+`kind, gist, role, ts, line, score, source, session, report`; decisions `kind, ts, commit, done, resolved`; later
+`kind, source, ts`; rules `origin`; projects `path, records, store`. The full schema is in README, "JSON output".

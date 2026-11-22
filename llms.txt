@@ -16,6 +16,7 @@
 - decisions(limit): decision chronology with confirmations and reports
 - later(limit): open "later" items (on hold, answered "later", deferred Beads issues read from .beads/*.jsonl)
 - rules, pin_rule(text, scope="project"|"global"), unpin_rule(id): permanent rules (the user's always / never / from now on); global ones apply to all projects
+- CLI `--json` (recall, decisions, later, rules, projects): a JSON array of {id, date, status, topic, text, ...}; for bulk work use it in a script instead of many MCP calls
 - remember(text, role): save one statement explicitly
 - save_chat(title, turns, offset): save THIS chat on the user's request ("add this chat to memory"): turns verbatim with roles, <= 30 per call, oldest first; repeat-safe (only new turns are added)
 - import_claude_ai(export, match, project_name, since): claude.ai data export; without a filter it lists the conversations and imports nothing

@@ -33,13 +33,13 @@ Code. Перед ответом ассистент может спросить �
 Одна строка (Python 3.11+ и [uv](https://docs.astral.sh/uv/)), из папки проекта, который хотите подключить:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.9" && ctxgraph setup
+uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.10" && ctxgraph setup
 ```
 
 С [pipx](https://pipx.pypa.io/) вместо uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.9" && ctxgraph setup
+pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.10" && ctxgraph setup
 ```
 
 **Работает сразу, без загрузки модели.** Поиск — BM25 по вашим разговорам; установка около 125 МБ. Режим качества —
@@ -47,10 +47,10 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 ещё несколько ответов, сформулированных иначе, чем вопрос:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.9" && ctxgraph setup --quality
+uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.10" && ctxgraph setup --quality
 ```
 
-Пакета пока нет в PyPI; команды ставят релиз v0.6.9 с GitHub. Для более точных английских понятий на карте графа
+Пакета пока нет в PyPI; команды ставят релиз v0.6.10 с GitHub. Для более точных английских понятий на карте графа
 добавьте набор `english` и выполните `python -m spacy download en_core_web_sm`. **Ставите через ИИ-ассистента?** Дайте ему [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
 **Плагин для Claude Code.** Та же память в виде плагина (MCP-сервер, навык о том, когда вызывать инструменты, и хуки):
@@ -189,6 +189,23 @@ ctxgraph import
 ```bash
 ctxgraph view --3d
 ```
+
+### Вывод в JSON
+
+`ctxgraph recall "..." --json`, `decisions --json`, `later --json`, `rules [--global] --json` и `projects --json`
+печатают массив JSON (UTF-8, без подписей и цветов) — для скриптов и массовой работы, например «все решения месяца по
+теме X, сгруппированные» одним скриптом вместо многих вызовов MCP. У каждого объекта есть `id`, `date` (ГГГГ-ММ-ДД),
+`status`, `topic` (название темы, `""` если нет) и `text`; остальные ключи зависят от команды:
+
+| Команда | `status` | Другие ключи |
+|---|---|---|
+| `recall` | статус предложения: `decision`, `rule`, `report`, `applied`, `proposal`, `said`, `pasted`, ... | `kind` (вид решения: `yes`, `no`, `hold`, ...), `gist`, `role`, `ts`, `line` (`main` / `follow` / `periphery`), `score`, `source`, `session`, `report` (`{id, date, text}` или `null`) |
+| `decisions` | `decision`, или `confirm` для короткого подтверждения предложения | `kind`, `ts`, `commit`, `done` (`{date, commit, text}` или `null`), `resolved` (`{date, commit, confirmed, text}` или `null`) |
+| `later` | `later` | `kind` (`hold`), `source` (`chat` / `beads`), `ts` |
+| `rules` | `rule` | `origin` (`auto` / `manual` / `global`) |
+| `projects` | `project` | `path`, `records`, `store`, `exact_path`; `id` — папка хранилища, `date` — последняя запись, `text` — путь |
+
+Новые ключи могут добавляться; перечисленные сохраняют смысл.
 
 ## Claude Desktop, Cursor и чаты claude.ai
 
