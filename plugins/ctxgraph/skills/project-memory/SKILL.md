@@ -76,4 +76,4 @@ Tools that act only when the user asks: `import_history`, `import_claude_ai`, `f
 - For bulk work (e.g. "all decisions of the month on topic X, grouped") use the CLI with `--json` in a script, not
   many MCP calls: `ctxgraph decisions --json`, `recall "..." --json`, `later --json`, `rules --json` print a JSON
   array (`id`, `date`, `status`, `topic`, `text`, ...). With the plugin alone the CLI runs as
-  `uvx --from think-to-recall==0.6.10 ctxgraph decisions --json` (the same cached package as the MCP server).
+  `uvx --from think-to-recall==0.6.12 ctxgraph decisions --json` (the same cached package as the MCP server).
