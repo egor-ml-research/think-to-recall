@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uvx --from cotrail==0.7.0 cotrail hook-stop",
+            "command": "uvx --from cotrail==0.7.1 cotrail hook-stop",
             "timeout": 30
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uvx --from cotrail==0.7.0 cotrail hook-start",
+            "command": "uvx --from cotrail==0.7.1 cotrail hook-start",
             "timeout": 30
           }
         ]

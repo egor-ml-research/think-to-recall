@@ -102,4 +102,4 @@ unknown name returns the choices: ask, never guess. Claude Code: not needed (the
 - For bulk work (e.g. "all decisions of the month on topic X, grouped") use the CLI with `--json` in a script, not
   many MCP calls: `cotrail decisions --json`, `recall "..." --json`, `later --json`, `rules --json` print a JSON
   array (`id`, `date`, `status`, `topic`, `text`, ...). With the plugin alone the CLI runs as
-  `uvx --from cotrail==0.7.0 cotrail decisions --json` (the same cached package as the MCP server).
+  `uvx --from cotrail==0.7.1 cotrail decisions --json` (the same cached package as the MCP server).

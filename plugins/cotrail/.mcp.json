@@ -5,7 +5,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "cotrail==0.7.0",
+        "cotrail==0.7.1",
         "cotrail-mcp"
       ]
     }

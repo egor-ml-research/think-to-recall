@@ -231,8 +231,8 @@ cotrail view --3d
 строку-напоминание (не в Claude Code — там каждую реплику записывает хук).
 
 **Расширение Claude Desktop (без режима разработчика).** Один раз установите пакет в терминале
-(`uv tool install cotrail==0.7.0` или то же через `pipx install`), затем скачайте `cotrail-0.7.0.mcpb`
-со [страницы релиза](https://github.com/egor-ml-research/cotrail/releases/tag/v0.7.0) и откройте его (или
+(`uv tool install cotrail==0.7.1` или то же через `pipx install`), затем скачайте `cotrail-0.7.1.mcpb`
+со [страницы релиза](https://github.com/egor-ml-research/cotrail/releases/tag/v0.7.1) и откройте его (или
 перетащите в Claude Desktop → Settings → Extensions). Claude Desktop спросит папку проекта — используется память этой
 папки. В расширении нет кода: оно запускает установленный вами `cotrail-mcp` (`~/.local/bin`; в Windows — `cotrail-mcpw.exe`).
 Удалённый «custom connector» по URL не используется намеренно: коннектор работает на сервере, а эта память остаётся на

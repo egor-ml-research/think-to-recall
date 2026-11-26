@@ -232,8 +232,8 @@ After that the assistant keeps saving on its own: when a conversation produces a
 one `recall` answer carries a one-line reminder (not in Claude Code, which records every turn by its hook).
 
 **Claude Desktop extension (no developer mode).** Install the package once in a terminal
-(`uv tool install cotrail==0.7.0`, or the same with `pipx install`), then download `cotrail-0.7.0.mcpb`
-from the [release page](https://github.com/egor-ml-research/cotrail/releases/tag/v0.7.0) and open it (or drag it
+(`uv tool install cotrail==0.7.1`, or the same with `pipx install`), then download `cotrail-0.7.1.mcpb`
+from the [release page](https://github.com/egor-ml-research/cotrail/releases/tag/v0.7.1) and open it (or drag it
 into Claude Desktop → Settings → Extensions). Claude Desktop asks for the project folder; the memory of that folder
 is used. The extension contains no code: it runs the `cotrail-mcp` you installed (`~/.local/bin`; on Windows `cotrail-mcpw.exe`).
 cotrail is not offered as a remote "custom connector" URL on purpose: a connector runs on a server, and this memory
