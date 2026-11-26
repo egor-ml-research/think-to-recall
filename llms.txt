@@ -21,6 +21,10 @@
 - save_chat(title, turns, offset): save THIS chat on the user's request ("add this chat to memory"): turns verbatim with roles, <= 30 per call, oldest first; repeat-safe (only new turns are added)
 - import_claude_ai(export, match, project_name, since): claude.ai data export; without a filter it lists the conversations and imports nothing
 - import_history: import earlier Claude Code sessions (on request)
+- inbox(done, reopen): tasks for Claude Code from the advisor chat; an item closes on an explicit report or by hand
+- list_memories(): the memories on this computer (name, folder, records); every memory tool takes memory=<name>
+- connect_folder(path, memory, confirm): connect a folder to its own or an existing memory and import its Claude Code chats (dry run until confirm=true)
+- find_chats(query, export) / import_chats(ids, memory, export, confirm): find earlier Claude Code chats or claude.ai export conversations, import the chosen ones (dry run until confirm=true)
 - forget(episode): hide a turn from recall
 - memory_status, show_graph: what is stored; the graph view path
 

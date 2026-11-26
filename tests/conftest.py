@@ -94,3 +94,20 @@ def _economy_off_for_legacy_tests(monkeypatch, request):
     """The token economy of recall (tests/test_economy.py) is off in the older tests: they pin the full labels."""
     if "test_economy" not in request.node.nodeid:
         monkeypatch.setenv("COTRAIL_ECONOMY", "off")
+
+
+@pytest.fixture(autouse=True)
+def _no_update_check(monkeypatch):
+    """No network in tests: the daily update check (autosync.check_update) stays off unless a test asks."""
+    monkeypatch.setenv("COTRAIL_NO_UPDATE_CHECK", "1")
+
+
+@pytest.fixture(autouse=True)
+def _isolated_cotrail_home(tmp_path_factory, monkeypatch):
+    """No test may write into the real ~/.cotrail: every test gets its own home (env and the module global), and
+    whatever a test sets (`--home`, COTRAIL_HOME) is restored afterwards."""
+    import cotrail.memory as MM
+
+    home = tmp_path_factory.mktemp("cotrail_home")
+    monkeypatch.setenv("COTRAIL_HOME", str(home))
+    monkeypatch.setattr(MM, "HOME", home)

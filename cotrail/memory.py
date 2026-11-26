@@ -15,8 +15,8 @@ its top 5 (the stage 1 and 2 outputs in `reports/`). Sleeves and the graph gate 
 from __future__ import annotations
 
 import datetime as dt
-import math
 import hashlib
+import math
 import os
 import re
 import sqlite3
@@ -59,7 +59,7 @@ NEG = re.compile(r"(\bне (берём|берем|используем|дела�
                  r"\bdon'?t\b|\bnot (use|include|change)\b|"
                  r"\bdo not\b|\bwon'?t\b|\bwill not\b|\bnot (do|ship|touch|publish|run|switch|add)\b|\bno need (to|for)\b|"
                  r"\bstop using\b|\bwe(?:'re| are) not (going to|using)\b|\breject(ed)?\b|\bcancel(l?ed)?\b|"
-                 # v2 (english_cues_v2_rule.md): "let's not", "skip X", "forget (about) X", "scrap that", "nah", "hard no"
+                 # v2 (the english cues v2 rule): "let's not", "skip X", "forget (about) X", "scrap that", "nah", "hard no"
                  r"\blet'?s not\b|\b(i'?m|i am|we'?re|we are) not (going to|gonna)\b|\bskip(ping)? (the|this|that|it)\b|"
                  r"\bforget (about )?(it|that|this|the|\w+,)|\bscrap (it|that|this|the)\b|^\W*(nah|nope)\b|\bhard no\b|"
                  r"\bnever ?mind\b)", re.I)
@@ -73,7 +73,7 @@ POS = re.compile(r"(\bвыбира(ем|ю)\b|\bвыбран|\bберём\b|\bб
                  # a change of decision is a "do" (the cue dictionary, written before the code)
                  r"\bswitch(ed|ing)? (from [^.;!?]{1,60}? )?to\b|\bmoved to\b|\bmigrated to\b|"
                  r"\breplac(e|ing) [^.;!?]{1,60}? with\b|\bsettle on\b|\bin favou?r of\b|"
-                 # v2 (english_cues_v2_rule.md): "going with", "go ahead and", "go for", "i'd rather", "prefer", "we should",
+                 # v2 (the english cues v2 rule): "going with", "go ahead and", "go for", "i'd rather", "prefer", "we should",
                  # "do that one", "decided:"; a change: "on second thought", "changed my mind", "stick with", "going back to",
                  # "correction:", "on reflection", "after all", "scratch that", "actually, <verb>"
                  r"\b(going|went) with\b|\bgo ahead\b|\bgo for\b|\bi'?d rather\b|\b(i|we) prefer\b|^\W*prefer\b|\bwe should\b|"
@@ -87,7 +87,7 @@ EN_IMPER = re.compile(r"^\W*(?:(?:ok(?:ay)?|so|now|then|fine|alright|cool|yeah|y
                       r"(use|add|remove|drop|delete|rename|switch|migrate|move|keep|fix|update|check|send|stop|find|"
                       r"restart|run|write|make|replace|save|mark|prepare|commit|push|create|revert|deploy|publish|merge|"
                       r"ship|freeze|start|try|build|test|document|translate|"
-                      # v2 (english_cues_v2_rule.md)
+                      # v2 (the english cues v2 rule)
                       r"wire|bump|refactor|put|wrap|implement|regenerate|inline|extract|split|pin|set|enable|disable|"
                       r"install|upgrade|downgrade|clean|rewrite|change|convert|port|expose|register|swap|configure|"
                       r"generate|apply|retry|rerun|undo|rollback)\b", re.I)
@@ -102,7 +102,7 @@ HOLD = re.compile(r"(\bпока не\b|\bрешаю отдельно\b|\bреш(
                   r"\bна потом\b|\bв бэклог|\bв список на потом\b|\b(вернём(ся)?|вернусь) к (этому|нему|ней) (позже|потом)\b|"
                   r"\bпотом (сделаем|решим|посмотрим|вернёмся)\b|\bTODO\b|\bfor later\b|\bbacklog\b|\bnext time\b|"
                   r"\brevisit (it|this|later)\b|\bparking lot\b|\bcome back to (it|this)\b|"
-                  # v2 (english_cues_v2_rule.md): "until/till <someone or something> ...", "don't X yet", "pause", "give me a
+                  # v2 (the english cues v2 rule): "until/till <someone or something> ...", "don't X yet", "pause", "give me a
                   # minute", "once the lint passes"; later: "park", "table", "punt", "revisit", "remind me", "follow-up pr",
                   # "a v2 thing", "next week/sprint", "after the release", "someday", "not a priority"
                   r"\b(until|till|til) (i|i'?ve|i'?m|we|we'?ve|you'?ve|[\w ]{1,40}? (confirms|approves|says|reviews|signs off|"
@@ -144,6 +144,52 @@ TEXTS = {
            "s_proposal": "proposal, not applied", "s_confirm": "decision: confirmed"},
 }
 _LANG = ["ru"]  # the language of the labels being rendered (set by ProjectMemory from its project's language)
+
+
+TEXTS["ru"].update({"decided_by": "решил {name}", "by_author": "автор: {name}"})
+TEXTS["en"].update({"decided_by": "decided by {name}", "by_author": "by {name}"})
+TEXTS["ru"]["inbox_line"] = "От советника: {n} новых заданий. `inbox` — список."
+TEXTS["ru"]["code_note"] = "Код, связанный с этими записями"
+TEXTS["en"]["code_note"] = "Code linked to these records"
+TEXTS["en"]["inbox_line"] = "From the advisor: {n} new tasks. `inbox` lists them."
+TEXTS["ru"].update({"looks_line": "Похоже, сделано — подтвердите: {n}.", "looks": "похоже, сделано — подтвердите"})
+TEXTS["en"].update({"looks_line": "Looks done - confirm: {n}.", "looks": "looks done - confirm"})
+
+
+# ── closing an item by a report (the close rule, written before the code) ─────────────────────────────────────────────────
+DONE_LINE = re.compile(r"^[\s>*#•\-\d.)]*\**\s*(?:сделано|готово|выполнено|закрыто|done|closed|fixed)\**\s*[:—–-]\s*(.+)",
+                       re.I | re.S)  # fmt: skip
+
+
+DONE_WORD = re.compile(r"(?<!не )\b(сделан|готов|выполнен|закрыт|исправлен|done\b|closed\b|fixed\b|implemented\b)", re.I)
+
+
+CLOSE_RULE_SINCE = "2026-11-23T12:00:00Z"  # stem matches by earlier reports keep the old silent close (A5)
+
+
+def close_match(item_id: str, text: str, ts: str, reps) -> tuple[str, str]:
+    """("closed", report) when a later report names the item (its id, or a done-line with >= 60 % of its content stems
+    and >= 3 of them), ("looks", report) when it only shares >= 3 stems, else ("", "")."""
+    want = _stems(text)
+    need = min(3, len(want))
+    looks, looks_ts = "", ""
+    iid = item_id.lower()
+    for rt, rts, rep_ep in reps:
+        if rts <= ts:
+            continue
+        low = rt.lower()
+        if iid and len(iid) >= 6 and re.search(rf"(?<![0-9a-z]){re.escape(iid)}", low) and DONE_WORD.search(low):
+            return "closed", rep_ep  # the id with a done word; a bare mention («добавлен пункт #id») is not enough
+        m = DONE_LINE.match(rt.strip())
+        if m and need:
+            got = want & _stems(m.group(1))
+            if len(got) >= need and len(got) >= 0.6 * len(want):
+                return "closed", rep_ep
+        if need and len(want & _stems(rt)) >= need and (not looks or (looks_ts < CLOSE_RULE_SINCE <= rts)):
+            looks, looks_ts = rep_ep, rts
+    if looks:
+        return ("old", looks) if looks_ts < CLOSE_RULE_SINCE else ("looks", looks)  # the close rule A5
+    return ("", "")
 
 
 def L(key: str) -> str:
@@ -205,7 +251,7 @@ RULE = re.compile(r"(\bвсегда\b|\bникогда\b|\bключ\w*[^.]{0,40}
                   r"\bотныне\b|\bперед (запуском|отправкой|публикацией)\b[^.]{0,80}\b(спрашива\w*|спроси)|"
                   r"\balways\b|\bnever\b|\bkeys?\b[^.]{0,40}\bonly\b|\bonly in `?\.env|\bfrom now on\b|\bgoing forward\b|"
                   r"\bask (me )?before\b|"
-                  # v2 (english_cues_v2_rule.md)
+                  # v2 (the english cues v2 rule)
                   r"\b(don'?t|do not) ever\b|\bevery time\b|\bwhenever\b|\bas a (general )?rule\b|"
                   r"\brule of thumb\b|\brule:|\bfrom here on\b|\bin this (repo|codebase|project),? we\b)", re.I)
 # "it always fails", "never seen this", "the client never sends": a description, not a rule (v2)
@@ -363,13 +409,130 @@ def project_slug(path: str | Path) -> str:
     return re.sub(r"[^A-Za-z0-9]", "-", str(Path(path).resolve()))
 
 
+# ── project identity: by git remote, not by folder (team_rule: clones / branches / folders of one remote share a memory) ──
+def _git_dir(start: Path) -> Path | None:
+    """The git directory of the repository holding `start` (a worktree's `.git` file -> its common dir), or None."""
+    for d in [start, *start.parents]:
+        g = d / ".git"
+        if g.is_dir():
+            return g
+        if g.is_file():
+            m = re.match(r"gitdir:\s*(.+)", g.read_text("utf-8", errors="replace").strip())
+            if not m:
+                return None
+            gd = (d / m.group(1).strip()).resolve()
+            cd = gd / "commondir"
+            if cd.exists():
+                gd = (gd / cd.read_text("utf-8").strip()).resolve()
+            return gd
+    return None
+
+
+def git_remote(project: str | Path) -> str:
+    """The `origin` URL (else the first remote) from the repository's config file - no subprocess; "" without one."""
+    gd = _git_dir(Path(project).resolve())
+    try:
+        txt = (gd / "config").read_text("utf-8", errors="replace") if gd else ""
+    except OSError:
+        return ""
+    remotes, cur = {}, None
+    for line in txt.splitlines():
+        t = line.strip()
+        if m := re.match(r'\[remote\s+"([^"]+)"\]', t):
+            cur = m.group(1)
+        elif t.startswith("["):
+            cur = None
+        elif cur and (m := re.match(r"url\s*=\s*(.+)", t)):
+            remotes.setdefault(cur, m.group(1).strip())
+    return remotes.get("origin") or next(iter(remotes.values()), "")
+
+
+def normalize_remote(url: str) -> str:
+    """https / ssh / scp-like forms, credentials, port, `.git`, case -> `host/owner/repo`."""
+    u = re.sub(r"^[a-z][a-z0-9+.-]*://", "", url.strip(), flags=re.I)
+    u = re.sub(r"^[^@/]+@", "", u)  # user@ or user:token@ - never part of the identity
+    if m := re.match(r"^([^/:]+):(?!\d+/)(.+)$", u):  # scp-like git@host:owner/repo
+        u = f"{m.group(1)}/{m.group(2)}"
+    else:
+        u = re.sub(r"^([^/:]+):\d+/", r"\1/", u)  # host:port/
+    return re.sub(r"\.git$", "", u.replace("\\", "/").rstrip("/")).rstrip("/").lower()
+
+
+def remote_slug(url: str) -> str:
+    return "git-" + re.sub(r"[^a-z0-9]+", "-", normalize_remote(url)).strip("-")
+
+
+def _aliases_path(root: Path) -> Path:
+    return root / "identities.json"
+
+
+def _aliases(root: Path) -> dict:
+    import json
+
+    try:
+        v = json.loads(_aliases_path(root).read_text("utf-8"))
+        return v if isinstance(v, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def store_dir(project: str | Path, home: Path | None = None) -> Path:
+    """The store folder of a project. With a git remote: `<home>/git-<host-owner-repo>`, shared by every folder,
+    branch and clone of that remote; an older path-named store of a folder becomes that remote's store in place (an
+    alias in identities.json - nothing is moved, so an older cotrail keeps finding it). Without a remote, or with
+    COTRAIL_IDENTITY=path: `<home>/<path slug>` as before."""
+    import json
+
+    root, project = Path(home or HOME), Path(project).resolve()
+    by_path = root / project_slug(project)
+    remote = "" if os.environ.get("COTRAIL_IDENTITY", "").lower() == "path" else git_remote(project)
+    if not remote:
+        al = _aliases(root).get(by_path.name)  # a folder connected to another memory (connect_folder)
+        return root / al if al and not (by_path / "graph.sqlite").exists() and (root / al / "graph.sqlite").exists()             else by_path  # fmt: skip
+    rid = remote_slug(remote)
+    if (root / rid / "graph.sqlite").exists():
+        return root / rid
+    al = _aliases(root).get(rid)
+    if al and (root / al / "graph.sqlite").exists():
+        return root / al
+    if (by_path / "graph.sqlite").exists():
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+            _aliases_path(root).write_text(json.dumps(_aliases(root) | {rid: by_path.name}, indent=1), "utf-8")
+        except OSError:
+            pass
+        return by_path
+    return root / rid
+
+
+def project_identity(project: str | Path) -> str:
+    """The normalized remote (`github.com/owner/repo`) or "" for a folder without one."""
+    r = git_remote(project)
+    return normalize_remote(r) if r else ""
+
+
+def default_author(project: str | Path | None = None) -> str:
+    """Who writes this device's records: COTRAIL_AUTHOR, else `git config user.name` (of the project, else global)."""
+    import subprocess
+
+    v = os.environ.get("COTRAIL_AUTHOR", "").strip()
+    if v:
+        return v
+    try:
+        r = subprocess.run(["git", "config", "user.name"], cwd=str(project) if project and Path(project).is_dir() else None,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)  # fmt: skip
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
 def claude_project_dir(path: str | Path) -> Path:
     return Path.home() / ".claude" / "projects" / project_slug(path)
 
 
 def store_exists(project: str | Path, home: Path | None = None) -> bool:
     """A memory store for this project folder already exists (read commands never create one)."""
-    return (Path(home or HOME) / project_slug(Path(project).resolve()) / "graph.sqlite").exists()
+    return (store_dir(project, home) / "graph.sqlite").exists()
 
 
 def _path_from_transcripts(slug: str) -> str:
@@ -622,15 +785,18 @@ class Hit:
 
 class ProjectMemory:
     def __init__(self, project: str | Path | None = None, *, encoder=None, home: Path | None = None,
-                 mode: str | None = None) -> None:  # fmt: skip
+                 mode: str | None = None, store: Path | None = None) -> None:  # fmt: skip
         """`mode`: "bm25" (default for a new store), "hybrid" (BM25 + e5 by RRF, the quality mode) or "vector" (the
         given encoder alone - tests and experiments). An existing store keeps the mode it was built with."""
         from cotrail.v2.graph import Config, Graph
         from cotrail.v2.store import Store
 
         self.project = Path(project or os.environ.get("COTRAIL_PROJECT") or Path.cwd()).resolve()
-        self.dir = (home or HOME) / project_slug(self.project)
+        self.dir = Path(store) if store else store_dir(self.project, home)  # store: an existing memory by its folder
         self.dir.mkdir(parents=True, exist_ok=True)
+        self._home = Path(store).parent if store else Path(home or HOME)
+        self._given_store = bool(store)
+        self._author: str | None = None
         self.db_path = self.dir / "graph.sqlite"
         stored = _stored_encoder(self.db_path)
         if encoder is None:
@@ -669,7 +835,19 @@ class ProjectMemory:
         self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_meta (episode TEXT PRIMARY KEY, ts TEXT NOT NULL, "
                           "session TEXT NOT NULL, origin TEXT NOT NULL DEFAULT '')")  # fmt: skip
         self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_flags (episode TEXT PRIMARY KEY, after_summary INTEGER NOT NULL)")
+        # who wrote the record (team memory): git user.name of the device that imported it, carried through sync
+        self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_author (episode TEXT PRIMARY KEY, author TEXT NOT NULL)")
+        ident = project_identity(self.project)
+        if ident:
+            self.s.db.execute("INSERT OR REPLACE INTO memory_meta VALUES('identity', ?)", (ident,))
         self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_asks (episode TEXT PRIMARY KEY, ask TEXT NOT NULL)")
+        # explicit pastes of a user turn: <pasted_content> blocks, terminal blocks (the inbox rule, written before the code)
+        self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_pasted (episode TEXT PRIMARY KEY, text TEXT NOT NULL)")
+        # the chat's title (claude.ai conversation name, save_chat title, Claude Code summary): the branch label
+        self.s.db.execute("CREATE TABLE IF NOT EXISTS session_titles (session TEXT PRIMARY KEY, title TEXT NOT NULL)")
+        # inbox / "later" items closed by hand (`later done`, `inbox done`)
+        self.s.db.execute("CREATE TABLE IF NOT EXISTS hand_done (id TEXT PRIMARY KEY, kind TEXT NOT NULL, ts TEXT NOT NULL)")
+        self.s.db.execute("CREATE TABLE IF NOT EXISTS hand_open (id TEXT PRIMARY KEY, kind TEXT NOT NULL, ts TEXT NOT NULL)")
         # a "user" record the human did not type: another session's task or message, an app note (rules written before the code)
         self.s.db.execute("CREATE TABLE IF NOT EXISTS turn_agent (episode TEXT PRIMARY KEY, kind TEXT NOT NULL, "
                           "parent TEXT NOT NULL DEFAULT '')")
@@ -694,6 +872,7 @@ class ProjectMemory:
         self._pidx: dict | None = None  # shingle -> [(ts, assistant episode, acting)]
         self._uidx: dict[tuple, set] = {}  # shingle -> user episodes
         self._paste_catch_up()
+        self._merge_path_store()
 
     def _paste_catch_up(self) -> None:
         """Migration: turns stored before this rule, or by an older version since (episodes past the last rowid seen
@@ -856,12 +1035,22 @@ class ProjectMemory:
         text, ts = row[0]
         idx = self._paste_index()
         r = PS.primary(text, lambda sh: [x[1] for x in idx.get(sh, ()) if x[0] < ts and x[2]])
+        exp = self._explicit_paste(e)
+        if exp:  # <pasted_content> / terminal blocks: pasted whatever they match (the inbox rule B)
+            return ("pasted", r[0] if r else "", "\n".join(x for x in (exp, r[1] if r else "") if x))
         if r:
             return ("pasted", r[0], r[1])
         if PS.primary(text, lambda sh: [x[1] for x in idx.get(sh, ()) if x[0] < ts and not x[2]]):
             return None  # a chat assistant's draft the user sent as their own (amendment 1)
         sp = PS.fallback(text)
         return ("pasted_md", "", sp) if sp else None
+
+    def _explicit_paste(self, e: str) -> str:
+        """The normalized explicit pastes of a user turn, one run per line ("" when none)."""
+        row = self.s.q("SELECT text FROM turn_pasted WHERE episode=?", (e,))
+        if not row:
+            return ""
+        return "\n".join(n for n in (PS.norm(ln) for ln in row[0][0].splitlines()) if n)
 
     def _paste_row(self, e: str) -> tuple[str, str, str] | None:
         row = self.s.q("SELECT kind, ref, spans FROM turn_paste WHERE episode=?", (e,))
@@ -908,6 +1097,9 @@ class ProjectMemory:
         final = role == "assistant" and episode in self._finals()
         short = self._short_status(episode) if role == "user" else None
         paste = self._paste_row(episode) if role == "user" else None
+        exp = self._explicit_paste(episode) if role == "user" else ""
+        if exp and len(PS.words(raw)) - len(exp.split()) < 3:
+            short = None  # a bare paste is not «да» / «ok» (the inbox rule B3)
         ctx = PS.ctx_output(raw) if role == "user" else []  # cotrail's own output pasted back: rules, recall, ...
         block, lead = "", ""  # "поменяй приоритеты:" -> the list items after it are that decision too
         for fid, text in self.s.q("SELECT id, text FROM fragments WHERE episode_id=? AND kind='sentence' ORDER BY idx",
@@ -1160,14 +1352,62 @@ class ProjectMemory:
             self.s.db.commit()
         return {"episode": r["episode"], "new": r.get("new", True), "changes": r.get("changes", [])}
 
+    @property
+    def author(self) -> str:
+        if self._author is None:  # the name `team join` saved, else git user.name
+            import json
+
+            try:
+                a = str(json.loads((self.dir / "sync.json").read_text("utf-8")).get("author") or "")
+            except (OSError, ValueError, AttributeError):
+                a = ""
+            self._author = a or default_author(self.project)
+        return self._author
+
+    def _merge_path_store(self) -> None:
+        """A folder whose old path-named store was not adopted (a clone of the same remote made the remote store
+        first): its records are imported here once, the old folder stays untouched apart from a marker."""
+        old = self._home / project_slug(self.project)
+        if self._given_store or old == self.dir or not (old / "graph.sqlite").exists() or (old / "merged_into").exists():
+            return
+        from cotrail.episodes import local_episodes
+
+        rows = local_episodes(old / "graph.sqlite", author=self.author)
+        if rows:
+            self.import_turns(rows)
+        try:
+            (old / "merged_into").write_text(self.dir.name + "\n", "utf-8")
+        except OSError:
+            pass
+
+    def authors(self) -> dict[str, str]:
+        """episode id -> author (records imported before authors existed have none)."""
+        n = self.s.q("SELECT COUNT(*) FROM turn_author")[0][0]
+        if getattr(self, "_authors_cache", None) is None or self._authors_cache[0] != n:
+            self._authors_cache = (n, dict(self.s.q("SELECT episode, author FROM turn_author")))
+        return self._authors_cache[1]
+
+    def _author_of(self, episode: str) -> str:
+        """The author label is shown in a team store: two or more authors, or a record by someone else."""
+        a = self.authors()
+        who = a.get(episode, "")
+        return who if who and (len(set(a.values())) > 1 or who != self.author) else ""
+
     def import_turns(self, turns: list[dict], progress=None) -> dict:
         """Replay turns in time order through the append path; idempotent by turn id."""
         have = {r[0] for r in self.s.q("SELECT id FROM episodes")}
         for t in turns:
+            who = t.get("author") if "author" in t else self.author
+            if who and t["id"] not in have:
+                self.s.db.execute("INSERT OR IGNORE INTO turn_author VALUES(?,?)", (t["id"], who))
             if t.get("after_summary"):
                 self.s.db.execute("INSERT OR REPLACE INTO turn_flags VALUES(?,1)", (t["id"],))
             if t.get("ask"):
                 self.s.db.execute("INSERT OR REPLACE INTO turn_asks VALUES(?,?)", (t["id"], t["ask"]))
+            if t.get("title"):
+                self.s.db.execute("INSERT OR REPLACE INTO session_titles VALUES(?,?)", (t["session"], t["title"][:120]))
+            if t.get("pasted") and t["id"] not in have:
+                self.s.db.execute("INSERT OR REPLACE INTO turn_pasted VALUES(?,?)", (t["id"], t["pasted"]))
             if t.get("agent"):
                 self.s.db.execute("INSERT OR REPLACE INTO turn_agent VALUES(?,?,?)",
                                   (t["id"], t["agent"]["kind"], t["agent"].get("parent") or ""))
@@ -1217,7 +1457,7 @@ class ProjectMemory:
             eid = "chat:" + hashlib.sha1("\n".join(key).encode()).hexdigest()[:24]
             ts = str(t.get("ts") or "") or (now + dt.timedelta(milliseconds=i)).isoformat(timespec="milliseconds").replace("+00:00", "Z")
             out.append({"id": eid, "role": role, "text": text.strip(), "ts": ts, "session": f"chat:{title}",
-                        "source": "chat"})  # fmt: skip
+                        "source": "chat", "title": title})  # fmt: skip
         r = self.import_turns(out)
         self.s.db.execute("INSERT OR REPLACE INTO memory_meta VALUES('last_save_chat', ?)", (now.isoformat(),))
         self.s.db.commit()
@@ -1421,7 +1661,7 @@ class ProjectMemory:
 
     def _alias_map(self) -> dict[str, str]:
         """concept -> the canonical concept of its name-variant group (cotrail/aliases.py; rule
-        reports/realworld/aliases_rule.md; idea from Hindsight, MIT). Empty when COTRAIL_ALIASES=off."""
+        the aliases rule; idea from Hindsight, MIT). Empty when COTRAIL_ALIASES=off."""
         from cotrail import aliases as AL
 
         if not AL.enabled():
@@ -1674,6 +1914,9 @@ class ProjectMemory:
         src = " · claude.ai" if h.origin == "claude.ai" else ""
         via = f" · {L('same_entity')}: {h.via}" if h.via else ""
         topic = self._topic_name(self._record_eps(h))
+        who = self._author_of(h.episode)
+        if who:
+            src += " · " + L("decided_by" if h.status in ("decision", "confirm", "closed") else "by_author").format(name=who)
         head = f"- {self._d(h.ts)} · {self._label(h.status, h.ref)}{src}" + (f" · {L('topic')}: {topic}" if topic else "") + via
         if h.status in ("confirm", "closed") and h.proposal is not None:
             body = f"«{h.text.strip()}» ({_closed_verb(h.status, h.ref)}) {L('on')}: {self._gist(h.proposal)}"
@@ -1758,7 +2001,11 @@ class ProjectMemory:
         if role == "assistant":
             u = next((c for c, pr in conf.items() if pr == e), None) or (finals.get(e, (None, ""))[0] or e)
         h = self._unit_hits([u], {}, {}, report_of, "main", conf)[0]
-        full = self._render_items([h], 10**6, 10**6)[0].strip()
+        stub, self._stub = self._stub, set()  # the close rule B1: the record in full, not "shown earlier"
+        try:
+            full = self._render_items([_capped(h)], 10**6, 10**6)[0].strip()
+        finally:
+            self._stub = stub
         eps = self._record_eps(h)
         t = self._topics()
         topic = t.of_record(eps)
@@ -1837,7 +2084,30 @@ class ProjectMemory:
                 if h.episode not in stub and self._id(h.episode) in seen:
                     self._shown.update(self._record_eps(h))
         note = self._later_note(hits)
-        return out + ("\n\n" + note if note else "")
+        code = self._code_note(hits)
+        return out + ("\n\n" + note if note else "") + ("\n\n" + code if code else "")
+
+    def _code_note(self, hits: list[Hit], n: int = 4) -> str:
+        """Code linked to the main-line records (Graphify layers, the members' too: the team graphs rule): one line."""
+        main = [h for h in hits if h.line in ("main", "follow")]
+        if not main:
+            return ""
+        try:
+            if not self.s.q("SELECT 1 FROM sqlite_master WHERE name='code_links'"):
+                return ""
+            cols = {r[1] for r in self.s.q("PRAGMA table_info(code_nodes)")}
+            eps = [e for h in main for e in self._record_eps(h)]
+            q = ("SELECT DISTINCT n.label, n.file, " + ("n.member" if "member" in cols else "''") + " FROM fragments f "
+                 "JOIN mentions x ON x.fragment_id=f.id JOIN code_links l ON l.concept=x.concept_id "
+                 "JOIN code_nodes n ON n.id=l.code WHERE f.episode_id IN (%s) LIMIT ?" % ",".join("?" * len(eps)))  # fmt: skip
+            rows = self.s.q(q, (*eps, n))
+        except Exception:  # noqa: BLE001 - an older store without the code layer
+            return ""
+        if not rows:
+            return ""
+        items = [f"`{f} → {lab}`" if f and lab.lower() != f.rsplit("/", 1)[-1] else f"`{f or lab}`" for lab, f, _ in rows]
+        who = sorted({m for *_, m in rows if m})
+        return L("code_note") + ": " + ", ".join(items) + (f" ({', '.join(who)})" if who else "")
 
     def _render_body(self, hits: list[Hit], max_chars: int = 4500, detail: str = "full") -> str:
         """detail="full" (default): the windows below. "brief": one line per record (date, status, topic, the gist in
@@ -1895,6 +2165,8 @@ class ProjectMemory:
                 body = (f"{what} ({self._d(pr.ts)}, #{self._id(pr.episode)}): {pb}\n"
                         f"→ {verb} {L('by_user')} {self._d(h.ts)}: «{h.text.strip()}»")
             src = " · claude.ai" if h.origin == "claude.ai" else ""
+            if who := self._author_of(h.episode):
+                src += " · " + L("decided_by" if h.status in ("decision", "confirm", "closed") else "by_author").format(name=who)
             via = f" · {L('same_entity')}: {h.via}" if h.via else ""
             item = f"\n[{self._d(h.ts)} · {self._label(h.status, h.ref)}{src}{via} · #{self._id(h.episode)}]\n{body}"
             if h.report is not None:
@@ -1910,7 +2182,7 @@ class ProjectMemory:
             items.append(item)
         return items
 
-    def later(self, limit: int = 50) -> list[dict]:
+    def later(self, limit: int = 50, include_closed: bool = False) -> list[dict]:
         """Open "later" items, newest first (rules written before the code): held user decisions with no closing,
         the user's "later" to an assistant's proposal, and deferred Beads issues (read-only). A chat item is closed by
         `resolve_hold` or by a later report sentence sharing >= 3 content stems with it (all, when it has fewer)."""
@@ -1935,23 +2207,33 @@ class ProjectMemory:
             if meta and meta[0][1] is None and prt:
                 items.append({"id": c[:8], "episode": c, "date": meta[0][0][:10], "ts": meta[0][0], "source": "chat",
                               "text": f"{L('proposal_of')}: {_short(prop[-1] if prop else prt[0][0], 220)}"})  # fmt: skip
-        reps = [(ts, _stems(t)) for t, ts in self.s.q(
-            "SELECT f.text, COALESCE(m.ts,'') FROM frag_status s JOIN fragments f ON f.id=s.fragment JOIN episodes e ON "
-            "e.id=f.episode_id LEFT JOIN turn_meta m ON m.episode=e.id WHERE s.status IN ('report','applied') AND "
-            "e.t_expired IS NULL")]  # fmt: skip
+        reps = self.s.q(
+            "SELECT f.text, COALESCE(m.ts,''), e.id FROM frag_status s JOIN fragments f ON f.id=s.fragment JOIN episodes e "
+            "ON e.id=f.episode_id LEFT JOIN turn_meta m ON m.episode=e.id WHERE s.status IN ('report','applied') AND "
+            "e.t_expired IS NULL")  # fmt: skip
         out, seen = [], set()
+        hand, reopened = self._hand_done("later"), self._hand_open("later")
         for it in sorted(items, key=lambda x: x["ts"], reverse=True):
             key = re.sub(r"\W+", " ", it["text"]).strip().lower()
             if key in seen:
                 continue
             seen.add(key)
-            want = _stems(it["text"])
-            need = min(3, len(want))
-            if need and any(ts > it["ts"] and len(want & st) >= need for ts, st in reps):
-                continue
-            if it["text"].startswith(L("proposal_of")) is False and self.resolve_hold(it["episode"], it["text"]):
-                continue
-            out.append(it)
+            how, rep_ep = close_match(it["id"], it["text"], it["ts"], reps)
+            it["closed"], it["looks_done"] = "", ""
+            if it["id"] in hand:
+                it["closed"] = "by hand"
+            elif it["id"] in reopened:
+                it["looks_done"] = rep_ep[:8] if how else ""
+            elif how == "closed":
+                it["closed"] = f"by report #{rep_ep[:8]}"
+            elif how == "old":
+                it["closed"] = f"by the old rule (unconfirmed) #{rep_ep[:8]}"
+            elif it["text"].startswith(L("proposal_of")) is False and self.resolve_hold(it["episode"], it["text"]):
+                it["closed"] = "by a later decision"
+            elif how == "looks":
+                it["looks_done"] = rep_ep[:8]
+            if include_closed or not it["closed"]:
+                out.append(it)
         from cotrail import beads
 
         for b in beads.deferred(self.project):
@@ -1960,12 +2242,72 @@ class ProjectMemory:
         out.sort(key=lambda x: x["ts"], reverse=True)
         return out[:limit]
 
+    def close_by_hand(self, item_id: str, kind: str, reopen: bool = False) -> bool:
+        """`inbox|later done <id>` (reopen=False) / `inbox|later reopen <id>`: True when an item had that id (prefix).
+        The last hand action wins; a reopened item is closed again only by hand (the close rule A3)."""
+        items = self.inbox(include_done=True) if kind == "inbox" else self.later(limit=10**6, include_closed=True)
+        hit = [it["id"] for it in items if it["id"].startswith(item_id.strip().lstrip("#"))]
+        now = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")
+        for i in dict.fromkeys(hit):
+            self.s.db.execute("DELETE FROM hand_done WHERE id=? AND kind=?", (i, kind))
+            self.s.db.execute("DELETE FROM hand_open WHERE id=? AND kind=?", (i, kind))
+            self.s.db.execute(f"INSERT INTO {'hand_open' if reopen else 'hand_done'} VALUES(?,?,?)", (i, kind, now))
+        self.s.db.commit()
+        return bool(hit)
+
+    def _hand_done(self, kind: str) -> set[str]:
+        return {r[0] for r in self.s.q("SELECT id FROM hand_done WHERE kind=?", (kind,))}
+
+    def _hand_open(self, kind: str) -> set[str]:
+        return {r[0] for r in self.s.q("SELECT id FROM hand_open WHERE kind=?", (kind,))}
+
+    def inbox(self, include_done: bool = False) -> list[dict]:
+        """Tasks for Claude Code from the advisor chat (the inbox rule A), newest first; open ones unless include_done."""
+        self._use_lang()
+        rows = self.s.q("SELECT e.id, e.text, COALESCE(m.ts,'') FROM episodes e JOIN turn_meta m ON m.episode=e.id "
+                        "WHERE e.role='assistant' AND m.origin IN ('claude.ai','chat') AND e.t_expired IS NULL")  # fmt: skip
+        items = []
+        for ep, text, ts in rows:
+            for n, t in enumerate(inbox_items(text)):
+                iid = "in" + hashlib.sha1(f"{ep}\x1f{n}".encode()).hexdigest()[:6]
+                items.append({"id": iid, "date": ts[:10], "ts": ts, "text": t, "record": ep[:8], "episode": ep})
+        if not items:
+            return []
+        reps = self.s.q(
+            "SELECT f.text, COALESCE(m.ts,''), e.id FROM frag_status s JOIN fragments f ON f.id=s.fragment JOIN episodes e "
+            "ON e.id=f.episode_id JOIN turn_meta m ON m.episode=e.id WHERE s.status IN ('report','applied') AND "
+            "m.origin NOT IN ('claude.ai','chat') AND e.t_expired IS NULL")  # fmt: skip
+        hand, reopened = self._hand_done("inbox"), self._hand_open("inbox")
+        out = []
+        for it in sorted(items, key=lambda x: (x["ts"], x["id"]), reverse=True):
+            how, rep_ep = close_match(it["id"], it["text"], it["ts"], reps)
+            it["done"], it["looks_done"] = "", ""
+            if it["id"] in hand:
+                it["done"] = "by hand"
+            elif how == "closed" and it["id"] not in reopened:
+                it["done"] = f"by report #{rep_ep[:8]}"
+            elif how == "old" and it["id"] not in reopened:
+                it["done"] = f"by the old rule (unconfirmed) #{rep_ep[:8]}"
+            elif how:
+                it["looks_done"] = rep_ep[:8]
+            if include_done or not it["done"]:
+                out.append(it)
+        return out
+
+    def inbox_line(self) -> str:
+        items = self.inbox()
+        looks = sum(1 for it in items if it.get("looks_done"))
+        return (L("inbox_line").format(n=len(items)) + (" " + L("looks_line").format(n=looks) if looks else "")
+                if items else "")  # fmt: skip
+
     def later_line(self) -> str:
         """One line for the start of a session; "" when nothing is open."""
         items = self.later()
         if not items:
             return ""
-        return L("later_line").format(n=len(items), text=_short(items[0]["text"], 90), date=items[0]["date"] or "?")
+        looks = sum(1 for it in items if it.get("looks_done"))
+        return L("later_line").format(n=len(items), text=_short(items[0]["text"], 90), date=items[0]["date"] or "?") + (
+            " " + L("looks_line").format(n=looks) if looks else "")
 
     def _later_note(self, hits: list[Hit]) -> str:
         """1-2 open "later" items next to the recall block: same Leiden topic as a main-line record, or >= 2 content
@@ -2029,7 +2371,8 @@ class ProjectMemory:
             ck = {"yes": L("confirmed"), "no": L("rejected"), "hold": L("deferred"), "done": L("done_by_user")}
             row = {"date": ts[:10], "decision": whole, "kind": ck.get(ref, ref) if fid.startswith("confirm:") else kind_label(ref),
                    "done": None, "resolved": None, "id": ep[:8], "episode": ep, "ts": ts, "ref": ref,
-                   "status": "confirm" if fid.startswith("confirm:") else "decision"}
+                   "status": "confirm" if fid.startswith("confirm:") else "decision",
+                   "author": self._author_of(ep)}
             if "yes" in kinds:
                 row["done"] = self.done_for(ep, fid)
             if kinds == ["hold"] or (whole != text.strip() and not row["done"] and HOLD.search(whole)):
@@ -2052,6 +2395,7 @@ class ProjectMemory:
             out.append({"id": h.episode[:8], "date": h.ts[:10], "status": h.status, "topic": self._topic_of(self._record_eps(h)),
                         "text": h.text.strip(), "kind": h.ref, "gist": self._gist(h), "role": h.role, "ts": h.ts,
                         "line": h.line, "score": round(float(h.score), 4), "source": h.origin or "claude-code",
+                        "author": self.authors().get(h.episode, ""),
                         "session": h.session,
                         "report": {"id": rep.episode[:8], "date": rep.ts[:10], "text": rep.text.strip()} if rep else None})
         return out
@@ -2181,10 +2525,30 @@ def _short(t: str, n: int) -> str:
     return t if len(t) <= n else t[:n].rstrip() + "…"
 
 
+EXPAND_MAX = 20000  # characters per part of an expanded record (the close rule B2)
+
+
+def _cap(text: str) -> str:
+    return text if len(text) <= EXPAND_MAX else text[:EXPAND_MAX] + f"… {len(text) - EXPAND_MAX} more chars"
+
+
+def _capped(h):
+    import dataclasses
+
+    ch = {"text": _cap(h.text)}
+    for f in ("report", "proposal"):
+        x = getattr(h, f, None)
+        if x is not None:
+            ch[f] = dataclasses.replace(x, text=_cap(x.text))
+    return dataclasses.replace(h, **ch)
+
+
 def format_later(rows: list[dict]) -> str:
     if not rows:
         return L("later_none")
-    return "\n".join(f"- {r['date'] or '?'} · {L(r['source'])} · #{r['id']}: {_short(r['text'], 300)}" for r in rows)
+    return "\n".join(f"- {r['date'] or '?'} · {L(r['source'])} · #{r['id']}: {_short(r['text'], 300)}"
+                     + (f"  [{L('looks')}: #{r['looks_done']}]" if r.get("looks_done") else "")
+                     + (f"  [closed {r['closed']}]" if r.get("closed") else "") for r in rows)  # fmt: skip
 
 
 def format_decisions(rows: list[dict]) -> str:
@@ -2198,7 +2562,8 @@ def format_decisions(rows: list[dict]) -> str:
         if r.get("resolved"):
             z = r["resolved"]
             kind += (f" → {L('confirmed')} {z['confirmed']}" if z["confirmed"] else "") + f" → {L('done_user')} {z['date']}"
-        line = f"- {r['date'] or '?'} [{kind}]: " + r["decision"].replace("\n", "\n    ")
+        who = f" ({L('decided_by').format(name=r['author'])})" if r.get("author") else ""
+        line = f"- {r['date'] or '?'} [{kind}]{who}: " + r["decision"].replace("\n", "\n    ")
         if r.get("done"):
             d = r["done"]
             line += (f"\n    {L('ref_reply')} {d['date']}" + (f", {L('commit')} {d['commit']}" if d["commit"] else "")
@@ -2211,9 +2576,67 @@ def format_decisions(rows: list[dict]) -> str:
     return "\n".join(out)
 
 
+# ── inbox: tasks for Claude Code in the advisor chat (the inbox rule, written before the code) ──────────────────────────────
+INBOX_MARK = re.compile(r"^[\s#*>]*(?:сообщение для claude code|message for claude code)[\s*:]*$", re.I)
+INBOX_NUM = re.compile(r"^\s*\d+[.)]\s+")
+
+
+def inbox_items(text: str) -> list[str]:
+    """The items of every «Сообщение для Claude Code:» block of an assistant message, in order."""
+    lines = (text or "").splitlines()
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        if not INBOX_MARK.match(lines[i]):
+            i += 1
+            continue
+        j = i + 1
+        while j < len(lines) and not lines[j].strip():
+            j += 1
+        block: list[str] = []
+        if j < len(lines) and lines[j].lstrip().startswith(">"):
+            while j < len(lines):
+                ln = lines[j]
+                if ln.lstrip().startswith(">"):
+                    block.append(re.sub(r"^\s*>\s?", "", ln))
+                elif not ln.strip() and any(x.strip() for x in lines[j + 1:j + 2]) and lines[j + 1].lstrip().startswith(">"):
+                    block.append("")
+                else:
+                    break
+                j += 1
+        else:
+            while j < len(lines):
+                ln = lines[j]
+                if not ln.strip():
+                    nxt = next((x for x in lines[j + 1:] if x.strip()), "")
+                    if not INBOX_NUM.match(nxt):
+                        break
+                else:
+                    block.append(ln)
+                j += 1
+        items: list[list[str]] = []
+        for ln in block:
+            if INBOX_NUM.match(ln):
+                items.append([INBOX_NUM.sub("", ln)])
+            elif items and ln.strip():
+                items[-1].append(ln.strip())
+        texts = [" ".join(x).strip() for x in items] if items else [" ".join(x.strip() for x in block if x.strip())]
+        out += [t for t in texts if t]
+        i = j
+    return out
+
+
+def format_inbox(items: list[dict]) -> str:
+    if not items:
+        return "Inbox: nothing open."
+    return "\n".join(f"- {it['id']} · {it['date']} · from #{it['record']}" + (f" · done {it['done']}" if it.get("done")
+                     else "") + (f" · {L('looks')}: #{it['looks_done']}" if it.get("looks_done") else "")
+                     + f": {it['text']}" for it in items)  # fmt: skip
+
+
 def queue_transcript(project: str | Path, transcript_path: str) -> Path:
     """Called from the Claude Code Stop hook: only appends a path (no model load), the server ingests it lazily."""
-    d = HOME / project_slug(project)
+    d = store_dir(project)
     d.mkdir(parents=True, exist_ok=True)
     q = d / "pending.txt"
     with q.open("a", encoding="utf-8") as fh:

@@ -89,7 +89,7 @@ def test_ambiguous_and_short_names_do_not_link(tmp_path, monkeypatch):
     turns = [_t(1, "Decided: keep add_item, and run() stays.", "2026-11-02T10:00:00Z")]
     m = _mem(tmp_path, monkeypatch, turns)
     db = GF.connect(m.db_path)
-    db.execute("INSERT INTO code_nodes VALUES ('x','add_item()','other/x.py','','code',1)")
+    db.execute("INSERT INTO code_nodes (id, label, file, loc, file_type, community) VALUES ('x','add_item()','other/x.py','','code',1)")
     db.commit()
     assert "keep add_item" not in overview(m)  # add_item is in two communities now: too frequent to place
 

@@ -323,7 +323,9 @@ class Graph:
             v = w.get(rel, lambda x: x)(wt)
             data[(ix[a], ix[b])] += v
             data[(ix[b], ix[a])] += v
-        from scipy import sparse  # only the PPR graph needs scipy; the decision memory never builds it
+        from scipy import (
+            sparse,  # only the PPR graph needs scipy; the decision memory never builds it
+        )
 
         n = len(nodes)
         if not n:

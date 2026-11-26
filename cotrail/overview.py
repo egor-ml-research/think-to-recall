@@ -9,7 +9,7 @@ in the last 50 commits. Communities with the same lead file share one line. Each
 (file -> function / class: 2*entry + decision-matched + PageRank + degree), the communities it links to (edge counts), and the 1-2 newest user decisions linked to it by an
 exact (case-insensitive) code name in the sentence or by the files of the commit its report names. Without a code
 graph: the conversation topics with their newest decisions and a hint to build the graph. Budget in characters
-(`MAX_CHARS`, rule: reports/realworld/overview_rule.md) with a fixed drop order: second decisions -> symbols ->
+(`MAX_CHARS`, rule: the overview rule) with a fixed drop order: second decisions -> symbols ->
 links -> whole communities ("+N more").
 """
 

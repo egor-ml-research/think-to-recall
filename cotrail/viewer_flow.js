@@ -228,12 +228,9 @@ const FLOW = (() => {
       layout, fire, flare, get on() { return on; } };
   })();
 
-  // ── «Живая память» in 3D (three.js, MIT): two trees growing up from one ground. Chats: the trunk is the project's
-  // time (bottom = first day), a branch per chat session leaves it at the session's first turn and forks as it grows,
-  // side sessions (subagents) are offshoots of their parent branch; every turn is a glowing bead. Code (Graphify): a
-  // branch per top folder, a twig per file, a bead per symbol. Fog dims the far beads; the camera turns by itself.
-  // Pulses: recall runs from the root up the trunk and along the branch to each returned turn; expand lights the turn
-  // and runs along its chain of decision changes.
+  // ── «Живая память» in 3D (three.js, MIT): the memory as a living tree (see build() below) with the Graphify code as a
+  // second tree beside it. Pulses: recall runs from the root up the branches to each returned message, which flashes;
+  // expand lights the record and runs along its chain of decision changes. The camera turns by itself; drag / wheel.
   const LIVE3 = !window.THREE ? null : (() => {
     const T = THREE, TR = DATA.trees || { sessions: [], turns: [], code: [] };
     const C0 = new T.Color(CORAL), C1 = new T.Color(GOLD), WHITE = new T.Color("#fff3e6"), K0 = new T.Color("#3f7fc4"), K1 = new T.Color("#9fe0ff");
@@ -241,138 +238,136 @@ const FLOW = (() => {
     const labs = document.createElement("div"); labs.className = "l3labs"; host.appendChild(labs);
     let R = null, scene, cam, on = false, raf = 0, W = 1, H = 1, DPR = 1, last = 0, now = 0, built = false;
     let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    const jit = s => new T.Vector3(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(s);
-    const tms = x => Date.parse(x.length > 10 ? x + "Z" : x + "T00:00:00Z");
-    const tt = TR.turns.map(r => tms(r[2])), tA = tt.length ? Math.min(...tt) : 0, tB = tt.length ? Math.max(...tt) : 1;
-    const t01 = x => tB > tA ? (tms(x) - tA) / (tB - tA) : 0.5;
-    const age = u => C0.clone().lerp(C1, Math.max(0, Math.min(1, u)));
     const SIZE = { change: 15, decision: 12.5, later: 10, report: 7 };
     const orb = { r: 2150, th: 1.45, ph: 1.36, auto: 1, drag: null, tx: 0, ty: 430, tz: 0 };
     const UP = new T.Vector3(0, 1, 0);
     let beads = [], geo, pts, pulsePts, pulses = [], tips = [], tick = [], lines = [], beadOf = new Map();
-    const CHAT_X = -330, CODE_X = 380;
-    // a session is named by the topic most of its records belong to
-    const sesTopic = i => { const c = {}; TR.turns.forEach(r => { if (r[1] !== i) return; const x = find(r[0]); if (x && x.topic >= 0 && !(TOP[x.topic] || {}).other) c[x.topic] = (c[x.topic] || 0) + 1; });
-      const k = Object.keys(c).sort((a, b) => c[b] - c[a])[0]; return k === undefined ? tr("чат") : tname(+k).split(" · ").slice(0, 2).join(" · "); };
-    // a branch: from point A, growing out along azimuth `az` and upward, length L, a little crooked
-    function branch(A, az, elev, L, bend = 0.25) {
-      const d = new T.Vector3(Math.cos(az) * Math.cos(elev), Math.sin(elev), Math.sin(az) * Math.cos(elev));
-      const side = new T.Vector3().crossVectors(d, UP).normalize();
-      const p = [A.clone()];
-      for (let i = 1; i <= 4; i++) { const f = i / 4; p.push(A.clone().add(d.clone().multiplyScalar(L * f)).add(UP.clone().multiplyScalar(L * bend * f * f))
-        .add(side.clone().multiplyScalar(Math.sin(f * 3 + az) * L * 0.08)).add(jit(L * 0.05 * f))); }
-      return new T.CatmullRomCurve3(p);
+    // ── the living tree: the memory grows as a tree that forks again and again into finer, slightly curved branches.
+    // Conversations: trunk = the project -> members (team memory) -> big areas (the dominant topic of the chats) -> chats
+    // (side sessions grow out of their parent chat) -> topics -> messages at the tips (records bigger, decisions
+    // brightest), coral at the trunk -> gold at the tips. Code (Graphify): a second tree beside it, folders -> files ->
+    // symbols, in blue. Past each tip a couple of finer twigs with dim points: decoration only, no data.
+    const MAXD = 6, K0h = K0.clone().multiplyScalar(1), deco = [];
+    const perp = d => new T.Vector3().crossVectors(d, Math.abs(d.y) < 0.9 ? UP : new T.Vector3(1, 0, 0)).normalize();
+    function curveOf(a, d, len, bend) { const side = perp(d).applyAxisAngle(d, rnd() * 6.28).multiplyScalar(len * bend);
+      const m = a.clone().add(d.clone().multiplyScalar(len * 0.5)).add(side), b = a.clone().add(d.clone().multiplyScalar(len)).add(side.clone().multiplyScalar(0.4));
+      return new T.QuadraticBezierCurve3(a, m, b); }
+    const colAt = (depth, code, side) => { const f = Math.min(1, depth / (MAXD + 1)); let c = code ? K0h.clone().lerp(K1, f).multiplyScalar(0.55) : C0.clone().lerp(C1, f).multiplyScalar(1 - 0.45 * f);
+      if (side) c = c.lerp(WHITE, 0.25); return c; };
+    function seg(curve, depth, code, side, n) { const pts = curve.getPoints(n), c = colAt(depth, code, side);
+      for (let i = 0; i < n; i++) lines.push(pts[i].x, pts[i].y, pts[i].z, pts[i + 1].x, pts[i + 1].y, pts[i + 1].z, c.r, c.g, c.b, c.r, c.g, c.b); }
+    // the hierarchy
+    function chatTree() {
+      const ss = TR.sessions, turnsOf = ss.map(() => []); TR.turns.forEach(r => turnsOf[r[1]] && turnsOf[r[1]].push(r));
+      const topicOf = new Map(); turnsOf.forEach(rs => { let cur = -1; rs.forEach(r => { const x = find(r[0]); if (x && r[3] === "u") cur = x.topic; topicOf.set(r, cur); }); });
+      const dom = i => { const c = {}; turnsOf[i].forEach(r => { const k = topicOf.get(r); if (k >= 0 && !(TOP[k] || {}).other) c[k] = (c[k] || 0) + 1; });
+        const k = Object.keys(c).sort((a, b) => c[b] - c[a])[0]; return k === undefined ? -1 : +k; };
+      const chatNode = i => { const byT = new Map(), node = { name: ss[i].label, side: ss[i].side, ses: i, kids: [] };
+        turnsOf[i].forEach(r => { const k = topicOf.get(r); if (!byT.has(k)) { const t = { kids: [], side: ss[i].side }; byT.set(k, t); node.kids.push(t); } byT.get(k).kids.push({ leaf: r, ses: i, side: ss[i].side }); });
+        return node; };
+      const nodes = ss.map((_, i) => turnsOf[i].length ? chatNode(i) : null);
+      ss.forEach((s, i) => { if (s.side && nodes[i] && nodes[s.parent]) nodes[s.parent].kids.push(nodes[i]); });  // side sessions grow out of their parent
+      const mains = ss.map((s, i) => i).filter(i => nodes[i] && !(ss[i].side && nodes[ss[i].parent]));
+      const sizeOf = {}; mains.forEach(i => { const k = dom(i); sizeOf[k] = (sizeOf[k] || 0) + ss[i].n; });
+      const big = Object.keys(sizeOf).map(Number).filter(k => k >= 0).sort((a, b) => sizeOf[b] - sizeOf[a]).slice(0, 6);
+      const byArea = (is) => { const m = new Map(); is.forEach(i => { const k = big.includes(dom(i)) ? dom(i) : "other";
+        if (!m.has(k)) m.set(k, { name: k === "other" ? tr("другие темы ({0})", "").replace(" ()", "") : tname(k).split(" · ").slice(0, 2).join(" · "), label: true, kids: [] }); m.get(k).kids.push(nodes[i]); });
+        return [...m.values()]; };
+      const MEM = (TR.members && TR.members.length > 1) ? TR.members : null;
+      return { kids: MEM ? MEM.map(m => ({ name: m, label: true, kids: byArea(mains.filter(i => (ss[i].author || "") === m)) })).filter(x => x.kids.length) : byArea(mains) };
     }
-    const trunkOf = (x, h) => new T.CatmullRomCurve3([0, 0.25, 0.5, 0.75, 1].map((f, i) => new T.Vector3(x + Math.sin(f * 4.1 + x) * 18 * f, h * f, Math.cos(f * 3.3) * 16 * f + (i ? (rnd() - 0.5) * 10 : 0))));
+    function codeTree() {
+      const layers = (TR.codes && TR.codes.length) ? TR.codes.map(c => ({ dirs: c.dirs, name: c.member })) : [{ dirs: TR.code || [], name: "" }];
+      const dirs = Lr => Lr.dirs.map(d => ({ name: `${d.name} · ${d.n}`, label: !layers[1], kids: d.files.map(f => ({ kids: f.nodes.map(nd => ({ leaf: nd, f: f.name, m: Lr.name })) })) }));
+      const kids = layers.length > 1 ? layers.map(Lr => ({ name: `${tr("код")}: ${Lr.name}`, label: true, kids: dirs(Lr) })) : dirs(layers[0]);
+      return { kids: kids.filter(k => k.kids.length) };
+    }
+    const weigh = n => n.w = n.leaf ? 1 : n.kids.reduce((a, c) => a + weigh(c), 0);
+    // growth: each node is one curved segment; children fan out around its end (and along it when there are many)
+    function grow(node, a, d, len, depth, path, code, side) {
+      const c = curveOf(a, d, len, 0.06 + 0.04 * depth), end = c.getPoint(1), dir = c.getTangent(1).normalize(), sd = side || node.side;
+      seg(c, depth, code, sd, depth < 2 ? 16 : 8);
+      const here = [...path, { curve: c, a: 0, b: 1 }];
+      if (node.label && node.name) tips.push({ p: end.clone(), text: node.name, code, depth });
+      if (node.leaf) {
+        if (code) add(end, K1.clone().multiplyScalar(0.75), 3.0, { kind: "code", nd: node.leaf, f: node.f, m: node.m }, here);
+        else { const r = node.leaf, x = r[3] === "u" ? find(r[0]) : null, st = x ? x.st : r[4];
+          let col = C1.clone().lerp(WHITE, r[3] === "u" ? 0.25 : 0); if (st === "decision" || st === "change") col = WHITE.clone(); if (sd) col.lerp(WHITE, 0.2);
+          const b = add(end, col, r[3] === "u" ? (SIZE[st] || 6.5) : 3.6, { kind: "turn", r, s: node.ses }, here); beadOf.set(r[0], b); }
+        twigs(end, dir, len * 0.5, depth, code ? 1 : 2, code); return;
+      }
+      const kids = node.kids.slice().sort((x, y) => y.w - x.w), n = kids.length, spread = depth === 0 ? 0.75 : depth === 1 ? 0.9 : 0.62 + 0.06 * Math.min(4, n);
+      kids.forEach((k, i) => {
+        const share = Math.sqrt(k.w / node.w), az = i * 2.39996 + rnd() * 0.6, tilt = spread * (0.45 + 0.55 * (1 - share)) * (n === 1 ? 0.25 : 1);
+        const nd = dir.clone().applyAxisAngle(perp(dir), tilt).applyAxisAngle(dir, az).lerp(UP, depth < 1 ? 0.2 : depth < 3 ? 0.08 : 0.02).normalize();
+        const s0 = n > 6 && i > 2 ? 0.55 + 0.45 * rnd() : 1, at = c.getPoint(s0);
+        const kl = len * (k.leaf ? 0.3 + 0.18 * rnd() : 0.6 + 0.3 * share) * (depth === 0 ? 1.35 : 1);
+        grow(k, at, nd, Math.max(kl, 3), depth + 1, s0 < 1 ? [...path, { curve: c, a: 0, b: s0 }] : here, code, sd);
+      });
+    }
+    function twigs(a, d, len, depth, left, code) {
+      if (left <= 0) return;
+      for (let i = 0; i < 2; i++) { const nd = d.clone().applyAxisAngle(perp(d), 0.5 + 0.4 * rnd()).applyAxisAngle(d, rnd() * 6.28).lerp(UP, 0.1).normalize();
+        const c = curveOf(a, nd, len * (0.5 + 0.4 * rnd()), 0.12), e = c.getPoint(1); seg(c, depth + 1, code, false, 4); deco.push({ p: e, code }); twigs(e, nd, len * 0.6, depth + 1, left - 1, code); }
+    }
+    const add = (pos, col, size, info, path) => { const b = { pos, col, size, info, path, flash: 0, f0: 0, i: beads.length }; beads.push(b); return b; };
+    let trunk = null;
     function build() {
       built = true;
       R = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
       R.setClearColor(0x000000, 1); host.insertBefore(R.domElement, labs);
-      scene = new T.Scene(); scene.fog = new T.FogExp2(0x000000, 0.00042);
-      cam = new T.PerspectiveCamera(46, 1, 1, 9000);
-      const tube = (curve, r, seg, ca, cb, op) => { const g = new T.TubeGeometry(curve, seg, r, 8, false), n = g.attributes.position.count, col = new Float32Array(n * 3);
-        for (let i = 0; i < n; i++) { const c = ca.clone().lerp(cb, Math.floor(i / 9) / seg); col.set([c.r, c.g, c.b], i * 3); }
-        g.setAttribute("color", new T.BufferAttribute(col, 3));
-        scene.add(new T.Mesh(g, new T.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: op, blending: T.AdditiveBlending, depthWrite: false }))); };
-      const line = (curve, ca, cb, n = 24) => { for (let i = 0; i < n; i++) { const a = curve.getPoint(i / n), b = curve.getPoint((i + 1) / n), c = ca.clone().lerp(cb, i / n);
-        lines.push(a.x, a.y, a.z, b.x, b.y, b.z, c.r, c.g, c.b, c.r, c.g, c.b); } };
-      const add = (pos, col, size, info, path) => { const b = { pos, col, size, info, path, flash: 0, f0: 0, i: beads.length }; beads.push(b); return b; };
-      // ── the chat tree
-      const ss = TR.sessions, turnsOf = ss.map(() => []);
-      TR.turns.forEach(r => turnsOf[r[1]] && turnsOf[r[1]].push(r));
-      const HC = 760, trunk = trunkOf(CHAT_X, HC);
-      tube(trunk, 5, 200, C0, C1, 0.95); tube(trunk, 15, 100, C0, C1, 0.12);
-      const pathTrunk = u => ({ curve: trunk, a: 0, b: u });
-      const placed = [];  // session index -> {pts: [bead], dir}
-      const grow = (i, A, az, elev, L, basePath, uColor) => {
-        const rs = turnsOf[i], chunks = [], CH = 70;
-        for (let k = 0; k < rs.length; k += CH) chunks.push(rs.slice(k, k + CH));
-        const main = branch(A, az, elev, L * Math.min(1, 0.55 + 0.45 * Math.min(1, chunks.length / 3)));
-        const isSide = ss[i].side, cA = isSide ? C1.clone().lerp(WHITE, 0.25) : age(uColor), cB = isSide ? WHITE : age(Math.min(1, uColor + 0.25));
-        if (isSide) line(main, cA, cB, 20); else { tube(main, 2.2, 60, cA, cB, 0.85); tube(main, 6, 30, cA, cB, 0.07); }
-        const bs = [];
-        chunks.forEach((ch, k) => {
-          let curve = main, path = [...basePath, { curve: main, a: 0, b: 0 }];
-          if (k > 0) { const s0 = Math.min(0.92, 0.25 + 0.6 * k / chunks.length), P = main.getPointAt(s0);
-            curve = branch(P, az + (k % 2 ? 0.9 : -0.9) + (rnd() - 0.5) * 0.5, elev + 0.35, L * 0.5 * (0.7 + rnd() * 0.5), 0.35);
-            line(curve, cA, cB, 18); path = [...basePath, { curve: main, a: 0, b: s0 }, { curve, a: 0, b: 0 }]; }
-          ch.forEach((r, j) => { const s = k > 0 ? 0.08 + 0.92 * (j + 0.5) / ch.length : 0.06 + 0.94 * (j + 0.5) / Math.max(ch.length, 12);
-            const p = curve.getPointAt(Math.min(1, s)).add(jit(r[3] === "u" ? 9 : 16));
-            const imp = r[3] === "u" ? (SIZE[r[4]] || 6.5) : 3.6;
-            let c = isSide ? C1.clone().lerp(WHITE, 0.35) : age(t01(r[2])); if (r[4] === "change") c = c.lerp(WHITE, 0.3);
-            const pp = path.slice(); pp[pp.length - 1] = { ...pp[pp.length - 1], b: s };
-            const b = add(p, c, imp, { kind: "turn", r, s: i }, pp); bs.push(b); beadOf.set(r[0], b); });
-        });
-        placed[i] = { bs, main, az };
-        tips.push({ sesI: i, p: main.getPointAt(1), text: isSide ? "" : `${ss[i].src === "claude.ai" ? "claude.ai · " : ""}${sesTopic(i)} · ${ss[i].n} · ${fmtD(ss[i].last.slice(0, 10))}`, side: isSide });
-      };
-      ss.forEach((sx, i) => { if (sx.side) return; const u = 0.04 + 0.92 * t01(sx.first), A = trunk.getPointAt(u);
-        grow(i, A, i * 2.39996 + 0.3, 0.55 + rnd() * 0.35, 170 + 22 * Math.sqrt(sx.n), [pathTrunk(u)], t01(sx.first)); });
-      ss.forEach((sx, i) => { if (!sx.side) return; const par = placed[sx.parent];
-        if (!par) { const u = 0.04 + 0.92 * t01(sx.first); grow(i, trunk.getPointAt(u), i * 2.4, 0.7, 60 + 12 * Math.sqrt(sx.n), [pathTrunk(u)], t01(sx.first)); return; }
-        const t0 = tms(sx.first), host = par.bs.reduce((a, b) => Math.abs(tms(b.info.r[2]) - t0) < Math.abs(tms(a.info.r[2]) - t0) ? b : a, par.bs[0]);
-        grow(i, host.pos.clone(), par.az + (rnd() < 0.5 ? 1 : -1) * (0.8 + rnd() * 0.8), 0.6 + rnd() * 0.5, 45 + 14 * Math.sqrt(sx.n), host.path, t01(sx.first)); });
-      // ── the code tree (Graphify)
-      const code = TR.code || [];
-      if (code.length) {
-        const HK = 620, ktr = trunkOf(CODE_X, HK); tube(ktr, 5, 160, K0, K1, 0.9); tube(ktr, 15, 80, K0, K1, 0.1);
-        code.forEach((d, i) => { const u = 0.12 + 0.82 * (code.length > 1 ? i / (code.length - 1) : 0.5), A = ktr.getPointAt(1 - u * 0.9);
-          const az = i * 2.39996 + 1.1, L = 120 + 9 * Math.sqrt(d.n), main = branch(A, az, 0.45 + rnd() * 0.3, L);
-          const ca = K0.clone().lerp(K1, 0.3 + 0.5 * rnd()), cb = K1.clone().lerp(WHITE, 0.2); tube(main, 1.8, 50, ca, cb, 0.75);
-          tips.push({ p: main.getPointAt(1), text: `${d.name} · ${d.n}`, code: true });
-          d.files.forEach((f, j) => { const s0 = 0.15 + 0.8 * (j + 0.5) / d.files.length, P = main.getPointAt(s0);
-            const tw = branch(P, az + (j % 2 ? 1 : -1) * (0.6 + rnd() * 1.2), 0.4 + rnd() * 0.8, 18 + 4.2 * Math.sqrt(f.nodes.length), 0.3);
-            line(tw, ca, cb, 10);
-            f.nodes.forEach((nd, k) => { const s = 0.1 + 0.9 * (k + 0.5) / f.nodes.length, p = tw.getPointAt(s).add(jit(5));
-              add(p, K0.clone().lerp(K1, 0.25 + 0.75 * rnd()), 3.3, { kind: "code", nd, f: f.name }, [{ curve: ktr, a: 0, b: 1 - u * 0.9 }, { curve: main, a: 0, b: s0 }, { curve: tw, a: 0, b: s }]); }); }); });
-      }
-      // lines (forks, side sessions, file twigs): one LineSegments
+      scene = new T.Scene(); scene.fog = new T.FogExp2(0x000000, 0.0004);
+      cam = new T.PerspectiveCamera(40, 1, 1, 60000);
+      const chat = chatTree(), code = codeTree(); weigh(chat); weigh(code);
+      const H = 70 + 15 * Math.sqrt(chat.w || 1), HK = 70 + 15 * Math.sqrt(code.w || 1), GAP = code.w ? 1.55 * (H + HK) : 0;
+      const A = new T.Vector3(-GAP / 2, 0, 0), B = new T.Vector3(GAP / 2, 0, 0);
+      if (chat.w) grow(chat, A, UP.clone(), H, 0, [], false, false);
+      if (code.w) grow(code, B, UP.clone(), HK, 0, [], true, false);
+      trunk = A;
+      // branches: one LineSegments
       const lg = new T.BufferGeometry(), nl = lines.length / 12, LP = new Float32Array(nl * 6), LC = new Float32Array(nl * 6);
       for (let i = 0; i < nl; i++) { LP.set(lines.slice(i * 12, i * 12 + 6), i * 6); LC.set(lines.slice(i * 12 + 6, i * 12 + 12), i * 6); }
       lg.setAttribute("position", new T.BufferAttribute(LP, 3)); lg.setAttribute("color", new T.BufferAttribute(LC, 3));
-      scene.add(new T.LineSegments(lg, new T.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, blending: T.AdditiveBlending, depthWrite: false })));
-      // ground glow under the trees
-      const gr = new T.Mesh(new T.CircleGeometry(520, 64), new T.MeshBasicMaterial({ color: 0x1c0a0c, transparent: true, opacity: 0.25, blending: T.AdditiveBlending, depthWrite: false }));
-      gr.rotation.x = -Math.PI / 2; gr.position.y = -2; scene.add(gr);
-      // beads: one Points object with a glow shader
+      scene.add(new T.LineSegments(lg, new T.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.75, blending: T.AdditiveBlending, depthWrite: false, fog: true })));
+      // the data beads (pickable), then decoration and stars (not pickable)
       const n = beads.length, P = new Float32Array(n * 3), Cc = new Float32Array(n * 3), S = new Float32Array(n), F = new Float32Array(n);
       beads.forEach((b, i) => { P.set([b.pos.x, b.pos.y, b.pos.z], i * 3); Cc.set([b.col.r, b.col.g, b.col.b], i * 3); S[i] = b.size; });
       geo = new T.BufferGeometry(); geo.setAttribute("position", new T.BufferAttribute(P, 3)); geo.setAttribute("acol", new T.BufferAttribute(Cc, 3));
       geo.setAttribute("size", new T.BufferAttribute(S, 1)); geo.setAttribute("flash", new T.BufferAttribute(F, 1));
       pts = new T.Points(geo, glow()); scene.add(pts);
-      const dn = 2200, D = new Float32Array(dn * 3), DC = new Float32Array(dn * 3), DS = new Float32Array(dn), DF = new Float32Array(dn);
-      for (let i = 0; i < dn; i++) { const r = 900 + rnd() * 2600, th = rnd() * 6.283, ph = Math.acos(2 * rnd() - 1);
-        D.set([r * Math.sin(ph) * Math.cos(th), 300 + r * Math.cos(ph) * 0.7, r * Math.sin(ph) * Math.sin(th)], i * 3); const g = 0.3 + rnd() * 0.35; DC.set([g, g * 0.88, g * 0.85], i * 3); DS[i] = 1.6 + rnd() * 2; }
-      const dg = new T.BufferGeometry(); dg.setAttribute("position", new T.BufferAttribute(D, 3)); dg.setAttribute("acol", new T.BufferAttribute(DC, 3));
-      dg.setAttribute("size", new T.BufferAttribute(DS, 1)); dg.setAttribute("flash", new T.BufferAttribute(DF, 1)); scene.add(new T.Points(dg, glow()));
+      const box = new T.Box3(); beads.forEach(b => box.expandByPoint(b.pos)); deco.forEach(d => box.expandByPoint(d.p)); box.expandByPoint(A); box.expandByPoint(B);
+      const sz = box.getSize(new T.Vector3()), ctr = box.getCenter(new T.Vector3()), ext = Math.max(1, sz.length());
+      const dp = [], dc = [], ds = [];
+      deco.forEach(({ p, code }) => { const c = (code ? K1 : C1).clone().multiplyScalar(code ? 0.35 : 0.5 + 0.3 * rnd()); dp.push(p.x, p.y, p.z); dc.push(c.r, c.g, c.b); ds.push(1.4 + rnd()); });
+      for (let i = 0; i < 1400; i++) { const r = ext * (0.9 + rnd() * 2.5), th = rnd() * 6.283, ph = Math.acos(2 * rnd() - 1);
+        dp.push(ctr.x + r * Math.sin(ph) * Math.cos(th), ctr.y + r * Math.cos(ph) * 0.6, ctr.z + r * Math.sin(ph) * Math.sin(th)); const g = 0.25 + rnd() * 0.3; dc.push(g, g * 0.9, g * 0.85); ds.push(1.2 + rnd() * 1.5); }
+      const dg = new T.BufferGeometry(); dg.setAttribute("position", new T.Float32BufferAttribute(dp, 3)); dg.setAttribute("acol", new T.Float32BufferAttribute(dc, 3));
+      dg.setAttribute("size", new T.Float32BufferAttribute(ds, 1)); dg.setAttribute("flash", new T.Float32BufferAttribute(new Float32Array(ds.length), 1)); scene.add(new T.Points(dg, glow()));
       const pn = 64 * 10, pg = new T.BufferGeometry(); pg.setAttribute("position", new T.BufferAttribute(new Float32Array(pn * 3), 3));
       pg.setAttribute("acol", new T.BufferAttribute(new Float32Array(pn * 3), 3)); pg.setAttribute("size", new T.BufferAttribute(new Float32Array(pn), 1));
       pg.setAttribute("flash", new T.BufferAttribute(new Float32Array(pn), 1)); pulsePts = new T.Points(pg, glow()); pulsePts.frustumCulled = false; scene.add(pulsePts);
-      tips.push({ p: trunk.getPointAt(0).add(new T.Vector3(-20, -26, 0)), text: tr("разговоры"), root: true });
-      if (code.length) tips.push({ p: new T.Vector3(CODE_X - 20, -26, 0), text: tr("код · Graphify"), root: true, code: true });
-      // frame the trees: the camera distance and height follow the beads' extent (a small demo or a large store)
-      { const box = new T.Box3(); beads.forEach(b => box.expandByPoint(b.pos)); const sz = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
-        orb.tx = c.x; orb.ty = c.y + sz.y * 0.1; orb.tz = c.z; orb.r = Math.max(500, 1.4 * Math.max(sz.x, sz.y * 1.3, sz.z)); }
-      // labels: the biggest chats only, so they do not pile up
-      const big = new Set(TR.sessions.map((x, i) => [x.n, i]).filter(([, i]) => !TR.sessions[i].side).sort((a, b) => b[0] - a[0]).slice(0, 9).map(([, i]) => i));
-      tips.forEach(tp => { if (tp.sesI !== undefined && !big.has(tp.sesI)) tp.text = ""; });
+      // fog and point scale follow the tree's size (a small demo or a large store)
+      scene.fog.density = 0.32 / ext; scene.traverse(o => { if (o.material && o.material.uniforms) o.material.uniforms.uFog.value = 0.28 / ext; });
+      if (chat.w) tips.push({ p: A.clone().add(new T.Vector3(0, -0.03 * ext, 0)), text: tr("разговоры"), root: true });
+      if (code.w) tips.push({ p: B.clone().add(new T.Vector3(0, -0.03 * ext, 0)), text: tr("код · Graphify"), root: true, code: true });
+      orb.tx = ctr.x; orb.ty = ctr.y; orb.tz = ctr.z; orb.r = 1.9 * Math.max(sz.y, sz.x * 0.62) + 40; orb.ph = 1.5; orb.th = Math.PI / 2;
       tips.forEach(tp => { if (!tp.text) return; tp.el = document.createElement("div"); tp.el.className = "l3lab" + (tp.code ? " k" : "") + (tp.root ? " root" : ""); tp.el.textContent = tp.text; labs.appendChild(tp.el); });
       const cvs = R.domElement;
       cvs.addEventListener("pointerdown", e => { orb.drag = [e.clientX, e.clientY, e.clientX, e.clientY]; orb.auto = 0; cvs.setPointerCapture(e.pointerId); });
-      cvs.addEventListener("pointermove", e => { if (orb.drag) { orb.th += (e.clientX - orb.drag[0]) * 0.005; orb.ph = Math.max(0.3, Math.min(1.75, orb.ph - (e.clientY - orb.drag[1]) * 0.005));
+      cvs.addEventListener("pointermove", e => { if (orb.drag) { orb.th += (e.clientX - orb.drag[0]) * 0.005; orb.ph = Math.max(0.35, Math.min(2.2, orb.ph - (e.clientY - orb.drag[1]) * 0.005));
         orb.drag[0] = e.clientX; orb.drag[1] = e.clientY; return; } hoverAt(e); });
       cvs.addEventListener("pointerup", e => { const d = orb.drag; orb.drag = null; setTimeout(() => { orb.auto = 1; }, 2500);
         if (d && Math.hypot(e.clientX - d[2], e.clientY - d[3]) < 4) { const b = pick(e); if (b) open(b); } });
-      cvs.addEventListener("wheel", e => { e.preventDefault(); orb.r = Math.max(200, Math.min(4000, orb.r * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
+      cvs.addEventListener("wheel", e => { e.preventDefault(); orb.r = Math.max(40, Math.min(60000, orb.r * (e.deltaY > 0 ? 1.1 : 0.9))); }, { passive: false });
       cvs.addEventListener("pointerleave", () => hideTip());
     }
     function glow() {
       return new T.ShaderMaterial({ transparent: true, depthWrite: false, blending: T.AdditiveBlending,
-        uniforms: { uPix: { value: 1 }, uFog: { value: 0.00034 } },
+        uniforms: { uPix: { value: 1 }, uFog: { value: 0.00034 }, uK: { value: 1500 } },
         vertexShader: `attribute float size; attribute float flash; attribute vec3 acol; varying vec3 vC; varying float vA; varying float vF;
-          uniform float uPix; uniform float uFog;
+          uniform float uPix; uniform float uFog; uniform float uK;
           void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); float d = max(1.0, -mv.z); vA = exp(-d * d * uFog * uFog);
-            vC = acol; vF = flash; gl_PointSize = min(64.0, size * (1.0 + flash * 1.8) * uPix * (1500.0 / d)); gl_Position = projectionMatrix * mv; }`,
+            vC = acol; vF = flash; gl_PointSize = min(64.0, max(1.4 * uPix, size * (1.0 + flash * 1.8) * uPix * (uK / d))); gl_Position = projectionMatrix * mv; }`,
         fragmentShader: `varying vec3 vC; varying float vA; varying float vF;
           void main() { vec2 p = gl_PointCoord - 0.5; float r = length(p) * 2.0; if (r > 1.0) discard;
             float core = smoothstep(0.36, 0.0, r), halo = pow(1.0 - r, 2.3) * 0.65;
@@ -382,15 +377,15 @@ const FLOW = (() => {
     function size() {
       DPR = Math.min(2, devicePixelRatio || 1); W = Math.max(1, stage.clientWidth); H = Math.max(1, stage.clientHeight);
       R.setPixelRatio(DPR); R.setSize(W, H); cam.aspect = W / H; cam.updateProjectionMatrix();
-      scene.traverse(o => { if (o.material && o.material.uniforms) o.material.uniforms.uPix.value = DPR; });
+      scene.traverse(o => { if (o.material && o.material.uniforms) { o.material.uniforms.uPix.value = DPR; o.material.uniforms.uK.value = 1.6 * H; } });
     }
     const ray = new T.Raycaster(); ray.params.Points.threshold = 5;
     function pick(e) { const r = R.domElement.getBoundingClientRect(); ray.setFromCamera({ x: (e.clientX - r.left) / r.width * 2 - 1, y: -(e.clientY - r.top) / r.height * 2 + 1 }, cam);
       const h = ray.intersectObject(pts)[0]; return h ? beads[h.index] : null; }
     const sesName = i => (TR.sessions[i] || {}).label || "";
     function tipOf(b) { const x = b.info;
-      if (x.kind === "code") return `<div class="w">${tr("код")} · ${esc(x.f)}${x.nd[1] ? ":" + esc(x.nd[1]) : ""}</div>${esc(x.nd[0])}`;
-      const r = x.r, s = TR.sessions[x.s] || {}; return `<div class="w">${fmtD(r[2].slice(0, 10))} ${r[2].slice(11, 16)} · ${tr(r[3] === "u" ? "вы" : "ассистент")}${ST[r[4]] ? " · " + ST[r[4]][0] : ""} · ${tr(s.side ? "сессия-субагент" : "чат")} #${r[0]}</div>${esc(r[5])}`; }
+      if (x.kind === "code") return `<div class="w">${tr("код")}${x.m ? " · " + esc(x.m) : ""} · ${esc(x.f)}${x.nd[1] ? ":" + esc(x.nd[1]) : ""}</div>${esc(x.nd[0])}`;
+      const r = x.r, s = TR.sessions[x.s] || {}; return `<div class="w">${fmtD(r[2].slice(0, 10))} ${r[2].slice(11, 16)} · ${r[3] === "u" ? (s.author ? esc(s.author) : tr("вы")) : tr("ассистент")}${ST[r[4]] ? " · " + ST[r[4]][0] : ""} · ${tr(s.side ? "сессия-субагент" : "чат")} #${r[0]}</div>${esc(r[5])}`; }
     function hoverAt(e) { const b = pick(e); R.domElement.style.cursor = b ? "pointer" : "grab"; const r = R.domElement.getBoundingClientRect();
       if (b) showTip(tipOf(b), e.clientX - r.left, e.clientY - r.top); else hideTip(); }
     function open(b) { flare(b, 1); const x = b.info;
@@ -439,10 +434,10 @@ const FLOW = (() => {
       R.render(scene, cam);
       tips.forEach(tp => { if (!tp.el) return; V.copy(tp.p).project(cam); const vis = V.z < 1 && Math.abs(V.x) < 1.05 && Math.abs(V.y) < 1.05;
         tp.el.style.display = vis ? "" : "none"; if (!vis) return; const d = cam.position.distanceTo(tp.p);
-        tp.el.style.transform = `translate(${(V.x + 1) / 2 * W + 8}px, ${(1 - V.y) / 2 * H - 8}px)`; tp.el.style.opacity = tp.root ? 0.95 : Math.max(0.12, Math.min(0.9, 1.6 - d / 1500)); });
+        tp.el.style.transform = `translate(${(V.x + 1) / 2 * W + 8}px, ${(1 - V.y) / 2 * H - 8}px)`; tp.el.style.opacity = tp.root ? 0.95 : Math.max(0.15, Math.min(0.9, 1.5 - d / (1.4 * orb.r))); });
       PLAY.step(t);
     }
-    return { l3: true, legend: `<span><i style="background:linear-gradient(90deg,${CORAL},${GOLD})"></i>${tr("разговоры: старое → новое")}</span><span><i style="background:${GOLD};box-shadow:0 0 6px #fff"></i>${tr("боковые ветки — сессии-субагенты")}</span><span><i style="background:#6fb0e8"></i>${tr("код (Graphify)")}</span><span>${tr("крупнее — решения и смены решений")}</span>`,
+    return { l3: true, legend: `<span><i style="background:linear-gradient(90deg,${CORAL},${GOLD})"></i>${tr("разговоры")}: ${tr("ствол → реплики")}</span><span><i style="background:${GOLD};box-shadow:0 0 6px #fff"></i>${tr("боковые ветки — сессии-субагенты")}</span><span><i style="background:#6fb0e8"></i>${tr("код (Graphify)")}</span><span>${tr("крупнее — решения и смены решений")}</span>`,
       start() { if (!built) build(); $("#app").classList.add("l3"); size(); if (!on) { on = true; last = 0; raf = requestAnimationFrame(frame); } },
       stop() { on = false; cancelAnimationFrame(raf); $("#app").classList.remove("l3"); }, layout() { if (built) size(); }, fire, flare,
       count: () => beads.length,

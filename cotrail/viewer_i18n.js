@@ -78,6 +78,7 @@ const I18N = (() => {
     "~/.cotrail/<проект>/calls.jsonl": "~/.cotrail/<project>/calls.jsonl", "Жду вызовов…": "Waiting for calls…", "Живой эфир:": "For live updates:",
     "В памяти пока нет записей.": "Memory is empty so far.", "другие темы ({0})": "other topics ({0})", "тема {0}": "topic {0}",
     "Язык": "Language",
+    "ствол → реплики": "trunk → messages",
     "делать {0} · не делать {1}": "{0} decided · {1} ruled out",
   };
   const fill = (s, a) => s.replace(/\{(\d+)\}/g, (_, i) => a[i] ?? "");

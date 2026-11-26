@@ -150,20 +150,44 @@ def trees(mem, rec_status: dict[str, str] | None = None, max_code: int = 4000) -
         parent[ss] = p
     order = sorted(by, key=lambda ss: first_of[ss][1])
     idx = {ss: i for i, ss in enumerate(order)}
+    try:
+        titles = dict(s.q("SELECT session, title FROM session_titles"))
+    except Exception:  # noqa: BLE001 - an older store
+        titles = {}
+    authors = mem.authors() if hasattr(mem, "authors") else {}
+    team = len(set(authors.values())) > 1
     sessions, turns = [], []
     for ss in order:
         v = by[ss]
-        lab = next((x[3] for x in v if x[2] == "user"), v[0][3])
+        lab = titles.get(ss) or (ss[5:] if ss.startswith("chat:") else "") or next((x[3] for x in v if x[2] == "user"), v[0][3])
+        who = Counter(authors.get(e, "") for e, *_ in v).most_common(1)[0][0] if team else ""
         sessions.append({"id": ss[:12], "n": len(v), "first": v[0][1][:19], "last": v[-1][1][:19], "label": _cut(lab, 60),
-                         "side": ss in side, "parent": idx.get(parent.get(ss), -1),
-                         "src": "claude.ai" if ss.startswith("claude.ai") else "cc"})  # fmt: skip
+                         "side": ss in side, "parent": idx.get(parent.get(ss), -1), "title": bool(titles.get(ss)),
+                         "author": who, "src": "claude.ai" if ss.startswith("claude.ai") else "chat" if ss.startswith(
+                             "chat:") else "cc"})  # fmt: skip
         for e, ts, role, text in v:
             turns.append([e[:8], idx[ss], ts[:19], "u" if role == "user" else "a", st.get(e[:8], ""), _cut(text, 140)])
-    code = []
+    members = [m for m, _ in Counter(x["author"] for x in sessions if x["author"]).most_common()]
     try:
-        nodes = s.q("SELECT label, file, loc FROM code_nodes WHERE file != '' ORDER BY file, loc, label")
-    except Exception:  # noqa: BLE001 - no Graphify layer
-        nodes = []
+        allnodes = s.q("SELECT label, file, loc, member FROM code_nodes WHERE file != '' ORDER BY member, file, loc, label")
+    except Exception:  # noqa: BLE001 - no Graphify layer, or one without members
+        try:
+            allnodes = [(*r, "") for r in s.q("SELECT label, file, loc FROM code_nodes WHERE file != '' ORDER BY file, loc, label")]
+        except Exception:  # noqa: BLE001
+            allnodes = []
+    codes = []
+    me = getattr(mem, "author", "") if team or any(r[3] for r in allnodes) else ""
+    for m in dict.fromkeys(r[3] for r in allnodes):
+        layer = _code_dirs([r[:3] for r in allnodes if r[3] == m], max_code)
+        if layer:
+            codes.append({"member": m or me, "own": not m, "dirs": layer})
+    return {"sessions": sessions, "turns": turns, "code": codes[0]["dirs"] if len(codes) == 1 else [],
+            "codes": codes if len(codes) > 1 or (codes and codes[0]["member"]) else [], "members": members if team else []}
+
+
+def _code_dirs(nodes: list, max_code: int) -> list[dict]:
+    """A code tree: a branch per top folder, a twig per file, its symbols as beads."""
+    code = []
     nodes = [n for n in nodes if "/vendor/" not in "/" + n[1] and not n[1].endswith(".min.js")][:max_code]
     dirs: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
     top1 = Counter(f.split("/", 1)[0] if "/" in f else "." for _, f, _ in nodes)
@@ -176,4 +200,4 @@ def trees(mem, rec_status: dict[str, str] | None = None, max_code: int = 4000) -
     for d, files in sorted(dirs.items(), key=lambda kv: -sum(len(v) for v in kv[1].values())):
         code.append({"name": d, "n": sum(len(v) for v in files.values()),
                      "files": [{"name": f, "nodes": v} for f, v in sorted(files.items(), key=lambda kv: -len(kv[1]))]})  # fmt: skip
-    return {"sessions": sessions, "turns": turns, "code": code}
+    return code

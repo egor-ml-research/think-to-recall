@@ -1,4 +1,4 @@
-"""Concept aliases (cotrail/aliases.py): the synthetic dev set of reports/realworld/aliases_rule.md, written with the
+"""Concept aliases (cotrail/aliases.py): the synthetic dev set of the aliases rule, written with the
 rule before the q01-q30 regression. Idea from Hindsight (MIT): trigram entity resolution."""
 
 from __future__ import annotations

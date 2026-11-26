@@ -245,6 +245,22 @@ or run `cotrail import-claude-ai export.zip --match "..."`. Re-importing a newer
 The export is a one-time import of your history; after it, new chats are saved through the assistant
 (`save_chat`), no new exports needed.
 
+## One memory server for several projects
+
+A client that runs one server for all chats (Claude Desktop) can use every project's memory: each memory tool takes
+`memory=<name>` (the repository or folder name, as `list_memories` shows it). When the server's folder holds several
+projects (a projects root or your home folder), there is no default: a call without `memory=` returns the list, and
+an ambiguous name returns the choices. In Claude Code the session folder is the memory, nothing to choose.
+
+The assistant can also connect things for you, always as a dry run first: `connect_folder` (a folder to its own or an
+existing memory, with its Claude Code chats), `find_chats` / `import_chats` (earlier Claude Code chats or a claude.ai
+export, imported only after `confirm=true`).
+
+**Inbox.** Tasks for Claude Code that an advisor chat (claude.ai / Claude Desktop) wrote under «Сообщение для Claude
+Code:» / "Message for Claude Code:" become inbox items: the session start shows the open ones, `inbox` lists them,
+and an item closes only on an explicit report (its id and a done word) or by hand (`cotrail inbox done <id>`;
+`reopen <id>` opens it again). The same rule closes "later" items; a near match only says "looks done - confirm".
+
 ## How recall works
 
 **One unit = your turn plus the assistant's report.** A turn of yours and the assistant's last message before your
@@ -362,6 +378,22 @@ and the conversation concepts and decisions that mention it. Re-importing replac
 - After the one-time model download, nothing goes to the network.
 - The graph view embeds quotes from your conversations. Treat the HTML file as private, like the store itself.
 - `forget` hides a turn from recall. To remove a project's memory completely, delete its folder in `~/.cotrail`.
+
+## Compared with Hindsight
+
+[Hindsight](https://github.com/vectorize-io/hindsight) (MIT) is an agent memory that has an LLM extract facts,
+entities and dates from every chunk, then consolidate them into observations. Its recall combines vectors, BM25, an
+entity/time graph and a reranker. This comparison is by its documentation and paper; we have not run it on our history.
+
+- **Building.** Hindsight calls an LLM for every chunk it stores. cotrail calls none and keeps your turns as they were.
+  For our project's history (about 1.5M characters) we estimate 20–40 hours to build Hindsight on a laptop CPU with a
+  local 3B model through Ollama. This is an estimate, not a measurement. cotrail builds the same history in seconds.
+- **What comes back.** cotrail returns your turns verbatim, without an LLM paraphrase, with dates and statuses. It
+  marks a decision replaced later as outdated. Hindsight returns the facts its LLM extracted, and reflect answers with an LLM.
+- **Where Hindsight is ahead.** It has entity resolution, time-window queries, a reranker and published scores on
+  LongMemEval and LoCoMo (with 20B–120B models). cotrail took one idea from it, merging name variants of a concept
+  ("Postgres" / "PostgreSQL") by trigram similarity, re-implemented without an LLM.
+
 
 ## Limits
 

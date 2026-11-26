@@ -13,6 +13,10 @@
     cotrail hook-start             # Claude Code SessionStart hook: one line of open "later" items
     cotrail later                  # open "later" items (chat + .beads/*.jsonl, read-only)
     cotrail overview               # a map of the project: code areas + their newest decisions (<= ~600 tokens)
+    cotrail sync [--remote URL]    # share the memory through a PRIVATE git repo (one episode log per device)
+    cotrail team join URL          # team memory: connect the PRIVATE repo, import this project's sessions, sync on
+    cotrail team status | check    # members, last sync, records per member | scan the repo for secrets / paths
+    cotrail add-episode --role user --text "..."   # a turn of an external chat (claude.ai), or --file x.jsonl
 
 All commands work on the project in the current directory (or --project / COTRAIL_PROJECT).
 """
@@ -20,11 +24,14 @@ All commands work on the project in the current directory (or --project / COTRAI
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
+HAS_TEAM = importlib.util.find_spec("cotrail.team") is not None  # team memory is an optional part
 
 def _mem(project):
     from cotrail.memory import ProjectMemory
@@ -235,7 +242,14 @@ def cmd_hook_stop(a) -> None:
     except json.JSONDecodeError:
         return
     if data.get("transcript_path"):
-        queue_transcript(data.get("cwd") or a.project or Path.cwd(), data["transcript_path"])
+        project = data.get("cwd") or a.project or Path.cwd()
+        queue_transcript(project, data["transcript_path"])
+        try:  # sync in the background when configured; never blocks or fails the hook
+            from cotrail.sync import spawn_background
+
+            spawn_background(project, a.home)
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def cmd_hook_turn(a) -> None:
@@ -264,10 +278,23 @@ def cmd_hook_start(a) -> None:
 
         project = Path(data.get("cwd") or a.project or Path.cwd())
         lines, lang = [], None
+        try:  # team memory: pull (and push) in the background - the session start waits for nothing
+            from cotrail.sync import spawn_background
+
+            spawn_background(project, a.home)
+        except Exception:  # noqa: BLE001
+            pass
         if store_exists(project):
             m = ProjectMemory(project)
             lines.append(m.later_line())
+            lines.append(m.inbox_line())
             lang = m.lang
+            try:
+                from cotrail import autosync as AS
+
+                lines += AS.start_lines(project, a.home, lang or "ru")
+            except Exception:  # noqa: BLE001
+                pass
         g = global_rules()  # rules for all projects: in the SessionStart line of every project, with or without a store
         if g:
             head = "Общие правила" if (lang or ui_lang()) == "ru" else "Global rules"
@@ -283,22 +310,142 @@ def cmd_hook_start(a) -> None:
 def cmd_overview(a) -> None:
     from cotrail.overview import overview
 
-    print(overview(_existing(a), max_chars=a.max_chars))
+    text = overview(_existing(a), max_chars=a.max_chars)
+    import contextlib
+
+    with contextlib.suppress(AttributeError, ValueError):
+        sys.stdout.reconfigure(errors="replace")  # a cp1251 console has no "↔" / "→"
+    print(text)
 
 
 def cmd_later(a) -> None:
     from cotrail.memory import format_later
 
     m = _existing(a)
+    if a.args[:1] in (["done"], ["reopen"]) and len(a.args) == 2:
+        ok = m.close_by_hand(a.args[1], "later", reopen=a.args[0] == "reopen")
+        print(("Reopened." if a.args[0] == "reopen" else "Closed.") if ok else f"No 'later' item {a.args[1]}.")
+        return
     if a.json:
         return _json(m.later_json(a.limit))
     print(format_later(m.later(a.limit)))
 
 
-def cmd_setup(a) -> None:
-    from cotrail import setup as S
+def cmd_inbox(a) -> None:
+    from cotrail.memory import format_inbox
 
+    m = _existing(a)
+    if a.args[:1] in (["done"], ["reopen"]) and len(a.args) == 2:
+        ok = m.close_by_hand(a.args[1], "inbox", reopen=a.args[0] == "reopen")
+        print(("Reopened." if a.args[0] == "reopen" else "Closed.") if ok else f"No inbox item {a.args[1]}.")
+        return
+    items = m.inbox(include_done=a.all)
+    if a.json:
+        return _json(items)
+    print(format_inbox(items))
+
+
+def cmd_sync(a) -> None:
+    from cotrail import sync as S
+
+    project = Path(a.project or Path.cwd())
+    try:
+        S.sync(project, a.remote, a.home, log=lambda m: print(m, flush=True))  # quiet (the hook): stdout is sync.log
+    except (S.SyncError, OSError, subprocess.SubprocessError) as e:  # the hook's run: a line in sync.log, retried next time
+        print(f"sync failed {S.dt.datetime.now().isoformat(timespec='seconds')}: {e}", flush=True,
+              file=sys.stdout if a.quiet else sys.stderr)
+        if "another sync is running" not in str(e):
+            from cotrail import autosync as AS
+
+            AS.record_failure(project, a.home, str(e))
+        if not a.quiet:
+            sys.exit(1)
+    finally:
+        if a.quiet:
+            S.trim_log(S.store_dir(project, a.home) / "sync.log")
+
+
+def cmd_graph_refresh(a) -> None:
+    from cotrail import autosync as AS
+    from cotrail import sync as S
+
+    project = Path(a.project or Path.cwd())
+    if a.background:  # from a git hook: detach and return at once
+        S.spawn_background(project, a.home, ("graph-refresh",))
+        return
+    try:
+        print(AS.graph_refresh(project, a.home, log=lambda m: print(m, flush=True)), flush=True)
+    except (S.SyncError, OSError, subprocess.SubprocessError) as e:
+        print(f"graph refresh failed: {e}", flush=True)
+        AS.record_failure(project, a.home, str(e))
+
+
+def cmd_update(a) -> None:
+    from cotrail import autosync as AS
+    from cotrail import sync as S
+
+    project = Path(a.project or Path.cwd())
+    repo = S.repo_dir(project, a.home)
+    cfg = AS._read_home(a.home)
+    AS._write_home(a.home, cfg | {"update": {}})  # check again now
+    AS.check_update(repo if (repo / ".git").exists() else None, a.home, log=lambda m: None)
+    print(AS.update_text(a.home))
+
+
+def cmd_team(a) -> None:
+    from cotrail import repo_check as RC
+    from cotrail import sync as S
+    from cotrail import team as T
+
+    project = Path(a.project or Path.cwd())
+    if a.team_cmd == "join" and not a.force and T.folder_problem(project, a.home):
+        sys.exit("team join: " + T.folder_problem(project, a.home))
+    if a.team_cmd == "leave":
+        r = T.leave(project, a.home)
+        print(f"Left the team memory {r['remote']}: sync is off for this project; the local memory stays in "
+              f"{r['store']}. Records already pushed stay in that repository." if r["left"]
+              else "This project is not in a team (nothing to leave).")  # fmt: skip
+    elif a.team_cmd == "join" and a.dry_run:
+        from cotrail import assistant_setup as A
+
+        print(A.join_team(a.remote, str(project.resolve()), name=a.name, home=a.home).replace(
+            "call again with confirm=true", "run again without --dry-run"))
+    elif a.team_cmd == "join":
+        try:
+            T.join(project, a.remote, a.home, name=a.name, import_history=not a.no_history, force=a.force,
+                   graphify=None if a.graphify is None else a.graphify == "yes")
+        except (T.TeamError, S.SyncError) as e:
+            sys.exit(f"team join: {e}")
+        bad = RC.check_repo(S.repo_dir(project, a.home))
+        print(RC.report(bad))
+    elif a.team_cmd == "status":
+        st = T.status(project, a.home)
+        print(T.status_json(st) if a.json else T.format_status(st))
+    else:
+        bad = RC.check_repo(a.repo or S.repo_dir(project, a.home))
+        print(RC.report(bad))
+        if bad:
+            sys.exit(1)
+
+
+def cmd_add_episode(a) -> None:
+    from cotrail import episodes as S
+
+    if a.file:
+        rows = S.read_jsonl(a.file, a.source, a.session)
+    elif a.text:
+        rows = [S.make_episode(a.role, a.text, a.ts, a.source, a.session)]
+    else:
+        sys.exit("give --text (with --role) or --file")
+    from cotrail.memory import ProjectMemory
+
+    r = S.add_episodes(ProjectMemory(a.project, home=S.home_dir(a.home)), rows)
+    print(f"Added {r['new']} new of {len(rows)} episode(s) (secret filter applied); `cotrail sync` shares them.")
+
+
+def cmd_setup(a) -> None:
     from cotrail import clients as C
+    from cotrail import setup as S
 
     yn = {"yes": True, "no": False, "show": "show", None: None}
     flags = {"import": yn[a.import_history], "graphify": yn[a.graphify], "wordnet": yn[a.wordnet]}
@@ -313,9 +460,9 @@ def cmd_setup(a) -> None:
 
 def cmd_import_graphify(a) -> None:
     from cotrail import graphify as GF
-    from cotrail.memory import HOME, project_slug
+    from cotrail.memory import store_dir
 
-    db = HOME / project_slug(Path(a.project or Path.cwd()).resolve()) / "graph.sqlite"
+    db = store_dir(Path(a.project or Path.cwd()).resolve()) / "graph.sqlite"
     if not db.exists():
         sys.exit(f"No memory for this project yet ({db}); run `cotrail setup` first.")
     r = GF.import_graph(db, a.path)
@@ -408,7 +555,47 @@ def main(argv=None) -> None:
     p = sub.add_parser("later", help="open 'later' items: deferred decisions, 'later' answers, deferred Beads issues")
     p.add_argument("--limit", type=int, default=50)
     p.add_argument("--json", action="store_true", help="a JSON array (README: JSON output)")
+    p.add_argument("args", nargs="*", help="`done <id>` / `reopen <id>`: close or reopen an item by hand")
     p.set_defaults(f=cmd_later)
+    p = sub.add_parser("inbox", help="tasks for Claude Code from the advisor chat; `inbox done <id>` closes one")
+    p.add_argument("args", nargs="*", help="`done <id>` / `reopen <id>`: close or reopen an item by hand")
+    p.add_argument("--all", action="store_true", help="also the closed ones")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(f=cmd_inbox)
+    if HAS_TEAM:  # team memory (experimental): only in a build that ships cotrail/team.py
+        p = sub.add_parser("sync", help="sync the memory through a private git repo (episode logs, one file per device)")
+        p.add_argument("--remote", help="git url of the PRIVATE sync repo (remembered after the first use)")
+        p.add_argument("--quiet", action="store_true", help="no output on success; errors do not fail (the hook's mode)")
+        p.set_defaults(f=cmd_sync)
+        p = sub.add_parser("team", help="team memory through a PRIVATE git repo: join, status, check")
+        ts = p.add_subparsers(dest="team_cmd", required=True)
+        q = ts.add_parser("join", help="connect the PRIVATE memory repo, import this project's sessions, turn sync on")
+        q.add_argument("remote", help="git url of the PRIVATE memory repo")
+        q.add_argument("--name", help="your name on the records (default: git config user.name)")
+        q.add_argument("--no-history", action="store_true", help="do not import this project's Claude Code sessions")
+        q.add_argument("--dry-run", action="store_true", help="only show what would be pushed and held back; write nothing")
+        q.add_argument("--force", action="store_true", help="join even from a folder without a git remote / the home folder")
+        q.add_argument("--graphify", choices=["yes", "no"], help="rebuild and share the code graph after commits (installs "
+                       "Graphify into cotrail's environment when first needed); default: ask, or no without a terminal")
+        ts.add_parser("leave", help="turn team sync off for this project (the local memory stays)")
+        q = ts.add_parser("status", help="members, last sync, records per member")
+        q.add_argument("--json", action="store_true")
+        q = ts.add_parser("check", help="scan the memory repo (local clone) for secrets, e-mails, home folders")
+        q.add_argument("--repo", help="a folder with the repo (default: this project's sync clone)")
+        p.set_defaults(f=cmd_team)
+        p = sub.add_parser("graph-refresh", help="(git hooks) rebuild the code graph when code changed, then sync")
+        p.add_argument("--background", action="store_true")
+        p.set_defaults(f=cmd_graph_refresh)
+        sub.add_parser("update", help="how to update cotrail to the newest build (team repo tools/ or PyPI)").set_defaults(
+            f=cmd_update)
+    p = sub.add_parser("add-episode", help="add turns of an external chat (claude.ai etc.) to the memory")
+    p.add_argument("--role", choices=["user", "assistant"], default="user")
+    p.add_argument("--text")
+    p.add_argument("--ts", help="ISO time (default: now)")
+    p.add_argument("--source", default="claude-ai")
+    p.add_argument("--session", help="conversation id (default: <source>-<date>)")
+    p.add_argument("--file", help="JSONL with {role, text, ts?, session?, source?} per line")
+    p.set_defaults(f=cmd_add_episode)
     p = sub.add_parser("setup", help="connect this project: MCP server, Stop hook; then the questions once (history, "
                                      "code graph, WordNet; --quality: + model)")
     p.add_argument("-y", "--yes", action="store_true",
@@ -435,6 +622,9 @@ def main(argv=None) -> None:
             pass
     if a.home:  # before cotrail.memory is imported: its HOME is read once
         os.environ["COTRAIL_HOME"] = a.home
+        mm = sys.modules.get("cotrail.memory")
+        if mm is not None:  # already imported (tests, a long-lived process): --home must still win
+            mm.HOME = Path(a.home)
     if a.lang:
         os.environ["COTRAIL_LANG"] = a.lang
     from cotrail.model import DownloadFailed, ModelMissing

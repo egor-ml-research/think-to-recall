@@ -206,3 +206,12 @@ def test_trees_split_a_dominant_folder(tmp_path):
     db.executemany("INSERT INTO code_nodes VALUES (?,?,?,?,?,?)", rows)
     db.commit()
     assert [d["name"] for d in trees(m)["code"]] == ["app/sync", "app/paywall", "tests"]
+
+
+def test_live_memory_is_one_living_tree_with_code_beside_it(tmp_path):
+    pytest.importorskip("networkx")
+    from cotrail.viewer import export_html
+
+    html = export_html(_mem(tmp_path), out=tmp_path / "v.html", mode="live").read_text("utf-8")
+    assert "function chatTree()" in html and "function codeTree()" in html and "function twigs(" in html
+    assert "CHAT_X" not in html and '"ствол → реплики": "trunk → messages"' in html

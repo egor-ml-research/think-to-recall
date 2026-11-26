@@ -173,7 +173,9 @@ def test_hook_rows_import_through_add_episode(env):
     _store(proj)
     C.hook_turn("gemini", json.dumps({"prompt": "Decision: we store dates in UTC.", "prompt_response": "Noted, UTC.",
                                       "session_id": "g", "cwd": str(proj)}), None, None, spawn=False)
-    f = next((C._store_dir(proj, None) / "hook_turns").glob("*.jsonl"))
+    from cotrail.memory import store_dir
+
+    f = next((store_dir(proj) / "hook_turns").glob("*.jsonl"))
     from cotrail.cli import main
 
     main(["--project", str(proj), "hook-import", "--file", str(f)])

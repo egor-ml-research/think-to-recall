@@ -1,6 +1,6 @@
 """Name variants of one concept ("Postgres" / "PostgreSQL", "ctx-graph" / "cotrail", "постгрес" / "postgres").
 
-Rule: reports/realworld/aliases_rule.md (written before the code). The idea - entity resolution by trigram
+Rule: the aliases rule (written before the code). The idea - entity resolution by trigram
 similarity with pg_trgm-style thresholds - is taken from Hindsight (github.com/vectorize-io/hindsight, MIT,
 Copyright (c) Vectorize); this is our own re-implementation, no code copied. No model, no LLM.
 

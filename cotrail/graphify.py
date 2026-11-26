@@ -64,7 +64,75 @@ def load(path: str | Path) -> dict:
 def connect(db_path: str | Path) -> sqlite3.Connection:
     db = sqlite3.connect(str(db_path))
     db.executescript(SCHEMA)
+    cols = {r[1] for r in db.execute("PRAGMA table_info(code_nodes)")}
+    if "member" not in cols:  # team memory: '' = this device's own graph, else a member's graph from the memory repo
+        db.execute("ALTER TABLE code_nodes ADD COLUMN member TEXT NOT NULL DEFAULT ''")
+        db.commit()
     return db
+
+
+MAX_LABEL = 120
+MAX_NODES = 20000
+
+
+def _rel(file: str, root: Path | None) -> str:
+    """A path relative to the clone root; an absolute path outside it keeps only its file name (never a home path)."""
+    f = (file or "").replace("\\", "/")
+    if not f:
+        return ""
+    if re.match(r"^([A-Za-z]:/|/)", f):
+        if root is not None:
+            r = str(root.resolve()).replace("\\", "/").rstrip("/") + "/"
+            if f.lower().startswith(r.lower()):
+                return _norm_path(f[len(r):])
+        return _norm_path(f.rsplit("/", 1)[-1])
+    return _norm_path(f)
+
+
+def compact(path: str | Path, root: str | Path | None, member: str) -> dict:
+    """A member's Graphify graph for the team repo (team_graphs rule): node id, label, file relative to the clone
+    root, location, community; edges id-id, relation, confidence. No source text, no absolute paths."""
+    data = load(path)
+    root = Path(root) if root else None
+    nodes, seen = [], set()
+    for n in data["nodes"][:MAX_NODES]:
+        nid = str(n.get("id", ""))[:200]
+        if not nid or nid in seen:
+            continue
+        seen.add(nid)
+        com = n.get("community")
+        nodes.append([nid, str(n.get("label") or nid)[:MAX_LABEL], _rel(str(n.get("source_file") or ""), root),
+                      str(n.get("source_location") or "")[:40], com if isinstance(com, int) else None])  # fmt: skip
+    edges = []
+    for e in data.get("links", data.get("edges", [])):
+        a, b = str(e.get("source", "")), str(e.get("target", ""))
+        if a in seen and b in seen and a != b:
+            edges.append([a, b, str(e.get("relation") or "related")[:40], str(e.get("confidence") or "EXTRACTED").upper()[:12]])
+    return {"member": member, "nodes": nodes, "edges": edges[: MAX_NODES * 4]}
+
+
+def import_members(db_path: str | Path, graphs: list[dict]) -> int:
+    """Replace the members' code layers (member != '') with these compact graphs; node ids get the member prefix."""
+    db = connect(db_path)
+    with db:
+        old = [r[0] for r in db.execute("SELECT id FROM code_nodes WHERE member != ''")]
+        db.execute("DELETE FROM code_nodes WHERE member != ''")
+        if old:
+            db.executemany("DELETE FROM code_edges WHERE src=?", [(x,) for x in old])
+        n = 0
+        for g in graphs:
+            m = str(g.get("member") or "?")
+            pre = f"{m}::"
+            rows = [(pre + x[0], x[1], x[2], x[3], "", x[4], m) for x in g.get("nodes", []) if len(x) >= 5]
+            db.executemany("INSERT OR IGNORE INTO code_nodes (id, label, file, loc, file_type, community, member) "
+                           "VALUES (?,?,?,?,?,?,?)", rows)  # fmt: skip
+            db.executemany("INSERT INTO code_edges VALUES (?,?,?,?,?,?)",
+                           [(pre + a, pre + b, rel, conf, SCORE.get(conf, 0.5), "code" if conf == "EXTRACTED" else "inferred")
+                            for a, b, rel, conf in (e[:4] for e in g.get("edges", []) if len(e) >= 4)])  # fmt: skip
+            n += len(rows)
+    link_conversation(db)
+    db.close()
+    return n
 
 
 def import_graph(db_path: str | Path, path: str | Path) -> dict:
@@ -92,11 +160,12 @@ def import_graph(db_path: str | Path, path: str | Path) -> dict:
                       "code" if conf == "EXTRACTED" else "inferred"))  # fmt: skip
     db = connect(db_path)
     with db:
-        db.execute("DELETE FROM code_nodes")
-        db.execute("DELETE FROM code_edges")
+        own = [r[0] for r in db.execute("SELECT id FROM code_nodes WHERE member = ''")]
+        db.execute("DELETE FROM code_nodes WHERE member = ''")  # the members' layers (team memory) stay
+        db.executemany("DELETE FROM code_edges WHERE src=?", [(x,) for x in own])
         db.execute("DELETE FROM code_links")
         db.execute("DELETE FROM code_meta")
-        db.executemany("INSERT INTO code_nodes VALUES (?,?,?,?,?,?)", nodes)
+        db.executemany("INSERT INTO code_nodes (id, label, file, loc, file_type, community) VALUES (?,?,?,?,?,?)", nodes)
         db.executemany("INSERT INTO code_edges VALUES (?,?,?,?,?,?)", edges)
         meta = {"source": data["_path"], "imported": time.strftime("%Y-%m-%d %H:%M"),
                 "graphify_version": str((data.get("graph") or {}).get("graphify_version", "")),

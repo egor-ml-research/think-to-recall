@@ -21,6 +21,24 @@ NOISE = re.compile(r"<system-reminder>.*?</system-reminder>|<task-notification>.
                    r"<agent-message.*?</agent-message>|\[Request interrupted[^\]]*\]|\[SYSTEM NOTIFICATION[^\n]*|"
                    r"<(side-sessions-event|ci-monitor-event)[^>]*>.*?</\1>|^API Error:[^\n]*", re.S | re.M)  # fmt: skip
 PASTE = re.compile(r"</?pasted_content[^>]*>")
+PASTE_BLOCK = re.compile(r"<pasted_content[^>]*>(.*?)</pasted_content>", re.S)
+TERM_START = re.compile(r"^\s*(PS [A-Za-z]:\\[^>\n]*>|\$ )")
+
+
+def pasted_blocks(raw: str) -> str:
+    """The pasted material of a user turn (the inbox rule B): `<pasted_content>` blocks and terminal blocks (a line
+    `PS C:\\...>` / `$ ` and the non-blank lines after it); "" when none."""
+    out = [m.group(1).strip() for m in PASTE_BLOCK.finditer(raw or "")]
+    cur: list[str] | None = None
+    for ln in PASTE_BLOCK.sub("\n", raw or "").splitlines():
+        if TERM_START.match(ln):
+            cur = [ln]
+            out.append(cur)  # type: ignore[arg-type]
+        elif cur is not None and ln.strip():
+            cur.append(ln)
+        else:
+            cur = None
+    return "\n\n".join(b if isinstance(b, str) else "\n".join(b) for b in out if b).strip()
 FENCE = re.compile(r"```.*?(```|$)", re.S)
 # a line of tool / git / log output rather than something a person said
 OUTPUT_LINE = re.compile(
@@ -45,21 +63,21 @@ def is_short(text: str) -> bool:
 # Dialogue act of a short user turn (ISO 24617-2 / DAMSL classes, rules written before
 # the check). Checked in this order, the first that fires wins: reject / defer -> status -> agree -> directive -> other.
 ACT_REJECT = re.compile(r"^(нет|не надо|не нужно|не стоит|отмена|отменяй|стоп|no|nope|don'?t|cancel|stop|"
-                        # v2 (english_cues_v2_rule.md)
+                        # v2 (the english cues v2 rule)
                         r"nah|not that|let'?s not|skip( it| that)?|never ?mind|scratch that|scrap( it| that)?|forget)\b", re.I)
 ACT_DEFER = re.compile(r"\b(потом|позже|подожди|погоди|не сейчас|сначала обсудим|обсудим|later|wait|not now|hold on|"
                        r"postpone|discuss first|let'?s discuss|"
-                       # v2 (english_cues_v2_rule.md)
+                       # v2 (the english cues v2 rule)
                        r"revisit|park( it| that)?|table( it| that)|punt|tomorrow|next (week|sprint|time)|hold off|hang on|"
                        r"(a|one) (sec|second|minute|moment)|remind me|someday)\b", re.I)
 ACT_STATUS_WORDS = {"готово", "готов", "завершён", "завершен", "завершено", "закончилось", "ошибка", "ошибкой", "упал",
                     "упало", "done", "started", "finished", "failed", "error", "crashed", "deleted", "ready"}
 ACT_ED_EXCEPT = {"need", "seed", "feed", "speed", "bed"}
-# v2 (english_cues_v2_rule.md): "still broken", "works now", "ci is green"
+# v2 (the english cues v2 rule): "still broken", "works now", "ci is green"
 ACT_STATUS = re.compile(r"\b(still (broken|failing|red)|works now|working now|(is|are) (green|red|broken|passing|failing))\b")
 ACT_AGREE = re.compile(r"^(да|ага|угу|ок|окей|ok|okay|давай|давайте|согласен|согласна|конечно|хорошо|ладно|принято|yes|"
                        r"yep|yeah|sure|go|fine|agreed|approved|lgtm|sounds good|go ahead|do it|let'?s go|"
-                       # v2 (english_cues_v2_rule.md)
+                       # v2 (the english cues v2 rule)
                        r"ship it|perfect|makes sense|alright|all right|works for me|great|nice|cool)\b", re.I)
 ACT_EN_VERBS = {"fix", "do", "push", "start", "connect", "continue", "run", "delete", "check", "add", "make", "try",
                 "commit", "merge", "retry", "rerun", "proceed", "use", "keep", "remove", "revert", "apply", "deploy",
@@ -107,7 +125,7 @@ QUOTED = re.compile(r"«[^»]*»|`[^`]*`|\"[^\"]*\"")
 
 def is_request(assistant_text: str) -> bool:
     """The assistant's message asks the user to do something: a Russian imperative verb outside quotes, English
-    "please", or a sentence starting with an English verb of the directive list (dialog_acts_rule.md, addendum 2)."""
+    "please", or a sentence starting with an English verb of the directive list (the dialog acts rule, addendum 2)."""
     s = QUOTED.sub(" ", assistant_text)
     if re.search(r"\bplease\b", s, re.I):
         return True
@@ -199,9 +217,25 @@ def clean(text: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
+def title_of(lines: list[str]) -> str:
+    """A Claude Code session's title: its `summary` record (the name the app shows), else ""."""
+    for line in lines:
+        if '"summary"' not in line:
+            continue
+        try:
+            r = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if r.get("type") == "summary" and isinstance(r.get("summary"), str) and r["summary"].strip():
+            return r["summary"].strip()[:120]
+    return ""
+
+
 def turns(path: Path):
     after_summary = False  # the next kept turn comes right after a compaction summary
-    for line in path.read_text("utf-8", errors="replace").splitlines():
+    lines = path.read_text("utf-8", errors="replace").splitlines()
+    title = title_of(lines)
+    for line in lines:
         try:
             r = json.loads(line)
         except json.JSONDecodeError:
@@ -228,6 +262,7 @@ def turns(path: Path):
         uid = r.get("uuid") or hashlib.sha1(f"{path.stem}|{r.get('timestamp')}|{text[:200]}".encode()).hexdigest()
         yield {"id": uid, "session": r.get("sessionId") or path.stem, "role": role, "ts": r.get("timestamp", ""),
                "text": text, "source": "transcript", "after_summary": after_summary and role == "user",
+               "pasted": pasted_blocks(_text(content)) if role == "user" and not agent else "", "title": title,
                "ask": _ask(content) if role == "assistant" else "",
                "agent": {k: agent[k] for k in ("kind", "parent")} if agent else None}  # fmt: skip
         after_summary = False

@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-from cotrail.legacy import OLD_SERVER_KEYS
 import json
 import os
 import shlex
@@ -27,6 +26,8 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+from cotrail.legacy import OLD_SERVER_KEYS
 
 YES = ("y", "yes", "д", "да")
 
@@ -270,7 +271,7 @@ def enable_quality(project: Path, home: str | None, assume: bool | None) -> bool
     data["quality"] = True
     _write_json(cfg, data)
     print(f"Quality mode: on for new stores ({cfg}).")
-    db = hdir / MM.project_slug(project) / "graph.sqlite"
+    db = MM.store_dir(project, hdir) / "graph.sqlite"
     stored = MM._stored_encoder(db)
     if stored and not stored.startswith("e5-"):
         bak = db.with_name(f"graph.sqlite.bm25-{time.strftime('%Y%m%d-%H%M%S')}")

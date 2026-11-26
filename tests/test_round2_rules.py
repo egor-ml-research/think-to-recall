@@ -141,6 +141,7 @@ def test_english_part_of_speech(word, ok):
 
     if not W.ready():  # without WordNet data every word passes as a noun (by design)
         pytest.skip("WordNet data not found (`cotrail setup` downloads it)")
+    T.en_noun_ok.cache_clear()  # an earlier test may have cached it while WordNet was not loaded
     assert T.en_noun_ok(word) is ok
 
 

@@ -112,5 +112,5 @@ def turns(conv: list[dict]) -> tuple[list[dict], dict]:
             ts = m.get("created_at") or c.get("created_at") or ""
             mid = m.get("uuid") or hashlib.sha1(f"{cid}|{ts}|{text[:200]}".encode()).hexdigest()
             out.append({"id": mid, "session": f"claude.ai:{cid}", "role": "user" if sender == "human" else "assistant",
-                        "ts": ts, "text": text, "source": "claude.ai"})  # fmt: skip
+                        "ts": ts, "text": text, "source": "claude.ai", "title": (c.get("name") or "")[:120]})  # fmt: skip
     return out, skipped

@@ -86,7 +86,7 @@ def test_model_guard_refuses_silent_download(tmp_path, monkeypatch):
 def test_mcp_tools_explain_missing_model(monkeypatch):
     from cotrail import memory_mcp as MM
 
-    def missing():
+    def missing(memory=None):
         raise M.ModelMissing("not downloaded; run `cotrail setup`")
 
     monkeypatch.setattr(MM, "mem", missing)

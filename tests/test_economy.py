@@ -124,7 +124,8 @@ def test_b_shown_records_reset_on_compaction_and_new_session(tmp_path, monkeypat
                 'continued from a previous conversation"}}\n')
     assert "shown earlier" not in memory_mcp.recall(q, detail="brief")
     assert "shown earlier" in memory_mcp.recall(q, detail="brief")
-    import os, time
+    import os
+    import time
 
     s2 = tdir / "s2.jsonl"  # a new session: a newer transcript
     s2.write_text('{"type":"user","message":{"role":"user","content":"hi"}}\n', "utf-8")

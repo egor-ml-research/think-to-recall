@@ -57,10 +57,37 @@ def test_open_items_and_session_line(tmp_path, monkeypatch):
     assert "#l7" in out and "#l1" in out
 
 
-def test_report_closes_an_item_only_with_three_shared_stems(tmp_path, monkeypatch):
+def test_shared_stems_only_propose_an_explicit_report_closes(tmp_path, monkeypatch):
+    # the close rule A5: before the rule a stem match keeps the old silent close, marked unconfirmed
+    old = _mem(tmp_path / "old", monkeypatch, RU + DONE)
+    assert not any("Redis" in i["text"] for i in old.later())
+    assert [i["closed"] for i in old.later(include_closed=True) if "Redis" in i["text"]] == [
+        "by the old rule (unconfirmed) #l9"]
+    import cotrail.memory as M
+
+    monkeypatch.setattr(M, "CLOSE_RULE_SINCE", "2000-01-01")  # these reports come after the rule
+    # the close rule A: >= 3 shared stems -> "looks done - confirm", the item stays open
     m = _mem(tmp_path, monkeypatch, RU + DONE)
-    texts = [i["text"] for i in m.later()]
-    assert not any("Redis" in t for t in texts) and any("CSV" in t for t in texts)
+    red = [i for i in m.later() if "Redis" in i["text"]]
+    assert red and red[0]["looks_done"] == "l9" and "Похоже, сделано — подтвердите: 1." in m.later_line()
+    assert "похоже, сделано" in format_later(m.later())
+    done_line = [_t(10, "user", "Закрой хвосты.", "2026-11-15T10:00:00Z", "s3"),
+                 _t(11, "assistant", "Готово: кэширование ответов через Redis, коммит 1a2b3c4.", "2026-11-15T11:00:00Z", "s3")]
+    m3 = _mem(tmp_path / "c", monkeypatch, RU + DONE + done_line)
+    assert not any("Redis" in i["text"] for i in m3.later())
+    closed = [i for i in m3.later(include_closed=True) if "Redis" in i["text"]]
+    assert closed[0]["closed"] == "by report #l11"
+    ru = [dict(t, id="laterx77" if t["id"] == "l7" else t["id"]) for t in RU]  # real ids are 8 characters long
+    by_id = [_t(12, "user", "Что с хвостами?", "2026-11-16T10:00:00Z", "s4"),
+             _t(13, "assistant", "Пункт #laterx77 закрыт в коммите 9f8e7d6.", "2026-11-16T11:00:00Z", "s4")]
+    mention = [_t(12, "user", "Что с хвостами?", "2026-11-16T10:00:00Z", "s4"),
+               _t(13, "assistant", "В память добавлен пункт #laterx77 про экспорт.", "2026-11-16T11:00:00Z", "s4")]
+    assert any("CSV" in i["text"] for i in _mem(tmp_path / "e", monkeypatch, ru + mention).later())  # a bare mention
+    m4 = _mem(tmp_path / "d", monkeypatch, ru + by_id)
+    assert not any("CSV" in i["text"] for i in m4.later())
+    assert m3.close_by_hand("l1", "later", reopen=True)  # reopened by hand: an explicit report no longer closes it
+    assert any("Redis" in i["text"] for i in m3.later())
+    assert m3.close_by_hand("l1", "later") and not any("Redis" in i["text"] for i in m3.later())
     weak = [_t(8, "user", "Посмотри Redis.", "2026-11-14T10:00:00Z", "s2"),
             _t(9, "assistant", "Redis ответов не хранит, коммит 7e8f9a0.", "2026-11-14T11:00:00Z", "s2")]
     m2 = _mem(tmp_path / "b", monkeypatch, RU + weak)

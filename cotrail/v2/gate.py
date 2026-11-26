@@ -12,8 +12,8 @@ dense top-`keep`; everything else keeps the dense order. No signal -> output == 
 
 from __future__ import annotations
 
-from collections import defaultdict
 import math
+from collections import defaultdict
 from dataclasses import dataclass
 
 from cotrail.v2.graph import Graph
