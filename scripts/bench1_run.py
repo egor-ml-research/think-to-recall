@@ -33,10 +33,10 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph import text as T  # noqa: E402
-from ctxgraph.v2 import extract as X  # noqa: E402
-from ctxgraph.v2.graph import Config, Graph  # noqa: E402
-from ctxgraph.v2.store import Store  # noqa: E402
+from cotrail import text as T  # noqa: E402
+from cotrail.v2 import extract as X  # noqa: E402
+from cotrail.v2.graph import Config, Graph  # noqa: E402
+from cotrail.v2.store import Store  # noqa: E402
 
 HIPPO_REPO, HIPPO_REV = "osunlp/HippoRAG_2", "5ec05b38de"
 DEV_REPO, DEV_REV, DEV_FILE = "dgslibisey/MuSiQue", "c8f4f8c946", "musique_ans_v1.0_dev.jsonl"
@@ -134,7 +134,7 @@ def build(corpus: list[dict], enc, out: Path, device: str) -> tuple[Graph, dict]
         enc.precompute([s for c in corpus for kind, s in X.sentences(f"{c['title']}\n{c['text']}") if kind == "sentence"])
     t_emb = time.time() - t0
     if todo:  # resumable: append-only, already ingested passages are skipped
-        from ctxgraph.v2 import english
+        from cotrail.v2 import english
 
         # spaCy over all English sentences at once (same text as the graph will see: scrubbed, marks removed)
         plain = [X._MARK.sub(" ", s) for c in corpus for kind, s in X.sentences(X.scrub(f"{c['title']}\n{c['text']}")[0])
@@ -230,7 +230,7 @@ def main() -> None:
     ap.add_argument("--limit", type=int, default=0, help="debug only: first N questions, own small corpus")
     ap.add_argument("--reranker", choices=["fp32", "int8", "none"], default="fp32")
     a = ap.parse_args()
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     out = Path(a.out) / (a.dataset + (f"_limit{a.limit}" if a.limit else ""))
     out.mkdir(parents=True, exist_ok=True)
@@ -241,7 +241,7 @@ def main() -> None:
     print("graph:", binfo, flush=True)
     scorer, variants = None, VARIANTS[:3]
     if a.reranker == "fp32":
-        from ctxgraph.e1b.selection import Reranker
+        from cotrail.e1b.selection import Reranker
 
         scorer = Reranker(BGE, revision=BGE_REV, device=a.device).score
     elif a.reranker == "int8":

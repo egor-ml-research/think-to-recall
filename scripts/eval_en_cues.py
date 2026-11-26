@@ -9,8 +9,8 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from ctxgraph.cc_transcripts import is_short, short_act
-from ctxgraph.memory import classify
+from cotrail.cc_transcripts import is_short, short_act
+from cotrail.memory import classify
 
 ROOT = Path(__file__).resolve().parents[1]
 MAP = {"do": "yes", "change": "yes", "not": "no", "hold": "hold", "later": "hold"}

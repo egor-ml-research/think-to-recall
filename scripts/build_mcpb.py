@@ -1,11 +1,11 @@
-"""Build the Claude Desktop extension `dist/ctxgraph-<version>.mcpb` (MCPB manifest spec 0.3).
+"""Build the Claude Desktop extension `dist/cotrail-<version>.mcpb` (MCPB manifest spec 0.3).
 
-The extension holds no code: Claude Desktop runs `ctxgraph-mcp` (`ctxgraph-mcpw.exe` on Windows: a GUI launcher, no
-console window) from the user's own install of the PyPI package (`uv tool install think-to-recall==<version>` or
+The extension holds no code: Claude Desktop runs `cotrail-mcp` (`cotrail-mcpw.exe` on Windows: a GUI launcher, no
+console window) from the user's own install of the PyPI package (`uv tool install cotrail==<version>` or
 `pipx install ...`; both put it in ~/.local/bin). The user picks the project folder once
-at install time; it is passed as CTXGRAPH_PROJECT. The memory stays on the user's computer (~/.ctxgraph).
+at install time; it is passed as COTRAIL_PROJECT. The memory stays on the user's computer (~/.cotrail).
 
-    python scripts/build_mcpb.py [--out dist/ctxgraph.mcpb] [--version 0.6.0]
+    python scripts/build_mcpb.py [--out dist/cotrail.mcpb] [--version 0.6.0]
 """
 
 from __future__ import annotations
@@ -40,34 +40,34 @@ TOOLS = [
 def manifest(version: str) -> dict:
     return {
         "manifest_version": "0.3",
-        "name": "ctxgraph",
-        "display_name": "ctxgraph",
+        "name": "cotrail",
+        "display_name": "cotrail",
         "version": version,
         "description": "Local decision memory: recalls what was decided, rejected or put off in this project's chats.",
         "long_description": (
-            "ctxgraph keeps a local memory of a project's conversations: decisions, refusals, deferrals, reports of "
+            "cotrail keeps a local memory of a project's conversations: decisions, refusals, deferrals, reports of "
             "done work. Ask \"add this chat to memory\" to save the current chat; later questions find what was "
-            "decided and why. Everything stays on your computer (~/.ctxgraph); nothing is sent anywhere.\n\n"
-            "**Prerequisite:** install the package once in a terminal: `uv tool install think-to-recall==" + version
-            + "` (or `pipx install think-to-recall==" + version + "`). The extension runs that install's "
-            "`ctxgraph-mcp` (`ctxgraph-mcpw.exe` on Windows, no console window) from ~/.local/bin."
+            "decided and why. Everything stays on your computer (~/.cotrail); nothing is sent anywhere.\n\n"
+            "**Prerequisite:** install the package once in a terminal: `uv tool install cotrail==" + version
+            + "` (or `pipx install cotrail==" + version + "`). The extension runs that install's "
+            "`cotrail-mcp` (`cotrail-mcpw.exe` on Windows, no console window) from ~/.local/bin."
         ),
         "author": {"name": "egor-ml-research", "url": "https://github.com/egor-ml-research"},
-        "repository": {"type": "git", "url": "https://github.com/egor-ml-research/think-to-recall"},
-        "homepage": "https://github.com/egor-ml-research/think-to-recall",
-        "documentation": "https://github.com/egor-ml-research/think-to-recall#readme",
-        "support": "https://github.com/egor-ml-research/think-to-recall/issues",
+        "repository": {"type": "git", "url": "https://github.com/egor-ml-research/cotrail"},
+        "homepage": "https://github.com/egor-ml-research/cotrail",
+        "documentation": "https://github.com/egor-ml-research/cotrail#readme",
+        "support": "https://github.com/egor-ml-research/cotrail/issues",
         "icon": "icon.png",
         "license": "Apache-2.0",
         "keywords": ["memory", "decisions", "local", "project", "history"],
         "server": {
             "type": "binary",
-            "entry_point": "ctxgraph-mcp",
+            "entry_point": "cotrail-mcp",
             "mcp_config": {
-                "command": "${HOME}/.local/bin/ctxgraph-mcp",
+                "command": "${HOME}/.local/bin/cotrail-mcp",
                 "args": [],
-                "env": {"CTXGRAPH_PROJECT": "${user_config.project}", "PYTHONIOENCODING": "utf-8"},
-                "platform_overrides": {"win32": {"command": "${HOME}/.local/bin/ctxgraph-mcpw.exe"}},  # no console window
+                "env": {"COTRAIL_PROJECT": "${user_config.project}", "PYTHONIOENCODING": "utf-8"},
+                "platform_overrides": {"win32": {"command": "${HOME}/.local/bin/cotrail-mcpw.exe"}},  # no console window
             },
         },
         "tools": [{"name": n, "description": d} for n, d in TOOLS],
@@ -102,7 +102,7 @@ def main() -> None:
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
     v = a.version or version_of(ROOT)
-    p = build(Path(a.out) if a.out else ROOT / "dist" / f"ctxgraph-{v}.mcpb", v)
+    p = build(Path(a.out) if a.out else ROOT / "dist" / f"cotrail-{v}.mcpb", v)
     print(p)
 
 

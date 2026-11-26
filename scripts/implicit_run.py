@@ -36,10 +36,10 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import bench1_run as B  # noqa: E402
 import evermem_stack as S  # noqa: E402
 
-from ctxgraph.v2 import extract as X  # noqa: E402
-from ctxgraph.v2.gate import PassageIndex, PprGateConfig, ppr_gated, q_weights, start_ppr  # noqa: E402
-from ctxgraph.v2.graph import Config, Graph, cid  # noqa: E402
-from ctxgraph.v2.store import Store  # noqa: E402
+from cotrail.v2 import extract as X  # noqa: E402
+from cotrail.v2.gate import PassageIndex, PprGateConfig, ppr_gated, q_weights, start_ppr  # noqa: E402
+from cotrail.v2.graph import Config, Graph, cid  # noqa: E402
+from cotrail.v2.store import Store  # noqa: E402
 
 TOP = 30
 VARIANTS = ["A", "B", "C", "D0", "D", "D+"]
@@ -170,7 +170,7 @@ class DenseCtx:
 
 
 def stage_embed_e5(cs, out: Path, device: str) -> None:
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     e5 = E5Encoder(B.E5, device=device, revision=B.E5_REV)
     for c in cs:
@@ -192,7 +192,7 @@ def row(c: dict, q: dict, rank: list[int], **extra) -> dict:
 
 # ── stages ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 def stage_graph(cs, out: Path, device: str, gcfg) -> None:
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     e5 = E5Encoder(B.E5, device=device, revision=B.E5_REV)
     todo = [c for c in cs if c["id"] not in done_corpora(out / "C.jsonl")]
@@ -260,7 +260,7 @@ def stack_for(c: dict, out: Path, rr, live_embed=None) -> S.Stack:
 
 
 def stage_stack(cs, out: Path, device: str, gcfg) -> None:
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     todo = [c for c in cs if c["id"] not in done_corpora(out / "D.jsonl")]
     if not todo:
@@ -302,7 +302,7 @@ def nvidia_llm() -> S.OpenAICompatLLM:
 
 
 def stage_dplus(cs, out: Path, device: str, gcfg, limit: int | None) -> None:
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     todo = [c for c in cs if c["id"] not in done_corpora(out / "D+.jsonl")]
     if not todo:
@@ -342,7 +342,7 @@ def stage_sleeves(cs, out: Path, device: str, gcfg, plans: Path) -> None:
     """Stage 2 (dev): plan steps -> sleeves. For each base (A = e5 dense, D0 = EverMemOS-style stack):
     S0 = base; SR = RRF(base, step retrievals) — sleeves without the graph; SG = base + gate whose starts also
     include the steps (concepts) and each step's top result (anchor)."""
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     plan = {json.loads(x)["id"]: json.loads(x)["steps"] for x in plans.read_text("utf-8").splitlines() if x.strip()}
     todo = [c for c in cs if c["id"] not in done_corpora(out / "SG_D0.jsonl")]
@@ -378,7 +378,7 @@ def stage_rrtrace(cs, out: Path, device: str, gcfg, plans: Path) -> None:
     the reranker scores of those passages (against the question; and the max over plan steps, descriptive). The
     check "candidate rr >= displaced rr - delta" is then replayed offline for any delta (`gate.pick`): the trace
     holds every quantity the loop reads, so the replay equals running the gate with the check."""
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     plan = {json.loads(x)["id"]: json.loads(x)["steps"] for x in plans.read_text("utf-8").splitlines() if x.strip()}
     todo = [c for c in cs if c["id"] not in done_corpora(out / "rrtrace.jsonl")]
@@ -420,7 +420,7 @@ def stage_sc(cs, out: Path, device: str, plans: Path) -> None:
     todo = [c for c in cs if c["id"] not in done_corpora(out / "SC_D0.jsonl")]
     if not todo:
         return
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     rr = S.QwenReranker(device=device)
     emb = S.QwenEmbedder(device="cpu")  # step queries only
@@ -462,7 +462,7 @@ def stage_sleeves_a(cs, out: Path, device: str, gcfg, plans: Path) -> None:
     """Stage 2 main (`prereg_stage2.md`, frozen 2026-11-08): base A only, no Qwen models (runs on CPU).
     S0 = A; SC = RRF(A, A(joined steps)); SR = RRF(A, A(step 1), ..., A(step n)); SG = A + gate with the steps'
     concepts and each step's A top-1 as extra starts. Same definitions as `stage_sleeves` / `stage_sc` (A part)."""
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     plan = {json.loads(x)["id"]: json.loads(x)["steps"] for x in plans.read_text("utf-8").splitlines() if x.strip()}
     keep = analysis_ids(cs, plan)

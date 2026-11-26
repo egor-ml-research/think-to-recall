@@ -1,6 +1,6 @@
 """A user turn that is a pasted assistant report (the pasted-reports rule, written before the code). Synthetic data only."""
 
-from ctxgraph.memory import ProjectMemory
+from cotrail.memory import ProjectMemory
 
 REPORT_RU = ("Готово: очередь задач переведена на SQLite, Redis удалён из зависимостей.\n\n"
              "## Что сделано\n"
@@ -65,7 +65,7 @@ def test_pasted_ru(tmp_path):
     m = ProjectMemory(tmp_path / "p", home=tmp_path / "h")
     m.import_turns(_turns(REPORT_RU, OWN_RU))
     _check(m, REPORT_RU, OWN_RU, ".env")
-    from ctxgraph.memory import status_label
+    from cotrail.memory import status_label
     assert status_label("pasted", "c2").startswith("вставленный отчёт") or status_label("pasted", "c2").startswith("pasted")
 
 

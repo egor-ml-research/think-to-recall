@@ -23,8 +23,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph.e1.llm import Client  # noqa: E402
-from ctxgraph.e1b.judge import RequestLedger, grade, load_spec  # noqa: E402
+from cotrail.e1.llm import Client  # noqa: E402
+from cotrail.e1b.judge import RequestLedger, grade, load_spec  # noqa: E402
 
 
 def load_env() -> None:
@@ -102,7 +102,7 @@ def main() -> None:
     print(f"ответов {len(recs)}, уже оценено {len(done)}, к оценке {len(todo)}", flush=True)
 
     if a.ledger_rub:  # платный API (timeweb): учёт в рублях с жёстким лимитом, как в E1
-        from ctxgraph.e1.budget import Ledger
+        from cotrail.e1.budget import Ledger
 
         ledger = Ledger(out.with_suffix(".spend.jsonl"), limit_rub=a.ledger_rub)
         ledger.n = 0

@@ -21,7 +21,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph import text as T  # noqa: E402
+from cotrail import text as T  # noqa: E402
 
 PROJECTS = ROOT / "benchmark_e1b" / "projects"  # --root меняет
 

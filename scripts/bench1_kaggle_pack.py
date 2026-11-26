@@ -1,4 +1,4 @@
-"""Pack the private Kaggle dataset `ctxgraph-bench1`: the ctxgraph package, the bench runner, WordNet data.
+"""Pack the private Kaggle dataset `ctxgraph-bench1`: the cotrail package, the bench runner, WordNet data.
 
     python scripts/bench1_kaggle_pack.py kaggle/bench1/data
     kaggle datasets create -p kaggle/bench1/data --dir-mode zip        # first time (private by default)
@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PATHS = ["ctxgraph", "scripts/bench1_run.py", "scripts/bench1b_run.py", "scripts/bench1b_config.json",
+PATHS = ["cotrail", "scripts/bench1_run.py", "scripts/bench1b_run.py", "scripts/bench1b_config.json",
          "scripts/evermem_stack.py", "scripts/implicit_run.py", "scripts/imlogic_run.py", "scripts/implexconv_run.py",
          "scripts/planner.py", "scripts/stage2_report.py",
          "reports/implicit"]

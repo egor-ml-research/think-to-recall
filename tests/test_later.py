@@ -5,8 +5,8 @@ import json
 import subprocess
 import sys
 
-from ctxgraph import beads
-from ctxgraph.memory import ProjectMemory, classify, format_later
+from cotrail import beads
+from cotrail.memory import ProjectMemory, classify, format_later
 
 
 def _t(i, role, text, ts, session="s1"):
@@ -29,8 +29,8 @@ DONE = [
 
 
 def _mem(tmp_path, monkeypatch, turns):
-    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
-    monkeypatch.setenv("CTXGRAPH_LANG", "ru")
+    monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
+    monkeypatch.setenv("COTRAIL_LANG", "ru")
     m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
     m.import_turns(turns)
     return m
@@ -100,9 +100,9 @@ def test_beads_read_only(tmp_path, monkeypatch):
 def test_session_start_hook_prints_one_line(tmp_path, monkeypatch):
     m = _mem(tmp_path, monkeypatch, RU)
     m.s.db.close()
-    argv = [sys.executable, "-m", "ctxgraph.cli", "--home", str(tmp_path / "home"), "hook-start"]
+    argv = [sys.executable, "-m", "cotrail.cli", "--home", str(tmp_path / "home"), "hook-start"]
     r = subprocess.run(argv, input=json.dumps({"cwd": str(tmp_path / "proj")}), capture_output=True, text=True,
-                       encoding="utf-8", timeout=120, env={**__import__("os").environ, "CTXGRAPH_LANG": "ru"})
+                       encoding="utf-8", timeout=120, env={**__import__("os").environ, "COTRAIL_LANG": "ru"})
     assert r.returncode == 0 and r.stdout.strip().startswith("На потом — открытых пунктов: 2;")
     r = subprocess.run(argv, input=json.dumps({"cwd": str(tmp_path / "other")}), capture_output=True, text=True,
                        timeout=120)  # fmt: skip
@@ -110,7 +110,7 @@ def test_session_start_hook_prints_one_line(tmp_path, monkeypatch):
 
 
 def test_setup_writes_the_session_start_hook_once(tmp_path):
-    from ctxgraph import setup as S
+    from cotrail import setup as S
 
     proj = tmp_path / "proj"
     proj.mkdir()
@@ -119,4 +119,4 @@ def test_setup_writes_the_session_start_hook_once(tmp_path):
     data = json.loads(p.read_text("utf-8"))
     start = [h["command"] for g in data["hooks"]["SessionStart"] for h in g["hooks"]]
     stop = [h["command"] for g in data["hooks"]["Stop"] for h in g["hooks"]]
-    assert start == ["ctxgraph hook-start"] and stop == ["ctxgraph hook-stop"]
+    assert start == ["cotrail hook-start"] and stop == ["cotrail hook-stop"]

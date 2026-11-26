@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.graph import Engine
-from ctxgraph.menu import MenuConfig
-from ctxgraph.sources.base import Link, Source
-from ctxgraph.sources.experience import ExperienceSource
-from ctxgraph.store import Node, Store
+from cotrail.embed import HashingEncoder
+from cotrail.graph import Engine
+from cotrail.menu import MenuConfig
+from cotrail.sources.base import Link, Source
+from cotrail.sources.experience import ExperienceSource
+from cotrail.store import Node, Store
 
 # Маленький таксономический граф: рыбы → хордовые/виды, аквариум → оборудование.
 GRAPH = {
@@ -93,4 +93,4 @@ def make_engine(store):
 def _economy_off_for_legacy_tests(monkeypatch, request):
     """The token economy of recall (tests/test_economy.py) is off in the older tests: they pin the full labels."""
     if "test_economy" not in request.node.nodeid:
-        monkeypatch.setenv("CTXGRAPH_ECONOMY", "off")
+        monkeypatch.setenv("COTRAIL_ECONOMY", "off")

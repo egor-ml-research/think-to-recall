@@ -2,9 +2,9 @@ import importlib.util
 
 import pytest
 
-from ctxgraph.sources.conceptnet import ConceptNetSource
-from ctxgraph.sources.wikidata import WikidataSource
-from ctxgraph.store import Node, Store
+from cotrail.sources.conceptnet import ConceptNetSource
+from cotrail.sources.wikidata import WikidataSource
+from cotrail.store import Node, Store
 
 
 def _sparql_rows(slot_rows):
@@ -118,7 +118,7 @@ def test_conceptnet_degrades_gracefully(monkeypatch):
 
 @pytest.mark.skipif(importlib.util.find_spec("ruwordnet") is None, reason="ruwordnet не установлен")
 def test_ruwordnet_local():
-    from ctxgraph.sources.wordnet import RuWordNetSource
+    from cotrail.sources.wordnet import RuWordNetSource
 
     src = RuWordNetSource()
     try:
@@ -131,7 +131,7 @@ def test_ruwordnet_local():
 
 
 def test_wordnet_local():
-    from ctxgraph.sources.wordnet import WordNetSource
+    from cotrail.sources.wordnet import WordNetSource
 
     src = WordNetSource()
     try:

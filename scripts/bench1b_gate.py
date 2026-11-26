@@ -1,4 +1,4 @@
-"""Bench 1b: PPR gate (`ctxgraph.v2.gate.ppr_gated`) — threshold sweep on dev-100, confirmation on dev-200.
+"""Bench 1b: PPR gate (`cotrail.v2.gate.ppr_gated`) — threshold sweep on dev-100, confirmation on dev-200.
 
     python scripts/bench1b_gate.py --dataset musique_dev100            # sweep -> out/bench1b_dev/gate_sweep_dev100.json
     python scripts/bench1b_gate.py --dataset musique_dev200 --only CFG # confirm one config (and its neighbours)
@@ -25,10 +25,10 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 import bench1_run as B  # noqa: E402
 
-from ctxgraph.v2 import extract as X  # noqa: E402
-from ctxgraph.v2.gate import PassageIndex, PprGateConfig, ppr_gated, start_ppr  # noqa: E402
-from ctxgraph.v2.graph import Config, Graph, cid  # noqa: E402
-from ctxgraph.v2.store import Store  # noqa: E402
+from cotrail.v2 import extract as X  # noqa: E402
+from cotrail.v2.gate import PassageIndex, PprGateConfig, ppr_gated, start_ppr  # noqa: E402
+from cotrail.v2.graph import Config, Graph, cid  # noqa: E402
+from cotrail.v2.store import Store  # noqa: E402
 
 OUT = ROOT / "out" / "bench1b_dev"
 GRID = {"max_df": [2, 3, 5, 10, 20], "anchor": [2, 3], "margin": [0.0, 0.25, 1.0, 3.0, 10.0], "slots": [1, 2]}
@@ -62,7 +62,7 @@ def r_dense_cache(ds: str, g: Graph, qs: list[dict], ids, mat, text, a_ranks) ->
 
 
 def main() -> None:
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", default="musique_dev100", choices=["musique_dev100", "musique_dev200", "musique_dev200b"])

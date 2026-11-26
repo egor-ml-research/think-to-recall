@@ -10,9 +10,9 @@ import urllib.request
 
 import pytest
 
-from ctxgraph import calls as CL
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.memory import ProjectMemory
+from cotrail import calls as CL
+from cotrail.embed import HashingEncoder
+from cotrail.memory import ProjectMemory
 
 
 def test_log_line_has_ids_and_duration_only(tmp_path):
@@ -58,7 +58,7 @@ def test_read_from_offset_skips_half_lines_and_follows_rotation(tmp_path):
 
 
 def test_mcp_tool_logs_without_failing(tmp_path, monkeypatch):
-    from ctxgraph import memory_mcp as MM
+    from cotrail import memory_mcp as MM
 
     class Fake:
         dir = tmp_path
@@ -90,7 +90,7 @@ def _mem(tmp_path):
 
 def test_flow_records_statuses_and_change_chain(tmp_path):
     pytest.importorskip("networkx")
-    from ctxgraph.flow import build
+    from cotrail.flow import build
 
     d = build(_mem(tmp_path))
     st = {r["t"][:12]: r for r in d["records"]}
@@ -105,7 +105,7 @@ def test_flow_records_statuses_and_change_chain(tmp_path):
 
 def test_page_has_live_mode_three_license_calls_and_trees(tmp_path):
     pytest.importorskip("networkx")
-    from ctxgraph.viewer import export_html
+    from cotrail.viewer import export_html
 
     m = _mem(tmp_path)
     CL.log_call(m.dir, "recall", "#00000000", 3)
@@ -124,7 +124,7 @@ def test_page_has_live_mode_three_license_calls_and_trees(tmp_path):
 
 def test_view_live_serves_page_and_calls_on_localhost(tmp_path):
     pytest.importorskip("networkx")
-    from ctxgraph.viewer import serve
+    from cotrail.viewer import serve
 
     m = _mem(tmp_path)
     got = {}
@@ -145,7 +145,7 @@ def test_view_live_serves_page_and_calls_on_localhost(tmp_path):
 
 
 def test_trees_side_sessions_hang_on_their_parent(tmp_path):
-    from ctxgraph.flow import trees
+    from cotrail.flow import trees
 
     m = ProjectMemory(tmp_path / "proj", encoder=HashingEncoder(), home=tmp_path / "home")
     turns = [{"id": f"00000000-0000-4000-8000-0000000000{i:02d}", "session": ss, "role": "user", "text": f"Сделай шаг {i} в модуле.",
@@ -162,7 +162,7 @@ def test_trees_side_sessions_hang_on_their_parent(tmp_path):
 def test_trees_code_by_folder_without_vendor(tmp_path):
     import sqlite3
 
-    from ctxgraph.flow import trees
+    from cotrail.flow import trees
 
     m = _mem(tmp_path)
     db = sqlite3.connect(m.db_path)
@@ -177,7 +177,7 @@ def test_trees_code_by_folder_without_vendor(tmp_path):
 
 
 def test_clean_name_drops_articles_and_repeats():
-    from ctxgraph.flow import clean_name
+    from cotrail.flow import clean_name
 
     assert clean_name("the stats screen · StreakChart · that grace day") == "stats screen · StreakChart · grace day"
     assert clean_name("SQLite · sqlite · Postgres") == "SQLite · Postgres" and clean_name("синхронизация · сервер") == "синхронизация · сервер"
@@ -185,7 +185,7 @@ def test_clean_name_drops_articles_and_repeats():
 
 def test_page_is_english_by_default_with_a_russian_switch(tmp_path):
     pytest.importorskip("networkx")
-    from ctxgraph.viewer import export_html
+    from cotrail.viewer import export_html
 
     html = export_html(_mem(tmp_path), out=tmp_path / "v.html").read_text("utf-8")
     assert "/*__I18N__*/" not in html and "const I18N = " in html and 'let lang = "en";' in html
@@ -196,7 +196,7 @@ def test_page_is_english_by_default_with_a_russian_switch(tmp_path):
 def test_trees_split_a_dominant_folder(tmp_path):
     import sqlite3
 
-    from ctxgraph.flow import trees
+    from cotrail.flow import trees
 
     m = _mem(tmp_path)
     db = sqlite3.connect(m.db_path)

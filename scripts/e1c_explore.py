@@ -28,7 +28,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 import analyze_e1c as E  # noqa: E402
 
-from ctxgraph.e1b.judge import load_spec  # noqa: E402
+from cotrail.e1b.judge import load_spec  # noqa: E402
 
 MAIN = ROOT / "reports" / "e1c" / "main_final"
 

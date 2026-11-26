@@ -1,16 +1,16 @@
-"""v0.6.7: ctxgraph's own output pasted back into a chat is never a rule / decision / "later" item; a rule is not
+"""v0.6.7: cotrail's own output pasted back into a chat is never a rule / decision / "later" item; a rule is not
 pinned twice. Synthetic projects only."""
 
-from ctxgraph import memory as M
-from ctxgraph import pasted as PS
-from ctxgraph.memory import ProjectMemory
+from cotrail import memory as M
+from cotrail import pasted as PS
+from cotrail.memory import ProjectMemory
 
 
 def _t(i, role, text, ts, session="c1"):
     return {"id": f"p{i}", "session": session, "role": role, "ts": ts, "text": text, "source": "claude-ai"}
 
 
-PASTED = """Вот что выдаёт ctxgraph rules:
+PASTED = """Вот что выдаёт cotrail rules:
 - #7c9b63 2026-10-28 (auto): Никогда не пушить в main без вопроса.
 - #a1b2c3 2026-10-29 (manual): Always keep API keys only in .env.
 - #d4e5f6 2026-11-01 (global): Answer the user in Russian.
@@ -23,8 +23,8 @@ PASTED = """Вот что выдаёт ctxgraph rules:
 
 
 def _mem(tmp_path, monkeypatch):
-    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
-    monkeypatch.setenv("CTXGRAPH_LANG", "en")
+    monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
+    monkeypatch.setenv("COTRAIL_LANG", "en")
     return ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
 
 
@@ -35,10 +35,10 @@ def test_ctx_output_lines():
     assert not PS.in_ctx_output("Never push to main without asking.", PS.ctx_output("- #7c9b63 2026-10-28 (auto): x"))
 
 
-def test_pasted_ctxgraph_output_adds_nothing(tmp_path, monkeypatch):
+def test_pasted_cotrail_output_adds_nothing(tmp_path, monkeypatch):
     m = _mem(tmp_path, monkeypatch)
     m.import_turns([_t(1, "user", PASTED, "2026-11-20T10:00:00Z"),
-                    _t(2, "assistant", "Понял, это вывод ctxgraph.", "2026-11-20T10:01:00Z")])
+                    _t(2, "assistant", "Понял, это вывод cotrail.", "2026-11-20T10:01:00Z")])
     assert m.rules() == []
     assert m.decisions(50) == []
     assert [it for it in m.later() if it["source"] == "chat"] == []

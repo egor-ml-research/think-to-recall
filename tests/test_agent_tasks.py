@@ -3,8 +3,8 @@ user's turns. Synthetic transcripts: a parent session starts a child and later m
 
 import json
 
-from ctxgraph import cc_transcripts as CC
-from ctxgraph.memory import ProjectMemory, format_decisions
+from cotrail import cc_transcripts as CC
+from cotrail.memory import ProjectMemory, format_decisions
 
 BRIEF = "Implement the export feature: use Redis for the job queue and always write CSV files in UTF-8."
 PEER = "Later: postpone the PDF export until next month, keep CSV only."
@@ -57,8 +57,8 @@ def test_agent_tasks_are_found_by_metadata_and_linked_to_the_parent(tmp_path):
 
 
 def test_agent_tasks_are_no_decisions_rules_or_later_items(tmp_path, monkeypatch):
-    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
-    monkeypatch.setenv("CTXGRAPH_LANG", "en")
+    monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
+    monkeypatch.setenv("COTRAIL_LANG", "en")
     (tmp_path / "t").mkdir()
     _write(tmp_path / "t")
     m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")

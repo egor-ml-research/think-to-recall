@@ -3,7 +3,7 @@
     python scripts/planner.py --dataset imlogic --split dev --limit 20    # smoke test
     python scripts/planner.py --dataset imlogic --split dev               # -> reports/implicit/plans_<dataset>_<split>.jsonl
 
-Free NVIDIA API (`ctxgraph.e1b.backends.NvidiaChat`: temperature 0, cached by request hash, so a rerun makes no calls).
+Free NVIDIA API (`cotrail.e1b.backends.NvidiaChat`: temperature 0, cached by request hash, so a rerun makes no calls).
 An unparsable reply = no steps (the question then has no sleeves); the share is reported.
 """
 
@@ -77,7 +77,7 @@ def main() -> None:
     load_dotenv(ROOT / ".env")
     import implicit_run as R
 
-    from ctxgraph.e1b.backends import NvidiaChat
+    from cotrail.e1b.backends import NvidiaChat
 
     cs = (R.imlogic if a.dataset == "imlogic" else R.implexconv)(a.split, Path(a.data))
     qs = question_order(a.dataset, [q for c in cs for q in c["qs"]])[: a.limit]

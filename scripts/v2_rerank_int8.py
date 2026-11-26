@@ -21,16 +21,16 @@ import v2_debug_loss as LO  # noqa: E402
 import v2_debug_pq as P  # noqa: E402
 import v2_onnx_reranker as OX  # noqa: E402
 
-from ctxgraph.e1b.coverage import load_turns  # noqa: E402
-from ctxgraph.e1b.runner import load_project  # noqa: E402
-from ctxgraph.v2 import sleeves as SL  # noqa: E402
-from ctxgraph.v2.graph import Config, Graph  # noqa: E402
-from ctxgraph.v2.store import Store  # noqa: E402
+from cotrail.e1b.coverage import load_turns  # noqa: E402
+from cotrail.e1b.runner import load_project  # noqa: E402
+from cotrail.v2 import sleeves as SL  # noqa: E402
+from cotrail.v2.graph import Config, Graph  # noqa: E402
+from cotrail.v2.store import Store  # noqa: E402
 
 
 def main() -> None:
-    from ctxgraph.e1b.backends import E5Encoder
-    from ctxgraph.e1b.selection import Reranker
+    from cotrail.e1b.backends import E5Encoder
+    from cotrail.e1b.selection import Reranker
 
     enc, count = E5Encoder(), P.counter()
     spec, ft, text = load_turns(ROOT, P.PID)

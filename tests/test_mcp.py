@@ -1,5 +1,5 @@
-import ctxgraph.mcp_server as srv
-from ctxgraph.menu import HEADER
+import cotrail.mcp_server as srv
+from cotrail.menu import HEADER
 
 
 def test_mcp_tools_roundtrip(make_engine, monkeypatch):

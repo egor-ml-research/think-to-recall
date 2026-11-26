@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph.v2 import extract as X  # noqa: E402
+from cotrail.v2 import extract as X  # noqa: E402
 
 B = ROOT / ".cache" / "bench"
 SPACY, E5_CPU, E5_GPU = 135.0, 13.0, (500.0, 1000.0)  # sentences/s (measured CPU; GPU — typical, to check)

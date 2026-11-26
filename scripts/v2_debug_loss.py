@@ -20,12 +20,12 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 import v2_debug_pq as P  # noqa: E402
 
-from ctxgraph.e1b.coverage import fact_sentences, load_turns, norm  # noqa: E402
-from ctxgraph.e1b.runner import load_project  # noqa: E402
-from ctxgraph.v2 import extract as X  # noqa: E402
-from ctxgraph.v2 import sleeves as SL  # noqa: E402
-from ctxgraph.v2.graph import Config, Graph  # noqa: E402
-from ctxgraph.v2.store import Store  # noqa: E402
+from cotrail.e1b.coverage import fact_sentences, load_turns, norm  # noqa: E402
+from cotrail.e1b.runner import load_project  # noqa: E402
+from cotrail.v2 import extract as X  # noqa: E402
+from cotrail.v2 import sleeves as SL  # noqa: E402
+from cotrail.v2.graph import Config, Graph  # noqa: E402
+from cotrail.v2.store import Store  # noqa: E402
 
 
 def evidence(spec, ft, text) -> dict[str, list[str]]:
@@ -92,7 +92,7 @@ def analyse(name: str, cfg: Config, enc, count, spec, ft, text) -> dict:
 
 
 def main() -> None:
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     enc, count = E5Encoder(), P.counter()
     spec, ft, text = load_turns(ROOT, P.PID)

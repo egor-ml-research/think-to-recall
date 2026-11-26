@@ -4,7 +4,7 @@
 
 1. 30 supporting MuSiQue paragraphs (seed 0): concepts per paragraph, whether the hop answer of that
    paragraph (the bridge entity of the decomposition) is a concept, time — spaCy path vs the old
-   rules extractor (`ctxgraph.ingest.extract_entities`).
+   rules extractor (`cotrail.ingest.extract_entities`).
 2. Build-time estimate for MuSiQue, 2Wiki and LongMemEval-S: passages / sessions and sentences
    counted from the data; throughput measured on this CPU (spaCy, e5-base); GPU figures are typical
    numbers to be checked on the first Kaggle run.
@@ -21,11 +21,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph import text as T  # noqa: E402
-from ctxgraph.ingest import extract_entities  # noqa: E402
-from ctxgraph.sources.experience import is_concept  # noqa: E402
-from ctxgraph.v2 import english  # noqa: E402
-from ctxgraph.v2 import extract as X  # noqa: E402
+from cotrail import text as T  # noqa: E402
+from cotrail.ingest import extract_entities  # noqa: E402
+from cotrail.sources.experience import is_concept  # noqa: E402
+from cotrail.v2 import english  # noqa: E402
+from cotrail.v2 import extract as X  # noqa: E402
 
 B = ROOT / ".cache" / "bench"
 GPU_E5 = (500, 1000)  # sentences/s, typical T4/P100 for e5-base — to be checked on Kaggle
@@ -95,7 +95,7 @@ def lme_stats() -> dict:
 
 
 def throughput() -> dict:
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     c = json.loads((B / "musique_corpus.json").read_text("utf-8"))[:200]
     sents = [s for p in c for _, s in X.sentences(p["text"])][:400]

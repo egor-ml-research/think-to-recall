@@ -1,4 +1,4 @@
-"""ctxgraph v2 demo: local server + one-page UI (ARCHITECTURE_REVIEW §3).
+"""cotrail v2 demo: local server + one-page UI (ARCHITECTURE_REVIEW §3).
 
     python scripts/v2_demo.py            # build (first run, ~2–3 min CPU) and serve http://127.0.0.1:8765
     python scripts/v2_demo.py --rebuild  # rebuild the demo databases
@@ -21,11 +21,11 @@ from urllib.parse import parse_qs, urlparse
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph.e1b.runner import load_project  # noqa: E402
-from ctxgraph.v2 import extract as X  # noqa: E402
-from ctxgraph.v2 import sleeves as SL  # noqa: E402
-from ctxgraph.v2.graph import Graph  # noqa: E402
-from ctxgraph.v2.store import Store  # noqa: E402
+from cotrail.e1b.runner import load_project  # noqa: E402
+from cotrail.v2 import extract as X  # noqa: E402
+from cotrail.v2 import sleeves as SL  # noqa: E402
+from cotrail.v2.graph import Graph  # noqa: E402
+from cotrail.v2.store import Store  # noqa: E402
 
 OUT = ROOT / ".cache" / "demo"
 PID = "crypto-wallet"
@@ -44,7 +44,7 @@ def counter():
 
 class Demo:
     def __init__(self, rebuild: bool) -> None:
-        from ctxgraph.e1b.backends import E5Encoder
+        from cotrail.e1b.backends import E5Encoder
 
         OUT.mkdir(parents=True, exist_ok=True)
         db = OUT / f"{PID}.sqlite"
@@ -130,7 +130,7 @@ class Demo:
         scorer = None
         if rerank:
             if self.reranker is None:
-                from ctxgraph.e1b.selection import Reranker
+                from cotrail.e1b.selection import Reranker
 
                 self.reranker = Reranker(revision=REV)
             scorer = self.reranker.score
@@ -164,7 +164,7 @@ class Demo:
         }  # fmt: skip
 
     def answer(self, q: str, memory: str) -> dict:
-        from ctxgraph.e1b.backends import NvidiaChat
+        from cotrail.e1b.backends import NvidiaChat
 
         for ln in (ROOT / ".env").read_text("utf-8").splitlines():
             if "=" in ln:
@@ -240,7 +240,7 @@ def serve(demo: Demo, port: int) -> None:
             except Exception as e:  # noqa: BLE001
                 self._json({"error": str(e)[:300]}, 500)
 
-    print(f"ctxgraph v2 demo: http://127.0.0.1:{port}", flush=True)
+    print(f"cotrail v2 demo: http://127.0.0.1:{port}", flush=True)
     ThreadingHTTPServer(("127.0.0.1", port), H).serve_forever()
 
 

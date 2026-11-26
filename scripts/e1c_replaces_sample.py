@@ -16,9 +16,9 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from ctxgraph.e1b.chat import Turn  # noqa: E402
-from ctxgraph.e1b.memory import _concepts  # noqa: E402
-from ctxgraph.e1b.replaces import detect  # noqa: E402
+from cotrail.e1b.chat import Turn  # noqa: E402
+from cotrail.e1b.memory import _concepts  # noqa: E402
+from cotrail.e1b.replaces import detect  # noqa: E402
 
 PROJECTS = [("benchmark_e1b", p) for p in ("crypto-wallet", "django-shop", "rnaseq-thesis")] + [
     ("benchmark_e1c", p) for p in ("greenhouse-iot", "clinic-bot", "econ-thesis", "indie-game")

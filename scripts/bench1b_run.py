@@ -5,7 +5,7 @@
 Same data and graph build as benchmark 1 (`scripts/bench1_run.py`). Variants (passage Recall@2/@5):
   d0   e5 dense (= bench1 variant a)                          — base of the gate
   K    dense top-40 sentences -> bge-reranker-v2-m3            — mandatory control
-  G    d0 + gate `ctxgraph.v2.gate.ppr_gated`                  — H1: G vs d0
+  G    d0 + gate `cotrail.v2.gate.ppr_gated`                  — H1: G vs d0
   KG   K + the same gate                                       — H2: KG vs K
 Gate configuration: `scripts/bench1b_config.json` (frozen with the prereg). Invariant checked on every question:
 where the gate changes nothing, the output IS the base ranking (else the run aborts).
@@ -28,9 +28,9 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 import bench1_run as B  # noqa: E402
 
-from ctxgraph.v2 import extract as X  # noqa: E402
-from ctxgraph.v2.gate import PassageIndex, PprGateConfig, ppr_gated, start_ppr  # noqa: E402
-from ctxgraph.v2.graph import cid  # noqa: E402
+from cotrail.v2 import extract as X  # noqa: E402
+from cotrail.v2.gate import PassageIndex, PprGateConfig, ppr_gated, start_ppr  # noqa: E402
+from cotrail.v2.graph import cid  # noqa: E402
 
 VARIANTS = ["d0", "K", "G", "KG"]
 HYPS = {"H1": ("G", "d0"), "H2": ("KG", "K")}
@@ -76,7 +76,7 @@ def main() -> None:
     ap.add_argument("--config", default=str(ROOT / "scripts" / "bench1b_config.json"))
     ap.add_argument("--first", type=int, default=0, help="debug only: search just the first N questions")
     a = ap.parse_args()
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     conf = json.loads(Path(a.config).read_text("utf-8"))
     gcfg = PprGateConfig(**conf["gate"])
@@ -89,7 +89,7 @@ def main() -> None:
     g, binfo = B.build(corpus, enc, out, a.device)
     print("graph:", binfo, flush=True)
     if a.reranker == "fp32":
-        from ctxgraph.e1b.selection import Reranker
+        from cotrail.e1b.selection import Reranker
 
         scorer = Reranker(B.BGE, revision=B.BGE_REV, device=a.device).score
     else:

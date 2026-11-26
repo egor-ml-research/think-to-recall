@@ -17,7 +17,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph.e1 import tasks as TK  # noqa: E402
+from cotrail.e1 import tasks as TK  # noqa: E402
 
 OUT = ROOT / "reports" / "e1"
 SEED = 20261019

@@ -5,8 +5,8 @@ Synthetic projects only, offline (BM25)."""
 import datetime as dt
 import re
 
-from ctxgraph import memory_mcp
-from ctxgraph.memory import ProjectMemory, economy_flags
+from cotrail import memory_mcp
+from cotrail.memory import ProjectMemory, economy_flags
 
 Y = str(dt.date.today().year)
 
@@ -32,9 +32,9 @@ RU = [
 
 
 def _mem(tmp_path, monkeypatch, turns, eco="a,b,c,d"):
-    monkeypatch.setenv("CTXGRAPH_ECONOMY", eco)
-    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
-    monkeypatch.delenv("CTXGRAPH_LANG", raising=False)
+    monkeypatch.setenv("COTRAIL_ECONOMY", eco)
+    monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
+    monkeypatch.delenv("COTRAIL_LANG", raising=False)
     m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
     m.import_turns(turns)
     return m
@@ -107,7 +107,7 @@ def test_d_topic_shown_once_in_a_row(tmp_path, monkeypatch):
 
 
 def test_b_shown_records_reset_on_compaction_and_new_session(tmp_path, monkeypatch):
-    import ctxgraph.memory as MM
+    import cotrail.memory as MM
 
     m = _mem(tmp_path, monkeypatch, EN)
     tdir = tmp_path / "transcripts"

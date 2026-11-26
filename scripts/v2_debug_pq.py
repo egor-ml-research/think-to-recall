@@ -18,11 +18,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph.e1b.coverage import fact_coverage, load_turns, norm  # noqa: E402
-from ctxgraph.e1b.runner import load_project  # noqa: E402
-from ctxgraph.v2 import sleeves as SL  # noqa: E402
-from ctxgraph.v2.graph import Config, Graph  # noqa: E402
-from ctxgraph.v2.store import Store  # noqa: E402
+from cotrail.e1b.coverage import fact_coverage, load_turns, norm  # noqa: E402
+from cotrail.e1b.runner import load_project  # noqa: E402
+from cotrail.v2 import sleeves as SL  # noqa: E402
+from cotrail.v2.graph import Config, Graph  # noqa: E402
+from cotrail.v2.store import Store  # noqa: E402
 
 PID = "crypto-wallet"
 Q = "Стоит ли добавлять пост-квантовые кошельки?"
@@ -74,7 +74,7 @@ def name_of(r, n):
 
 
 def main() -> None:
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     enc, count = E5Encoder(), counter()
     spec, ft, text = load_turns(ROOT, PID)

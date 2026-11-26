@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph.text import approx_tokens  # noqa: E402
+from cotrail.text import approx_tokens  # noqa: E402
 from scripts.check_model import DEFAULT_MODEL, load_env  # noqa: E402
 
 

@@ -5,13 +5,13 @@ import random
 
 import pytest
 
-from ctxgraph.e1 import tasks as TK
-from ctxgraph.e1.budget import BudgetExceeded, Ledger, cost_rub
-from ctxgraph.e1.judge import JUDGE_SYSTEM, judge_prompt, parse_verdict
-from ctxgraph.e1.llm import Reply
-from ctxgraph.e1.variants import GraphFactory, RandomMenus, run_variant
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.store import Store
+from cotrail.e1 import tasks as TK
+from cotrail.e1.budget import BudgetExceeded, Ledger, cost_rub
+from cotrail.e1.judge import JUDGE_SYSTEM, judge_prompt, parse_verdict
+from cotrail.e1.llm import Reply
+from cotrail.e1.variants import GraphFactory, RandomMenus, run_variant
+from cotrail.embed import HashingEncoder
+from cotrail.store import Store
 
 TASK = {
     "id": "t-fish",
@@ -63,10 +63,10 @@ class FakeClient:
 
 @pytest.fixture
 def graphs(tmp_path):
-    from ctxgraph.sources import wordnet as W
+    from cotrail.sources import wordnet as W
 
     if not W.ready():  # research graphs (E1) expand concepts through WordNet; a clean clone has no data
-        pytest.skip("WordNet data not found (`ctxgraph setup` downloads it)")
+        pytest.skip("WordNet data not found (`cotrail setup` downloads it)")
     db = tmp_path / "cache.sqlite"
     Store(db).close()
     return GraphFactory(db, HashingEncoder(), offline=True)

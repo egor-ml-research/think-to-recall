@@ -19,7 +19,7 @@ Variants (passage Recall@2/@5, passage score = max over its sentences):
   c_fix       bench1 PPR with the seeding bug fixed: ALL sentences seeded with min-max dense x 0.05 (bench1 used only
               the top-30 by flat RRF weights 1/(60+r), so the dense order was nearly erased), question concepts as before
   c_noconc    PPR from dense sentence seeds only (no concept seeds) — how much the concept seeds hurt
-  g_gate*     Egor's invariant (`ctxgraph/v2/gate.py`): dense order unless a strong graph signal (a rare concept
+  g_gate*     Egor's invariant (`cotrail/v2/gate.py`): dense order unless a strong graph signal (a rare concept
               shared with a dense top-3 passage = bridge, or links to >= 2 of them = intersection); then <= 2
               passages inserted after dense top-3, nothing removed. No signal -> exactly dense.
   r_gate      the same gate over r_dense (dense + rerank) instead of dense
@@ -41,10 +41,10 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 import bench1_run as B  # noqa: E402
 
-from ctxgraph.v2 import extract as X  # noqa: E402
-from ctxgraph.v2.gate import GateConfig, PassageIndex, gated  # noqa: E402
-from ctxgraph.v2.graph import Config, Graph, cid  # noqa: E402
-from ctxgraph.v2.store import Store  # noqa: E402
+from cotrail.v2 import extract as X  # noqa: E402
+from cotrail.v2.gate import GateConfig, PassageIndex, gated  # noqa: E402
+from cotrail.v2.graph import Config, Graph, cid  # noqa: E402
+from cotrail.v2.store import Store  # noqa: E402
 
 OUT = ROOT / "out" / "bench1b_dev"
 LINK_TOP_K, PASSAGE_W = 5, 0.05
@@ -116,7 +116,7 @@ class HippoSeeds:
 
 
 def main() -> None:
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     sys.path.insert(0, str(ROOT / "scripts"))
     from v2_onnx_reranker import OnnxReranker

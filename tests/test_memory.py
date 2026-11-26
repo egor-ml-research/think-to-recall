@@ -1,11 +1,11 @@
-"""Project memory MVP (ctxgraph/memory.py, cli hook): offline, HashingEncoder, synthetic Claude Code transcripts."""
+"""Project memory MVP (cotrail/memory.py, cli hook): offline, HashingEncoder, synthetic Claude Code transcripts."""
 
 import json
 from pathlib import Path
 
-from ctxgraph import cc_transcripts as CC
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.memory import ProjectMemory, project_slug, queue_transcript, rrf
+from cotrail import cc_transcripts as CC
+from cotrail.embed import HashingEncoder
+from cotrail.memory import ProjectMemory, project_slug, queue_transcript, rrf
 
 
 def _line(kind, text, ts, uid, session="s1", **extra):
@@ -58,7 +58,7 @@ def test_rrf_and_forget(tmp_path):
 
 
 def test_decisions_status_and_chronology(tmp_path):
-    from ctxgraph.memory import classify
+    from cotrail.memory import classify
 
     m = ProjectMemory(tmp_path / "proj", encoder=HashingEncoder(), home=tmp_path / "home")
     m.remember("Для базы данных используем MongoDB.", ts="2026-11-01T10:00:00Z")
@@ -82,7 +82,7 @@ def test_decisions_status_and_chronology(tmp_path):
 
 
 def test_transcript_noise_is_dropped():
-    from ctxgraph.cc_transcripts import clean, dedupe
+    from cotrail.cc_transcripts import clean, dedupe
 
     raw = "\n".join(["Готово.", "```", "git status", " M file.py", "```", "warning: LF will be replaced", "$ ls",
                      "Итог: всё работает."])  # fmt: skip
@@ -95,7 +95,7 @@ def test_transcript_noise_is_dropped():
 
 
 def test_hook_queue_is_ingested_lazily(tmp_path, monkeypatch):
-    import ctxgraph.memory as M
+    import cotrail.memory as M
 
     monkeypatch.setattr(M, "HOME", tmp_path / "home")
     t = _transcript(tmp_path / "s1.jsonl")

@@ -1,10 +1,10 @@
 [project]
-name = "think-to-recall"
-version = "0.6.12"
-description = "ctxgraph: local decision memory for AI coding assistants (MCP server for Claude Code)"
+name = "cotrail"
+version = "0.7.0"
+description = "cotrail: local decision memory for AI coding assistants (MCP server for Claude Code)"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.11"
-# The decision memory (ctxgraph CLI + MCP server) needs only these: recall is BM25, no model. `quality` adds the
+# The decision memory (cotrail CLI + MCP server) needs only these: recall is BM25, no model. `quality` adds the
 # int8 ONNX encoder (no PyTorch). Research code (benchmarks, PPR graph, WordNet / RuWordNet) is in the `bench` extra.
 dependencies = [
     "pymorphy3>=2.0",
@@ -17,18 +17,22 @@ dependencies = [
 ]
 
 [project.scripts]
-ctxgraph = "ctxgraph.cli:main"
-ctxgraph-mcp = "ctxgraph.memory_mcp:main"
+cotrail = "cotrail.cli:main"
+cotrail-mcp = "cotrail.memory_mcp:main"
+# the old name, until 2027-02: a one-line hint on stderr, then the same command
+ctxgraph = "cotrail.legacy:cli_main"
+ctxgraph-mcp = "cotrail.legacy:mcp_main"
 
 [project.gui-scripts]
 # Windows: a GUI-subsystem launcher, so a GUI client (Claude Desktop, Claude Code desktop) starting the server over
-# stdio opens no console window. Same server as `ctxgraph-mcp`; on macOS / Linux it is an ordinary script.
-ctxgraph-mcpw = "ctxgraph.memory_mcp:main"
+# stdio opens no console window. Same server as `cotrail-mcp`; on macOS / Linux it is an ordinary script.
+cotrail-mcpw = "cotrail.memory_mcp:main"
+ctxgraph-mcpw = "cotrail.legacy:mcpw_main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
 memory = []  # kept for old install commands: the memory needs nothing beyond the base dependencies
-# `ctxgraph setup --quality`: BM25 + multilingual-e5-base (int8 ONNX on onnxruntime, ~300 MB model)
+# `cotrail setup --quality`: BM25 + multilingual-e5-base (int8 ONNX on onnxruntime, ~300 MB model)
 quality = ["onnxruntime>=1.17", "tokenizers>=0.15", "huggingface_hub>=0.23"]
 # better English concepts in the graph view (spaCy parser + WordNet); recall does not use them
 # The spaCy model is not a dependency (PyPI refuses direct URLs): `python -m spacy download en_core_web_sm`
@@ -42,10 +46,10 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["ctxgraph*"]
+include = ["cotrail*"]
 
 [tool.setuptools.package-data]
-ctxgraph = ["viewer_template.html", "viewer_cosmos.js", "viewer_flow.js", "viewer_i18n.js", "vendor/*"]
+cotrail = ["viewer_template.html", "viewer_cosmos.js", "viewer_flow.js", "viewer_i18n.js", "vendor/*"]
 
 [tool.ruff]
 line-length = 100

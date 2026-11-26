@@ -1,5 +1,5 @@
-from ctxgraph.ingest import ingest
-from ctxgraph.privacy import is_clean, redact
+from cotrail.ingest import ingest
+from cotrail.privacy import is_clean, redact
 
 
 def test_redacts_keys_and_personal_data():

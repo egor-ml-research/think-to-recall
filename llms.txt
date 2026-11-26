@@ -1,16 +1,16 @@
-# think-to-recall (ctxgraph)
+# cotrail (formerly ctxgraph, PyPI think-to-recall)
 
-> A local decision memory for AI coding assistants: a Claude Code MCP server and CLI that remembers what you decided, refused and postponed in earlier chats, with dates and reports, and gives it back to a new chat. No cloud, no LLM calls.
+> A local decision memory for AI coding assistants: an MCP server and CLI (Claude Code, Cursor, Codex CLI, Gemini CLI, Claude Desktop, Windsurf, Cline, OpenCode) that remembers what you decided, refused and postponed in earlier chats, with dates and reports, and gives it back to a new chat. No cloud, no LLM calls.
 
 ## Docs
 
-- [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md): step-by-step install for an AI assistant (ask the user, then `ctxgraph setup` with flags)
+- [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md): what to do when the user says "install cotrail: github.com/egor-ml-research/cotrail" - install, `cotrail setup --client <your client>`, history preview, one question message, check
 - [README.md](README.md): what it does, install, tools, how recall works, privacy, limits
 - [README.ru.md](README.ru.md): the same in Russian
 
 ## MCP tools
 
-- overview(): call FIRST in a new chat - the project map in <= ~600 tokens without reading code: Graphify code communities (main files, functions, links) ranked by entry points, PageRank and recent commits, with the newest decisions that name their code or whose commit touched it; tests/scripts/docs, git-ignored paths and overview.exclude patterns (gitignore-style, project root) are left out; without a code graph, conversation topics with their newest decisions and a hint to run `ctxgraph setup --graphify yes`
+- overview(): call FIRST in a new chat - the project map in <= ~600 tokens without reading code: Graphify code communities (main files, functions, links) ranked by entry points, PageRank and recent commits, with the newest decisions that name their code or whose commit touched it; tests/scripts/docs, git-ignored paths and overview.exclude patterns (gitignore-style, project root) are left out; without a code graph, conversation topics with their newest decisions and a hint to run `cotrail setup --graphify yes`
 - recall(question, steps, k, detail, fresh): earlier turns relevant to the question and reasoning steps; detail full / brief / mixed; one line when nothing is about the question; in brief, records already shown in the session are one line "#id (shown earlier): date · gist" (reset after compaction and in a new session; fresh=True repeats them)
 - expand(record_id): one record in full plus its thread by date
 - decisions(limit): decision chronology with confirmations and reports
@@ -26,14 +26,14 @@
 
 ## Claude Desktop
 
-- Extension: ctxgraph-<version>.mcpb on the GitHub release (one click, asks for the project folder; runs ~/.local/bin/ctxgraph-mcp from a uv/pipx install). No remote connector URL: the memory is local.
+- Extension: cotrail-<version>.mcpb on the GitHub release (one click, asks for the project folder; runs ~/.local/bin/cotrail-mcp from a uv/pipx install). No remote connector URL: the memory is local.
 
 ## Setup flags
 
-- Before `ctxgraph setup`, ask the user in ONE chat message (defaults in brackets): import the history of earlier conversations about this project? (no) -> --import-history yes|no; will you work with code here? (no) - if yes: also install Graphify so the memory sees the code structure? (no) -> --graphify yes|no, if no: --graphify no; labels in Russian or English? (the conversation's language; skip when obvious) -> --lang ru|en. No answer: no / no / the conversation's language. See INSTALL_FOR_AI.md
-- --import-history yes|no, --graphify yes|no, --wordnet yes|no, --lang ru|en: answers without a terminal; -y takes the defaults
-- --quality: BM25 + multilingual-e5-base (int8 ONNX, ~300 MB)
-- --lang en|ru (global): language of the labels
+- --client claude-code|claude-desktop|cursor|codex|gemini|windsurf|cline|opencode|auto (comma-separated for several): where to register the server; hooks for auto-recording where the client has them (Claude Code, Cursor, Codex CLI, Gemini CLI), otherwise chats are saved on "save this chat"
+- --import-history show lists this project's earlier sessions and imports nothing; then ask the user in ONE message (import? code graph with Graphify? labels ru/en if unclear) and rerun with --import-history yes|no --graphify yes|no --lang ru|en. No answer: no. See INSTALL_FOR_AI.md
+- --wordnet yes|no (~10 MB topic names); -y takes the defaults; --quality: BM25 + multilingual-e5-base (int8 ONNX, ~300 MB)
+- The project is the git repository of the current folder (keyed by its remote); ask only when there is none or several
 
 ## Optional
 

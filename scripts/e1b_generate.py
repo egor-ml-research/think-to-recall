@@ -21,9 +21,9 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph import text as T  # noqa: E402
-from ctxgraph.e1.budget import Ledger  # noqa: E402
-from ctxgraph.e1.llm import Client  # noqa: E402
+from cotrail import text as T  # noqa: E402
+from cotrail.e1.budget import Ledger  # noqa: E402
+from cotrail.e1.llm import Client  # noqa: E402
 from scripts.check_model import load_env  # noqa: E402
 
 GENERATOR = "deepseek/deepseek-flash"

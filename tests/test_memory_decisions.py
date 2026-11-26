@@ -4,9 +4,9 @@ decision -> execution report, claude.ai export import. Offline, HashingEncoder."
 import json
 import zipfile
 
-from ctxgraph import cc_transcripts as CC
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.memory import ProjectMemory, classify, format_decisions
+from cotrail import cc_transcripts as CC
+from cotrail.embed import HashingEncoder
+from cotrail.memory import ProjectMemory, classify, format_decisions
 
 
 def _mem(tmp_path):
@@ -18,7 +18,7 @@ def _turn(i, role, text, ts, session="s1"):
 
 
 def test_decisions_tool_returns_text_not_an_error(tmp_path):
-    from ctxgraph import memory_mcp as M
+    from cotrail import memory_mcp as M
 
     m = _mem(tmp_path)
     m.remember("Для базы данных используем PostgreSQL.", ts="2026-11-01T10:00:00Z")
@@ -322,7 +322,7 @@ def test_infinitive_done_by_user_and_resume_after_summary(tmp_path):
 
 
 def test_window_keeps_the_lead_line_of_a_long_list():
-    from ctxgraph.memory import _window
+    from cotrail.memory import _window
 
     items = "\n".join(f"{k}. " + "Пункт про сборку и тесты, подробно и длинно. " * 6 for k in range(1, 6))
     text = "Сначала вступление о проекте.\n\nУбираем модуль аналитики из приложения полностью:\n\n" + items + \
@@ -350,7 +350,7 @@ def _check_changed_decision_is_found(m, via=True):
 
 
 def test_changed_decision_is_found_through_the_same_entity_bm25(tmp_path, monkeypatch):
-    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
     m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")  # the default mode
     assert m.mode == "bm25"
     m.import_turns(_db_change_turns())
@@ -360,11 +360,11 @@ def test_changed_decision_is_found_through_the_same_entity_bm25(tmp_path, monkey
 def test_changed_decision_is_found_through_the_same_entity_quality(tmp_path, monkeypatch):
     import pytest
 
-    from ctxgraph import model as M
+    from cotrail import model as M
 
     if not M.is_cached():
         pytest.skip("the quality model is not downloaded here")
-    monkeypatch.setenv("CTXGRAPH_QUALITY", "1")
+    monkeypatch.setenv("COTRAIL_QUALITY", "1")
     m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
     assert m.mode == "hybrid"
     m.import_turns(_db_change_turns())
@@ -372,7 +372,7 @@ def test_changed_decision_is_found_through_the_same_entity_quality(tmp_path, mon
 
 
 def test_follow_ups_never_displace_the_main_line(tmp_path, monkeypatch):
-    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
     m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
     m.import_turns(_db_change_turns())
     plain = [h.episode for h in m.recall("какую базу данных выбрали", k=1) if h.line == "main"]
@@ -382,7 +382,7 @@ def test_follow_ups_never_displace_the_main_line(tmp_path, monkeypatch):
 
 
 def test_short_recall_lines_and_expand_shows_the_whole_chain(tmp_path, monkeypatch):
-    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
     m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
     m.import_turns(_db_change_turns())
     out = m.render(m.recall("какую базу данных выбрали", k=12), detail="brief")

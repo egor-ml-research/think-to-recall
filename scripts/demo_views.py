@@ -15,9 +15,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ctxgraph.calls import log_call  # noqa: E402
-from ctxgraph.embed import HashingEncoder  # noqa: E402
-from ctxgraph.memory import ProjectMemory  # noqa: E402
+from cotrail.calls import log_call  # noqa: E402
+from cotrail.embed import HashingEncoder  # noqa: E402
+from cotrail.memory import ProjectMemory  # noqa: E402
 
 # (day, user turn, assistant report or "") - a fictional habit tracker; Russian, as the change-of-decision detector is
 CHAT = [
@@ -111,7 +111,7 @@ def build(out: Path, mode: str = "live", lang: str = "ru") -> Path:
     """lang "ru": the Russian set above; "en": demo/habit_app.en.json (the same story in English, with side sessions)."""
     import json
 
-    from ctxgraph.viewer import export_html
+    from cotrail.viewer import export_html
 
     home = out / "home"
     m = ProjectMemory(out / "habit-app", encoder=HashingEncoder(), home=home)
@@ -158,7 +158,7 @@ def build(out: Path, mode: str = "live", lang: str = "ru") -> Path:
                           "ts": iso(ts + dt.timedelta(minutes=6 + 5 * j))})  # fmt: skip
     m.import_turns(turns)
     # a synthetic Graphify graph of the app's code: the second tree and the code stars in Cosmos
-    from ctxgraph import graphify as GF
+    from cotrail import graphify as GF
 
     g = out / "graph.json"
     g.write_text(json.dumps(_code_graph(random.Random(3))), "utf-8")

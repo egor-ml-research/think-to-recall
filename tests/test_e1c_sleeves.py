@@ -4,11 +4,11 @@ import re
 
 import pytest
 
-from ctxgraph.e1b import memory as M
-from ctxgraph.e1b import sleeves as S
-from ctxgraph.e1b.chat import Turn
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.text import approx_tokens
+from cotrail.e1b import memory as M
+from cotrail.e1b import sleeves as S
+from cotrail.e1b.chat import Turn
+from cotrail.embed import HashingEncoder
+from cotrail.text import approx_tokens
 
 #: История, где веб-дашборд связан и со входом по JWT, и с переводами.
 HISTORY = [

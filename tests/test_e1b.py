@@ -3,11 +3,11 @@
 import json
 from pathlib import Path
 
-from ctxgraph.e1b import memory as M
-from ctxgraph.e1b.chat import ChatState, Limits, Turn, compress_if_needed
-from ctxgraph.e1b.runner import Session, load_project, run_project
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.text import approx_tokens
+from cotrail.e1b import memory as M
+from cotrail.e1b.chat import ChatState, Limits, Turn, compress_if_needed
+from cotrail.e1b.runner import Session, load_project, run_project
+from cotrail.embed import HashingEncoder
+from cotrail.text import approx_tokens
 
 ROOT = Path(__file__).resolve().parents[1]
 

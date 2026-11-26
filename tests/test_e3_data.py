@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from ctxgraph.e1b.runner import load_project
-from ctxgraph.e3 import data as D
+from cotrail.e1b.runner import load_project
+from cotrail.e3 import data as D
 
 ROOT = Path(__file__).resolve().parents[1]
 PID = "clinic-bot"

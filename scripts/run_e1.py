@@ -1,4 +1,4 @@
-"""Раннер E1 (reports/prereg_e1.md). Ограничитель расхода — ctxgraph/e1/budget.py (310 ₽ на весь E1).
+"""Раннер E1 (reports/prereg_e1.md). Ограничитель расхода — cotrail/e1/budget.py (310 ₽ на весь E1).
 
 Шаги:
   warm   — прогреть кэш источников для меню всех задач (без LLM) и собрать пул узлов для варианта 7
@@ -23,11 +23,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph.e1 import tasks as TK  # noqa: E402
-from ctxgraph.e1.budget import LIMIT_RUB, BudgetExceeded, Ledger, cost_rub  # noqa: E402
-from ctxgraph.e1.judge import grade  # noqa: E402
-from ctxgraph.e1.llm import Client  # noqa: E402
-from ctxgraph.e1.variants import VARIANTS, GraphFactory, RandomMenus, run_variant  # noqa: E402
+from cotrail.e1 import tasks as TK  # noqa: E402
+from cotrail.e1.budget import LIMIT_RUB, BudgetExceeded, Ledger, cost_rub  # noqa: E402
+from cotrail.e1.judge import grade  # noqa: E402
+from cotrail.e1.llm import Client  # noqa: E402
+from cotrail.e1.variants import VARIANTS, GraphFactory, RandomMenus, run_variant  # noqa: E402
 
 OUT = ROOT / "reports" / "e1"
 CACHE_SRC = ROOT / ".cache" / "cache_r2.sqlite"
@@ -58,7 +58,7 @@ def load_env() -> None:
 
 
 def encoder():
-    from ctxgraph.embed import Model2VecEncoder
+    from cotrail.embed import Model2VecEncoder
 
     return Model2VecEncoder()
 
@@ -68,7 +68,7 @@ def ensure_cache_db() -> None:
     """База, где есть только кэш источников (без графа, опыта, событий)."""
     if CACHE_E1.exists():
         return
-    from ctxgraph.store import Store
+    from cotrail.store import Store
 
     Store(CACHE_E1).close()
     con = sqlite3.connect(CACHE_E1)
@@ -83,7 +83,7 @@ def warm(task_ids: list[str], expand_ids: set[str]) -> None:
 
     Новые ответы источников пишутся в кэш e1_cache.sqlite; пул узлов — в graph_pool.json.
     """
-    from ctxgraph import E1_CONFIG, build_engine
+    from cotrail import E1_CONFIG, build_engine
 
     ensure_cache_db()
     tasks = TK.load_tasks()

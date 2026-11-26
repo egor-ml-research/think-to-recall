@@ -1,7 +1,7 @@
 import numpy as np
 
-from ctxgraph.ingest import ingest
-from ctxgraph.store import DAY, Edge, Node, Store, diversity
+from cotrail.ingest import ingest
+from cotrail.store import DAY, Edge, Node, Store, diversity
 
 
 def test_reinforce_and_decay():

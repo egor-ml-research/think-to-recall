@@ -27,11 +27,11 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph.e1b import coverage as C  # noqa: E402
-from ctxgraph.e1b import memory as M  # noqa: E402
-from ctxgraph.e1b import v9  # noqa: E402
-from ctxgraph.e1b.chat import Turn  # noqa: E402
-from ctxgraph.e1b.runner import load_project  # noqa: E402
+from cotrail.e1b import coverage as C  # noqa: E402
+from cotrail.e1b import memory as M  # noqa: E402
+from cotrail.e1b import v9  # noqa: E402
+from cotrail.e1b.chat import Turn  # noqa: E402
+from cotrail.e1b.runner import load_project  # noqa: E402
 
 E1C = ROOT / "reports" / "e1c"
 OUT = ROOT / "reports" / "e1d"
@@ -157,7 +157,7 @@ def main() -> None:
     from huggingface_hub import hf_hub_download
     from tokenizers import Tokenizer
 
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     tok = Tokenizer.from_file(hf_hub_download("Qwen/Qwen2.5-7B-Instruct", "tokenizer.json"))
 

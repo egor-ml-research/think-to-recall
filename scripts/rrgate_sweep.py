@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "scripts")]
 import bench1_run as B  # noqa: E402
 
-from ctxgraph.v2.gate import PprGateConfig, apply_picked, pick  # noqa: E402
+from cotrail.v2.gate import PprGateConfig, apply_picked, pick  # noqa: E402
 
 DELTAS = [-0.1, 0.0, 0.05, 0.1, 0.2, 0.3, 0.5, 1.0]
 CFG = PprGateConfig(**json.loads((ROOT / "scripts" / "bench1b_config.json").read_text("utf-8"))["gate"])

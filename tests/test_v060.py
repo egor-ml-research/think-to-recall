@@ -4,8 +4,8 @@ migration, a hold on the user's yes closed by that yes, the .mcpb manifest. Synt
 import json
 import zipfile
 
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.memory import ProjectMemory, classify, is_rule
+from cotrail.embed import HashingEncoder
+from cotrail.memory import ProjectMemory, classify, is_rule
 
 
 def _export(tmp_path):
@@ -67,7 +67,7 @@ def test_save_chat_is_idempotent_by_portions(tmp_path):
 
 
 def test_save_chat_and_import_tools(tmp_path):
-    from ctxgraph import memory_mcp as M
+    from cotrail import memory_mcp as M
 
     m = _mem(tmp_path)
     M._mem = m
@@ -173,7 +173,7 @@ def test_mcpb_manifest(tmp_path):
         assert k in man
     assert man["user_config"]["project"]["type"] == "directory" and man["user_config"]["project"]["required"]
     cfg = man["server"]["mcp_config"]
-    assert cfg["env"]["CTXGRAPH_PROJECT"] == "${user_config.project}"
-    assert cfg["platform_overrides"]["win32"]["command"].endswith("ctxgraph-mcpw.exe")  # no console
+    assert cfg["env"]["COTRAIL_PROJECT"] == "${user_config.project}"
+    assert cfg["platform_overrides"]["win32"]["command"].endswith("cotrail-mcpw.exe")  # no console
     names = {t["name"] for t in man["tools"]}
     assert {"recall", "save_chat", "import_claude_ai"} <= names

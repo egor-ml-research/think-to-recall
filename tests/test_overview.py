@@ -4,9 +4,9 @@ the fallback without a code graph. Synthetic projects only."""
 import json
 import random
 
-from ctxgraph import graphify as GF
-from ctxgraph.memory import ProjectMemory
-from ctxgraph.overview import MAX_CHARS, overview
+from cotrail import graphify as GF
+from cotrail.memory import ProjectMemory
+from cotrail.overview import MAX_CHARS, overview
 
 MODS = {"shop/cart.py": ["add_item", "remove_item", "cart_total", "CartLine", "apply_coupon", "cart_items"],
         "shop/payments.py": ["charge_card", "refund_order", "PaymentGateway", "retry_policy", "capture_hold"],
@@ -54,8 +54,8 @@ TURNS = [
 
 
 def _mem(tmp_path, monkeypatch, turns=TURNS, graph=True, **kw):
-    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
-    monkeypatch.setenv("CTXGRAPH_HOME", str(tmp_path / "home"))
+    monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
+    monkeypatch.setenv("COTRAIL_HOME", str(tmp_path / "home"))
     m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
     m.import_turns(turns)
     if graph:
@@ -114,14 +114,14 @@ def test_budget_on_5000_nodes(tmp_path, monkeypatch):
     turns = [_t(i, f"Decided: function_with_long_name_{i * 37}() keeps its cache of {i} entries for the batch "
                    "import, and we never retry it inside the request path.", f"2026-10-{1 + i % 28:02d}T10:00:00Z")
              for i in range(60)]  # fmt: skip
-    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
     m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
     m.import_turns(turns)
     (tmp_path / "g.json").write_text(json.dumps({"nodes": nodes, "links": links}), "utf-8")
     GF.import_graph(m.db_path, tmp_path / "g.json")
     text = overview(m)
     assert len(text) <= MAX_CHARS and text == overview(m)
-    from ctxgraph.overview import MAX_TOKENS, _ntok
+    from cotrail.overview import MAX_TOKENS, _ntok
 
     assert _ntok(text) <= MAX_TOKENS
     assert sum(ln.startswith("#c") for ln in text.splitlines()) >= 1
@@ -130,7 +130,7 @@ def test_budget_on_5000_nodes(tmp_path, monkeypatch):
 def test_fallback_without_code_graph(tmp_path, monkeypatch):
     m = _mem(tmp_path, monkeypatch, graph=False)
     text = overview(m)
-    assert "ctxgraph setup --graphify yes" in text and len(text) <= MAX_CHARS
+    assert "cotrail setup --graphify yes" in text and len(text) <= MAX_CHARS
     assert "checkout page" in text  # the newest decisions still shown
     empty = ProjectMemory(tmp_path / "e", home=tmp_path / "home2")
     assert "empty" in overview(empty)
@@ -194,16 +194,16 @@ def test_decision_linked_by_its_commit(tmp_path, monkeypatch):
 
 
 def test_ignore_patterns():
-    from ctxgraph.overview import Ignore
+    from cotrail.overview import Ignore
 
-    ig = Ignore(["# c", "benchmark_e1*/", "/ctxgraph/e1/", "*.egg-info/", "!keep.py", "docs/**/x.py"])
-    assert ig("benchmark_e1b/run.py") and ig("a/benchmark_e1/x.py") and ig("ctxgraph/e1/runner.py")
-    assert not ig("pkg/ctxgraph/e1/runner.py") and not ig("ctxgraph/e1b/x.py") and ig("pkg.egg-info/PKG")
+    ig = Ignore(["# c", "benchmark_e1*/", "/cotrail/e1/", "*.egg-info/", "!keep.py", "docs/**/x.py"])
+    assert ig("benchmark_e1b/run.py") and ig("a/benchmark_e1/x.py") and ig("cotrail/e1/runner.py")
+    assert not ig("pkg/cotrail/e1/runner.py") and not ig("cotrail/e1b/x.py") and ig("pkg.egg-info/PKG")
     assert ig("docs/a/b/x.py") and not ig("keep.py")
 
 
 def test_entry_nodes_are_functions_not_files(tmp_path):
-    from ctxgraph.overview import _entry_nodes
+    from cotrail.overview import _entry_nodes
 
     root = tmp_path / "p"
     (root / "shop").mkdir(parents=True)
@@ -246,7 +246,7 @@ def test_commit_tie_without_a_name_does_not_link(tmp_path, monkeypatch):
              {**_t(2, f"Повторные попытки для платежей готовы, коммит {h[:7]}.", "2026-11-10T11:00:00Z"),
               "role": "assistant"}]  # fmt: skip
     text = overview(_mem(tmp_path, monkeypatch, turns))
-    assert "повторные попытки" not in text and "→" not in text
+    assert "повторные попытки" not in text and h[:7] not in text
 
 
 def test_top_level_modules_named_on_their_home_line(tmp_path, monkeypatch):
@@ -262,9 +262,69 @@ def test_top_level_modules_named_on_their_home_line(tmp_path, monkeypatch):
 
 
 def test_hard_token_limit(tmp_path, monkeypatch):
-    from ctxgraph import overview as O
+    from cotrail import overview as O
 
     m = _mem(tmp_path, monkeypatch)
     monkeypatch.setattr(O, "MAX_TOKENS", 60)
     text = O.overview(m)
     assert O._ntok(text) <= 60 and text.startswith("Project map:")
+
+
+def test_entry_point_score_and_privacy():
+    from cotrail.overview import _entry_points
+
+    c = [{"file": "a.py", "label": "busy_helper", "key": "busy_helper", "E": False, "pr": 0.9, "deg": 40},
+         {"file": "b.py", "label": "main", "key": "main", "E": True, "pr": 0.1, "deg": 1},
+         {"file": "a.py", "label": "_hidden", "key": "_hidden", "E": False, "pr": 1.0, "deg": 50},
+         {"file": "a.py", "label": "_named", "key": "_named", "E": False, "pr": 0.0, "deg": 0},
+         {"file": "a.py", "label": "Cls.__init__", "key": "__init__", "E": True, "pr": 1.0, "deg": 9}]  # fmt: skip
+    assert _entry_points(c, set()) == [("b.py", "main"), ("a.py", "busy_helper")]
+    assert _entry_points(c, {"_named"})[:3] == [("b.py", "main"), ("a.py", "busy_helper"), ("a.py", "_named")]
+
+
+def test_line_shows_file_then_entry_points_and_class_methods(tmp_path, monkeypatch):
+    m = _mem(tmp_path, monkeypatch, graph=False)
+    g = json.loads(_graph(tmp_path / "graph.json").read_text("utf-8"))
+    g["nodes"].append({"id": "m1", "label": ".capture()", "source_file": "shop/payments.py", "file_type": "code",
+                       "community": 1})  # fmt: skip
+    g["links"].append({"source": "shop_payments.py_PaymentGateway", "target": "m1", "relation": "method"})
+    for i in range(12):  # make the method the most called node of its line
+        g["links"].append({"source": f"shop_{['payments', 'cart', 'orders'][i % 3]}.py_{MODS['shop/' + ['payments', 'cart', 'orders'][i % 3] + '.py'][i % 4]}",
+                           "target": "m1", "relation": "calls"})  # fmt: skip
+    (tmp_path / "graph.json").write_text(json.dumps(g), "utf-8")
+    GF.import_graph(m.db_path, tmp_path / "graph.json")
+    line = next(ln for ln in overview(m).splitlines() if ln.startswith("#c") and "payments.py" in ln)
+    assert "payments.py → " in line and "PaymentGateway.capture" in line
+    assert line.split(" → ")[0].endswith("payments.py")
+
+
+def test_entry_points_survive_the_budget_one_per_line(tmp_path, monkeypatch):
+    from cotrail import overview as O
+
+    m = _mem(tmp_path, monkeypatch)
+    monkeypatch.setattr(O, "MAX_TOKENS", 120)
+    text = O.overview(m)
+    lines = [ln for ln in text.splitlines() if ln.startswith("#c")]
+    assert lines and all(" → " in ln for ln in lines) and O._ntok(text) <= 120
+
+
+def test_cli_overview_on_a_cp1251_console(tmp_path, monkeypatch):
+    import os
+    import subprocess
+    import sys
+
+    m = _mem(tmp_path, monkeypatch)
+    m.s.db.close()
+    env = {**os.environ, "PYTHONIOENCODING": "cp1251", "COTRAIL_HOME": str(tmp_path / "home")}
+    r = subprocess.run([sys.executable, "-m", "cotrail.cli", "--project", str(tmp_path / "proj"), "overview"],
+                       capture_output=True, env=env, timeout=300)  # fmt: skip
+    assert r.returncode == 0, r.stderr.decode("cp1251", "replace")[-400:]
+    assert r.stdout.decode("cp1251").startswith("Project map:")
+
+
+def test_main_block_in_a_docstring_is_not_an_entry(tmp_path):
+    from cotrail.overview import _entry_nodes
+
+    (tmp_path / "m.py").write_text('"""Called in an `if __name__ == "__main__":` block: helper()."""\n\ndef helper():\n'
+                                   "    pass\n", "utf-8")  # fmt: skip
+    assert _entry_nodes(tmp_path, {"h": ("helper()", "m.py", "code", 0)}) == set()

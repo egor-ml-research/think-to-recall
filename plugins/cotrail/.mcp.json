@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "cotrail": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "cotrail==0.7.0",
+        "cotrail-mcp"
+      ]
+    }
+  }
+}

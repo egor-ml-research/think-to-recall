@@ -1,5 +1,5 @@
-from ctxgraph.menu import HEADER, render_arm
-from ctxgraph.text import approx_tokens
+from cotrail.menu import HEADER, render_arm
+from cotrail.text import approx_tokens
 
 CTX = "Какие рыбы подойдут для аквариума начинающему?"
 

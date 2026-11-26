@@ -28,7 +28,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph import build_engine  # noqa: E402
+from cotrail import build_engine  # noqa: E402
 from scripts.demo_topics import TOPICS  # noqa: E402
 
 TYPES = ("wordnet", "ruwordnet", "wikidata", "conceptnet", "experience", "link")

@@ -1,4 +1,4 @@
-# Paths left out of `ctxgraph overview` (gitignore-style: `dir/`, `*`, `**`, a `/` anchors at the project root).
+# Paths left out of `cotrail overview` (gitignore-style: `dir/`, `*`, `**`, a `/` anchors at the project root).
 # Research code of this repo: benchmarks, experiments, the v1 engine; the product is the decision memory.
 benchmark_e1*/
 benchmark_e3/
@@ -8,16 +8,16 @@ out/
 build/
 demo/
 *.egg-info/
-/ctxgraph/e1/
-/ctxgraph/e1b/
-/ctxgraph/e3/
-/ctxgraph/graph.py
-/ctxgraph/menu.py
-/ctxgraph/mcp_server.py
-/ctxgraph/__init__.py
-/ctxgraph/sources/conceptnet.py
-/ctxgraph/sources/experience.py
-/ctxgraph/sources/wikidata.py
-/ctxgraph/v2/gate.py
-/ctxgraph/v2/planner.py
-/ctxgraph/v2/sleeves.py
+/cotrail/e1/
+/cotrail/e1b/
+/cotrail/e3/
+/cotrail/graph.py
+/cotrail/menu.py
+/cotrail/mcp_server.py
+/cotrail/__init__.py
+/cotrail/sources/conceptnet.py
+/cotrail/sources/experience.py
+/cotrail/sources/wikidata.py
+/cotrail/v2/gate.py
+/cotrail/v2/planner.py
+/cotrail/v2/sleeves.py

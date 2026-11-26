@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ctxgraph.memory import ProjectMemory
+from cotrail.memory import ProjectMemory
 
 COMMON = {"id", "date", "status", "topic", "text"}
 
@@ -25,18 +25,18 @@ TURNS = [_t(1, "user", "Переходим на Postgres для сервиса �
 
 def _cli(tmp_path, *args):
     root = str(Path(__file__).resolve().parents[1])
-    env = {**os.environ, "PYTHONPATH": root + os.pathsep + os.environ.get("PYTHONPATH", ""), "CTXGRAPH_LANG": "en",
+    env = {**os.environ, "PYTHONPATH": root + os.pathsep + os.environ.get("PYTHONPATH", ""), "COTRAIL_LANG": "en",
            "HOME": str(tmp_path), "USERPROFILE": str(tmp_path)}
-    for k in ("CTXGRAPH_PROJECT", "CTXGRAPH_QUALITY", "PYTHONIOENCODING"):
+    for k in ("COTRAIL_PROJECT", "COTRAIL_QUALITY", "PYTHONIOENCODING"):
         env.pop(k, None)  # the JSON is UTF-8 bytes whatever the console code page
-    r = subprocess.run([sys.executable, "-m", "ctxgraph.cli", "--home", str(tmp_path / "home"), *args],
+    r = subprocess.run([sys.executable, "-m", "cotrail.cli", "--home", str(tmp_path / "home"), *args],
                        cwd=tmp_path / "proj", capture_output=True, timeout=180, env=env)
     assert r.returncode == 0, r.stderr.decode("utf-8", "replace")
     return json.loads(r.stdout.decode("utf-8"))
 
 
 def test_json_outputs(tmp_path, monkeypatch):
-    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+    monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
     (tmp_path / "proj").mkdir()
     m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
     m.import_turns(TURNS)

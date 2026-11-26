@@ -26,11 +26,11 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import v2_debug_loss as LO  # noqa: E402
 import v2_debug_pq as P  # noqa: E402
 
-from ctxgraph.e1b.coverage import load_turns  # noqa: E402
-from ctxgraph.e1b.runner import load_project  # noqa: E402
-from ctxgraph.v2 import sleeves as SL  # noqa: E402
-from ctxgraph.v2.graph import Config, Graph  # noqa: E402
-from ctxgraph.v2.store import Store  # noqa: E402
+from cotrail.e1b.coverage import load_turns  # noqa: E402
+from cotrail.e1b.runner import load_project  # noqa: E402
+from cotrail.v2 import sleeves as SL  # noqa: E402
+from cotrail.v2.graph import Config, Graph  # noqa: E402
+from cotrail.v2.store import Store  # noqa: E402
 
 NV_MODEL = "mistralai/mistral-large-4-1t-a52b"
 SYSTEM = "You help a user with their software project. Answer in the user's language, briefly."
@@ -38,7 +38,7 @@ REV = "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e"
 
 
 def answer(memory: str) -> dict:
-    from ctxgraph.e1b.backends import NvidiaChat
+    from cotrail.e1b.backends import NvidiaChat
 
     for ln in (ROOT / ".env").read_text("utf-8").splitlines():
         if "=" in ln:
@@ -67,8 +67,8 @@ def main() -> None:
     ap.add_argument("--min-score", type=float, default=1e-3)
     ap.add_argument("--no-answers", action="store_true")
     a = ap.parse_args()
-    from ctxgraph.e1b.backends import E5Encoder
-    from ctxgraph.e1b.selection import Reranker
+    from cotrail.e1b.backends import E5Encoder
+    from cotrail.e1b.selection import Reranker
 
     enc, count = E5Encoder(), P.counter()
     spec, ft, text = load_turns(ROOT, P.PID)

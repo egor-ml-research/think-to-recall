@@ -16,8 +16,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph.e1b.chat import Limits, Turn  # noqa: E402
-from ctxgraph.e1b.runner import VARIANTS, Session, load_project, run_project  # noqa: E402
+from cotrail.e1b.chat import Limits, Turn  # noqa: E402
+from cotrail.e1b.runner import VARIANTS, Session, load_project, run_project  # noqa: E402
 
 PROJECTS = ("crypto-wallet", "django-shop", "rnaseq-thesis")
 
@@ -68,16 +68,16 @@ def main() -> None:
         from scripts.e1b_judge import load_env  # ключ — только из .env
 
         load_env()
-        from ctxgraph.e1b.backends import NvidiaChat
+        from cotrail.e1b.backends import NvidiaChat
 
         llm = NvidiaChat(a.model, str(out / "llm_cache.jsonl"), thinking=a.thinking)
     if a.backend == "server":
-        from ctxgraph.e1b.backends import QwenServer
+        from cotrail.e1b.backends import QwenServer
 
         llm = QwenServer()
     if a.backend in ("auto", "vllm"):
         try:
-            from ctxgraph.e1b.backends import QwenVLLM
+            from cotrail.e1b.backends import QwenVLLM
 
             llm = QwenVLLM()
         except Exception as e:  # noqa: BLE001 — на auto откатываемся на transformers
@@ -85,21 +85,21 @@ def main() -> None:
                 raise
             print(f"vLLM не поднялся ({type(e).__name__}: {e}); беру transformers", flush=True)
     if llm is None and a.backend in ("auto", "hf"):
-        from ctxgraph.e1b.backends import QwenHF
+        from cotrail.e1b.backends import QwenHF
 
         llm = QwenHF()
     if llm is None:
         llm = FakeLLM()
     if a.encoder == "e5":
-        from ctxgraph.e1b.backends import E5Encoder
+        from cotrail.e1b.backends import E5Encoder
 
         enc = E5Encoder()
     elif a.encoder == "model2vec":
-        from ctxgraph.embed import Model2VecEncoder
+        from cotrail.embed import Model2VecEncoder
 
         enc = Model2VecEncoder()
     else:
-        from ctxgraph.embed import HashingEncoder
+        from cotrail.embed import HashingEncoder
 
         enc = HashingEncoder()
     limits = Limits(context=a.context)

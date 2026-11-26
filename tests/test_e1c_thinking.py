@@ -2,11 +2,11 @@
 
 import pytest
 
-from ctxgraph.e1b import memory as M
-from ctxgraph.e1b import thinking as TH
-from ctxgraph.e1b.chat import Turn
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.text import approx_tokens
+from cotrail.e1b import memory as M
+from cotrail.e1b import thinking as TH
+from cotrail.e1b.chat import Turn
+from cotrail.embed import HashingEncoder
+from cotrail.text import approx_tokens
 from tests.test_e1c_sleeves import HISTORY, Q
 
 BASE = [{"role": "system", "content": "Ты — ассистент по проекту пользователя. " * 40}]

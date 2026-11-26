@@ -3,11 +3,11 @@
 import pytest
 from test_e1c_sleeves import HISTORY
 
-from ctxgraph.e1b import memory as M
-from ctxgraph.e1b import steps as ST
-from ctxgraph.e1b.chat import Turn
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.text import approx_tokens
+from cotrail.e1b import memory as M
+from cotrail.e1b import steps as ST
+from cotrail.e1b.chat import Turn
+from cotrail.embed import HashingEncoder
+from cotrail.text import approx_tokens
 
 Q = "Как сделать вход в веб-дашборд и где хранить переводы?"
 
@@ -92,8 +92,8 @@ def test_empty_archive():
 def test_runner_step_and_v2plus_variants():
     from pathlib import Path
 
-    from ctxgraph.e1b.chat import Limits
-    from ctxgraph.e1b.runner import Session, run_project
+    from cotrail.e1b.chat import Limits
+    from cotrail.e1b.runner import Session, run_project
 
     class LLM(StubLLM):
         def chat(self, messages, max_tokens, tools=None):

@@ -2,15 +2,15 @@
 
 import pytest
 
-from ctxgraph import text as T
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.graph import Engine
-from ctxgraph.ingest import ingest
-from ctxgraph.menu import MenuConfig
-from ctxgraph.sources.base import Link, Source
-from ctxgraph.sources.experience import ExperienceSource, is_concept
-from ctxgraph.sources.wikidata import WikidataSource
-from ctxgraph.store import Node, Store
+from cotrail import text as T
+from cotrail.embed import HashingEncoder
+from cotrail.graph import Engine
+from cotrail.ingest import ingest
+from cotrail.menu import MenuConfig
+from cotrail.sources.base import Link, Source
+from cotrail.sources.experience import ExperienceSource, is_concept
+from cotrail.sources.wikidata import WikidataSource
+from cotrail.store import Node, Store
 
 
 @pytest.mark.parametrize(
@@ -137,10 +137,10 @@ def test_experience_requires_positive_pmi():
     ],
 )
 def test_english_part_of_speech(word, ok):
-    from ctxgraph.sources import wordnet as W
+    from cotrail.sources import wordnet as W
 
     if not W.ready():  # without WordNet data every word passes as a noun (by design)
-        pytest.skip("WordNet data not found (`ctxgraph setup` downloads it)")
+        pytest.skip("WordNet data not found (`cotrail setup` downloads it)")
     assert T.en_noun_ok(word) is ok
 
 
@@ -230,7 +230,7 @@ def test_wikidata_banned_query_and_cache(monkeypatch):
 
 
 def test_wordnet_hub_and_rare_senses():
-    from ctxgraph.sources.wordnet import WordNetSource
+    from cotrail.sources.wordnet import WordNetSource
 
     src = WordNetSource()
     try:
@@ -245,7 +245,7 @@ def test_wordnet_hub_and_rare_senses():
 
 
 def test_wikidata_cooldown_instead_of_permanent_off(monkeypatch):
-    import ctxgraph.sources.wikidata as wdm
+    import cotrail.sources.wikidata as wdm
 
     src = WikidataSource(Store())
     src._failures = 5
@@ -257,7 +257,7 @@ def test_wikidata_cooldown_instead_of_permanent_off(monkeypatch):
 
 
 def test_experience_switch_off(tmp_path):
-    from ctxgraph import E1_CONFIG, build_engine
+    from cotrail import E1_CONFIG, build_engine
 
     eng = build_engine(tmp_path / "g.sqlite", encoder="hashing", offline=True, experience=False)
     assert not any(s.name == "experience" for s in eng.sources)

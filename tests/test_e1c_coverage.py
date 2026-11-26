@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from ctxgraph.e1b import coverage as C
-from ctxgraph.e1b import decisions as D
-from ctxgraph.e1b import memory as M
-from ctxgraph.e1b.chat import Turn
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.text import approx_tokens
+from cotrail.e1b import coverage as C
+from cotrail.e1b import decisions as D
+from cotrail.e1b import memory as M
+from cotrail.e1b.chat import Turn
+from cotrail.embed import HashingEncoder
+from cotrail.text import approx_tokens
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -56,7 +56,7 @@ def test_empty_memory_and_untagged_fact():
 
 
 def test_load_turns_ids_match_runner():
-    from ctxgraph.e1b.runner import load_project
+    from cotrail.e1b.runner import load_project
 
     spec, ft, text = C.load_turns(ROOT, "clinic-bot")
     ids = [t["id"] for t in load_project(ROOT, "clinic-bot")[1]]

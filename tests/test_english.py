@@ -5,8 +5,8 @@ when its model is downloaded)."""
 
 import pytest
 
-from ctxgraph import cc_transcripts as CC
-from ctxgraph.memory import ProjectMemory, classify, format_decisions
+from cotrail import cc_transcripts as CC
+from cotrail.memory import ProjectMemory, classify, format_decisions
 
 
 def _t(i, role, text, ts, session):
@@ -30,11 +30,11 @@ TURNS = [
 
 
 def _mem(tmp_path, monkeypatch, quality=False):
-    monkeypatch.delenv("CTXGRAPH_LANG", raising=False)
+    monkeypatch.delenv("COTRAIL_LANG", raising=False)
     if quality:
-        monkeypatch.setenv("CTXGRAPH_QUALITY", "1")
+        monkeypatch.setenv("COTRAIL_QUALITY", "1")
     else:
-        monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+        monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
     m = ProjectMemory(tmp_path / "proj", home=tmp_path / "home")
     m.import_turns(TURNS)
     return m
@@ -87,7 +87,7 @@ def test_english_project_bm25(tmp_path, monkeypatch):
 
 
 def test_english_project_quality(tmp_path, monkeypatch):
-    from ctxgraph import model as M
+    from cotrail import model as M
 
     if not M.is_cached():
         pytest.skip("the quality model is not downloaded here")
@@ -98,14 +98,14 @@ def test_english_project_quality(tmp_path, monkeypatch):
 
 def test_label_language_can_be_forced(tmp_path, monkeypatch):
     m = _mem(tmp_path, monkeypatch)
-    monkeypatch.setenv("CTXGRAPH_LANG", "ru")
+    monkeypatch.setenv("COTRAIL_LANG", "ru")
     out = m.render(m.recall("Which database did we choose?", k=6))
     assert "решение: делать" in out and "коммит 3f2a1b9" in out
 
 
 def test_english_project_without_spacy(tmp_path, monkeypatch):
     """The default install has no spaCy: English concepts come from the rules fallback; the same checks hold."""
-    from ctxgraph.v2 import english
+    from cotrail.v2 import english
 
     monkeypatch.setattr(english, "available", lambda: False)
     m = _mem(tmp_path, monkeypatch)

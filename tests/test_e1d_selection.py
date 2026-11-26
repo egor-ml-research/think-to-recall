@@ -3,13 +3,13 @@
 import pytest
 from test_e1c_sleeves import HISTORY
 
-from ctxgraph.e1b import coverage as C
-from ctxgraph.e1b import memory as M
-from ctxgraph.e1b import selection as SEL
-from ctxgraph.e1b import v9
-from ctxgraph.e1b.chat import Turn
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.text import approx_tokens
+from cotrail.e1b import coverage as C
+from cotrail.e1b import memory as M
+from cotrail.e1b import selection as SEL
+from cotrail.e1b import v9
+from cotrail.e1b.chat import Turn
+from cotrail.embed import HashingEncoder
+from cotrail.text import approx_tokens
 
 
 @pytest.fixture(scope="module")

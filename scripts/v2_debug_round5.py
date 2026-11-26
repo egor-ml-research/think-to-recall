@@ -4,7 +4,7 @@
 
 A. Same question + step, same model and settings: answer with memory (hybrid main block + periphery)
    and without memory — one call each.
-B. Step planner (IRCoT + Self-Ask, `ctxgraph/v2/planner.py`): the model writes <= 3 steps from the
+B. Step planner (IRCoT + Self-Ask, `cotrail/v2/planner.py`): the model writes <= 3 steps from the
    question and the first memory block; sleeves come from those steps; "X of 7" relevant facts.
 C. Light multilingual rerankers vs bge-reranker-v2-m3 on CPU: time per query and "X of 7" (fill-to-
    budget mode — score scales differ per model, so the threshold is not comparable across models).
@@ -25,12 +25,12 @@ import v2_debug_loss as LO  # noqa: E402
 import v2_debug_pq as P  # noqa: E402
 import v2_debug_round3 as R3  # noqa: E402
 
-from ctxgraph.e1b.coverage import load_turns  # noqa: E402
-from ctxgraph.e1b.runner import load_project  # noqa: E402
-from ctxgraph.v2 import planner as PL  # noqa: E402
-from ctxgraph.v2 import sleeves as SL  # noqa: E402
-from ctxgraph.v2.graph import Config, Graph  # noqa: E402
-from ctxgraph.v2.store import Store  # noqa: E402
+from cotrail.e1b.coverage import load_turns  # noqa: E402
+from cotrail.e1b.runner import load_project  # noqa: E402
+from cotrail.v2 import planner as PL  # noqa: E402
+from cotrail.v2 import sleeves as SL  # noqa: E402
+from cotrail.v2.graph import Config, Graph  # noqa: E402
+from cotrail.v2.store import Store  # noqa: E402
 
 RERANKERS = [  # (label, model id, revision, trust_remote_code, size, license)
     ("bge-reranker-v2-m3", "BAAI/bge-reranker-v2-m3", "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e", False, "568M", "Apache-2.0"),
@@ -42,7 +42,7 @@ RERANKERS = [  # (label, model id, revision, trust_remote_code, size, license)
 def nvidia():
     import os
 
-    from ctxgraph.e1b.backends import NvidiaChat
+    from cotrail.e1b.backends import NvidiaChat
 
     for ln in (ROOT / ".env").read_text("utf-8").splitlines():
         if "=" in ln:
@@ -58,8 +58,8 @@ def main() -> None:
     a = ap.parse_args()
     from huggingface_hub import HfApi
 
-    from ctxgraph.e1b.backends import E5Encoder
-    from ctxgraph.e1b.selection import Reranker
+    from cotrail.e1b.backends import E5Encoder
+    from cotrail.e1b.selection import Reranker
 
     enc, count = E5Encoder(), P.counter()
     spec, ft, text = load_turns(ROOT, P.PID)

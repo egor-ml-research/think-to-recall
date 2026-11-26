@@ -8,9 +8,9 @@ import os
 import subprocess
 import sys
 
-from ctxgraph import memory_mcp as M
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.memory import ProjectMemory
+from cotrail import memory_mcp as M
+from cotrail.embed import HashingEncoder
+from cotrail.memory import ProjectMemory
 
 
 def _mem(tmp_path):
@@ -47,11 +47,11 @@ def test_reminder_once_for_clients_without_recording(tmp_path):
 
 
 def _call_recall(tmp_path, client):
-    env = dict(os.environ, CTXGRAPH_PROJECT=str(tmp_path / "proj"), CTXGRAPH_HOME=str(tmp_path / "home"),
+    env = dict(os.environ, COTRAIL_PROJECT=str(tmp_path / "proj"), COTRAIL_HOME=str(tmp_path / "home"),
                PYTHONIOENCODING="utf-8")
-    env.pop("CTXGRAPH_QUALITY", None)
+    env.pop("COTRAIL_QUALITY", None)
     (tmp_path / "proj").mkdir(exist_ok=True)
-    p = subprocess.Popen([sys.executable, "-m", "ctxgraph.memory_mcp"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+    p = subprocess.Popen([sys.executable, "-m", "cotrail.memory_mcp"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=subprocess.DEVNULL, env=env)
 
     def send(o):

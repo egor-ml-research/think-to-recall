@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uvx --from cotrail==0.7.0 cotrail hook-stop",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uvx --from cotrail==0.7.0 cotrail hook-start",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

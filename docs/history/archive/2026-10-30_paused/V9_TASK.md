@@ -1,4 +1,4 @@
-# Задание V9 «рукава мышления» — для Claude Code, проект `ctxgraph/`
+# Задание V9 «рукава мышления» — для Claude Code, проект `cotrail/`
 
 > Основа: `CONTEXT_GRAPH.md` (раздел «Рукава мышления»), итог E1c (`reports/result_e1c.md`),
 > базовая линия `reports/e1c/main_final/v9_baseline.md`.

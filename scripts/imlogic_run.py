@@ -28,9 +28,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import bench1_run as B  # noqa: E402
 from bench1b_run import holm, perm_p  # noqa: E402
 
-from ctxgraph.v2 import extract as X  # noqa: E402
-from ctxgraph.v2.gate import PassageIndex, PprGateConfig, ppr_gated, start_ppr  # noqa: E402
-from ctxgraph.v2.graph import cid  # noqa: E402
+from cotrail.v2 import extract as X  # noqa: E402
+from cotrail.v2.gate import PassageIndex, PprGateConfig, ppr_gated, start_ppr  # noqa: E402
+from cotrail.v2.graph import cid  # noqa: E402
 
 DATA = ROOT / ".cache" / "bench" / "imlogic"
 KS = (1, 5, 10, 30)
@@ -61,13 +61,13 @@ def main() -> None:
     ap.add_argument("--reranker", choices=["fp32", "int8", "none"], default="fp32")
     ap.add_argument("--config", default=str(ROOT / "scripts" / "bench1b_config.json"))
     a = ap.parse_args()
-    from ctxgraph.e1b.backends import E5Encoder
+    from cotrail.e1b.backends import E5Encoder
 
     gcfg = PprGateConfig(**json.loads(Path(a.config).read_text("utf-8"))["gate"])
     users = a.users if a.users is not None else (DEV_USERS if a.split == "dev" else [u for u in range(20) if u not in DEV_USERS])
     scorer = None
     if a.reranker == "fp32":
-        from ctxgraph.e1b.selection import Reranker
+        from cotrail.e1b.selection import Reranker
 
         scorer = Reranker(B.BGE, revision=B.BGE_REV, device=a.device).score
     elif a.reranker == "int8":

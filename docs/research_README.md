@@ -1,6 +1,6 @@
-# think-to-recall — graph memory for LLMs, built without a generative model
+# cotrail — graph memory for LLMs, built without a generative model
 
-> The Python package inside this repository is called `ctxgraph`, the project's working name. Imports, scripts, Kaggle kernels and reports all use it. The main pre-registrations and results have English translations (`*.en.md`, linked below); the Russian originals are authoritative.
+> The Python package inside this repository is called `cotrail`, the project's working name. Imports, scripts, Kaggle kernels and reports all use it. The main pre-registrations and results have English translations (`*.en.md`, linked below); the Russian originals are authoritative.
 
 A research prototype. A graph is built from a user's conversations: episodes → sentences → concepts. Edges are co-occurrence and embedding synonyms. Building the graph makes **no LLM calls**. Retrieval is dense e5, with personalized PageRank over the graph on top, as in HippoRAG 2.
 
@@ -90,8 +90,8 @@ Code and data reach the kernels as a dataset (`scripts/bench1_kaggle_pack.py`). 
 
 | path | what |
 |---|---|
-| `ctxgraph/v2/` | graph v2: concept extraction (spaCy / pymorphy3), SQLite store, PPR, gate (`gate.py`) |
-| `ctxgraph/` (top level) | first version — a "menu" of related concepts for the model (E1–E1c; not supported) |
+| `cotrail/v2/` | graph v2: concept extraction (spaCy / pymorphy3), SQLite store, PPR, gate (`gate.py`) |
+| `cotrail/` (top level) | first version — a "menu" of related concepts for the model (E1–E1c; not supported) |
 | `scripts/bench1*_run.py` | MuSiQue / 2Wiki |
 | `scripts/implicit_run.py` | IMLogic / ImplexConv: variants A, B, C, D0, D and plan-step search (SC / SR / SG) |
 | `scripts/evermem_stack.py` | D0: EverMemOS-style retrieval stack on `everalgo` |

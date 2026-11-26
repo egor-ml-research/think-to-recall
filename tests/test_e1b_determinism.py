@@ -12,11 +12,11 @@ SCRIPT = r"""
 import json, sys
 sys.path.insert(0, r"{root}")
 from pathlib import Path
-from ctxgraph.e1b import memory as M, sleeves as S, v9
-from ctxgraph.e1b.chat import Turn
-from ctxgraph.e1b.runner import load_project
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.text import approx_tokens
+from cotrail.e1b import memory as M, sleeves as S, v9
+from cotrail.e1b.chat import Turn
+from cotrail.e1b.runner import load_project
+from cotrail.embed import HashingEncoder
+from cotrail.text import approx_tokens
 spec, turns = load_project(Path(r"{root}"), "econ-thesis")
 arc = M.Archive([Turn(t["id"], t["role"], t["text"], "load", approx_tokens(t["text"])) for t in turns], HashingEncoder())
 out = {{"replaces": arc.replaces}}

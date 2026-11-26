@@ -2,9 +2,9 @@
 
     python scripts/e1c_v9_baseline.py   # → reports/e1c/main_final/v9_baseline.md
 
-1. Полнота извлечения (ctxgraph.e1b.coverage) для V1/V2/V6/V7 по четырём типам на 200 новых вопросах:
+1. Полнота извлечения (cotrail.e1b.coverage) для V1/V2/V6/V7 по четырём типам на 200 новых вопросах:
    какие опорные факты вопроса были в блоке памяти полным фрагментом.
-2. «Последнее решение по сущности» (ctxgraph.e1b.decisions) на 60 вопросах «менялось»:
+2. «Последнее решение по сущности» (cotrail.e1b.decisions) на 60 вопросах «менялось»:
    архив — реплики загрузки; сущности — из текста вопроса (как у V6). Попадание — среди
    возвращённых реплик есть помеченная актуальным эталонным фактом (конец цепочки `replaces`
    среди опорных). Ложное «последнее решение» — возвращённая реплика без актуального опорного факта
@@ -22,13 +22,13 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 import analyze_e1c as E  # noqa: E402
 
-from ctxgraph.e1b import coverage as C  # noqa: E402
-from ctxgraph.e1b import decisions as D  # noqa: E402
-from ctxgraph.e1b import memory as M  # noqa: E402
-from ctxgraph.e1b.chat import Turn  # noqa: E402
-from ctxgraph.e1b.runner import load_project  # noqa: E402
-from ctxgraph.embed import HashingEncoder  # noqa: E402
-from ctxgraph.text import approx_tokens  # noqa: E402
+from cotrail.e1b import coverage as C  # noqa: E402
+from cotrail.e1b import decisions as D  # noqa: E402
+from cotrail.e1b import memory as M  # noqa: E402
+from cotrail.e1b.chat import Turn  # noqa: E402
+from cotrail.e1b.runner import load_project  # noqa: E402
+from cotrail.embed import HashingEncoder  # noqa: E402
+from cotrail.text import approx_tokens  # noqa: E402
 
 OUT = ROOT / "reports" / "e1c" / "main_final" / "v9_baseline.md"
 TYPES = [("recall", "вспомнить"), ("link", "связать"), ("change", "менялось"), ("clarify", "уточнить")]

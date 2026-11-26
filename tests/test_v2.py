@@ -1,15 +1,15 @@
-"""ctxgraph v2: append-only store, decision changes, PPR, selection, sleeves, privacy.
+"""cotrail v2: append-only store, decision changes, PPR, selection, sleeves, privacy.
 
 Small debug tests (seconds), not quality measurements.
 """
 
 import pytest
 
-from ctxgraph.embed import HashingEncoder
-from ctxgraph.text import approx_tokens
-from ctxgraph.v2 import sleeves as SL
-from ctxgraph.v2.graph import Graph, cid
-from ctxgraph.v2.store import Store
+from cotrail.embed import HashingEncoder
+from cotrail.text import approx_tokens
+from cotrail.v2 import sleeves as SL
+from cotrail.v2.graph import Graph, cid
+from cotrail.v2.store import Store
 
 HISTORY = [
     ("user", "Делаем мобильный кошелёк на React Native, бэкенд на NestJS, база PostgreSQL."),
@@ -195,7 +195,7 @@ def test_informative_filter_and_no_code_in_memory():
 
 
 def test_planner_parses_steps_and_builds_sleeves():
-    from ctxgraph.v2 import planner as PL
+    from cotrail.v2 import planner as PL
 
     assert PL.parse_steps("1. Вспомнить, какие сети поддерживаем.\n2) Где храним ключи на устройстве.\n3. Сроки релиза и размер команды.\n4. Лишний шаг тут.") == [
         "Вспомнить, какие сети поддерживаем.", "Где храним ключи на устройстве.", "Сроки релиза и размер команды."]
@@ -214,7 +214,7 @@ def test_planner_parses_steps_and_builds_sleeves():
 
 
 def test_bulk_synonyms_equal_incremental():
-    from ctxgraph.v2.graph import Config
+    from cotrail.v2.graph import Config
 
     turns = HISTORY + [("user", "JWT-сессии и JWT-токены храним в httpOnly cookie, сессия неделю.")]
     cfg = Config(synonym_thr=0.5)  # low threshold so the hashing encoder yields some synonym edges
@@ -230,7 +230,7 @@ def test_bulk_synonyms_equal_incremental():
 
 
 def test_gate_equals_dense_without_signal_and_only_inserts():
-    from ctxgraph.v2.gate import GateConfig, PassageIndex, gated
+    from cotrail.v2.gate import GateConfig, PassageIndex, gated
 
     g = Graph(Store(), HashingEncoder())
     docs = ["Alice Brown founded Zorvex Labs in Oslo.", "Zorvex Labs builds quiet electric ferries.",
@@ -249,7 +249,7 @@ def test_gate_equals_dense_without_signal_and_only_inserts():
 
 
 def test_ppr_gate_no_signal_is_base_and_only_raises():
-    from ctxgraph.v2.gate import PassageIndex, PprGateConfig, ppr_gated
+    from cotrail.v2.gate import PassageIndex, PprGateConfig, ppr_gated
 
     g = Graph(Store(), HashingEncoder())
     docs = ["Alice Brown founded Zorvex Labs in Oslo.", "Bob Green likes tea.", "Carol White paints murals.",
@@ -276,7 +276,7 @@ def test_ppr_gate_no_signal_is_base_and_only_raises():
     out, _ = ppr_gated(base, idx, kestrel, lambda a, q: {5: 0.1, 4: 0.1}, PprGateConfig(max_df=3, anchor=1))
     assert out == base
     # stage 2 reranker check: refused -> base; accepted -> same as without it; offline replay reproduces the output
-    from ctxgraph.v2.gate import apply_picked, pick
+    from cotrail.v2.gate import apply_picked, pick
 
     cfg = PprGateConfig(max_df=3, anchor=1)
     rr = {5: 0.30, 4: 0.50}
@@ -287,7 +287,7 @@ def test_ppr_gate_no_signal_is_base_and_only_raises():
 
 
 def test_ppr_gate_idf_and_rel_modes_keep_invariant():
-    from ctxgraph.v2.gate import PassageIndex, PprGateConfig, ppr_gated, q_weights
+    from cotrail.v2.gate import PassageIndex, PprGateConfig, ppr_gated, q_weights
 
     g = Graph(Store(), HashingEncoder())
     docs = ["Alice Brown founded Zorvex Labs in Oslo.", "Bob Green likes tea.", "Carol White paints murals.",
@@ -312,7 +312,7 @@ def test_ppr_gate_only_adds_or_raises_property():
     top, the first `top - slots` base items never move, displaced base items only shift down by the insertions."""
     import random
 
-    from ctxgraph.v2.gate import PassageIndex, PprGateConfig, ppr_gated
+    from cotrail.v2.gate import PassageIndex, PprGateConfig, ppr_gated
 
     g = Graph(Store(), HashingEncoder())
     words = ["alpha", "beta", "gamma", "delta", "omega", "sigma", "kappa", "theta"]
@@ -338,7 +338,7 @@ def test_ppr_gate_only_adds_or_raises_property():
 
 
 def test_english_possessor_not_glued_to_concept():
-    from ctxgraph.v2 import english
+    from cotrail.v2 import english
 
     if not english.available():
         pytest.skip("spaCy model missing")

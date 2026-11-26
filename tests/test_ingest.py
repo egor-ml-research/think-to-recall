@@ -1,5 +1,5 @@
-from ctxgraph import text as T
-from ctxgraph.ingest import extract_entities, ingest
+from cotrail import text as T
+from cotrail.ingest import extract_entities, ingest
 
 
 def test_canonical_identifiers_merge():

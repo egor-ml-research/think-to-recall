@@ -1,4 +1,4 @@
-"""v0.6.6: no-store hint for read commands, `ctxgraph projects`, global rules. Synthetic temp homes only."""
+"""v0.6.6: no-store hint for read commands, `cotrail projects`, global rules. Synthetic temp homes only."""
 
 import json
 import os
@@ -6,8 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ctxgraph import memory as M
-from ctxgraph.memory import ProjectMemory
+from cotrail import memory as M
+from cotrail.memory import ProjectMemory
 
 
 def _t(i, role, text, ts, session="s1"):
@@ -19,8 +19,8 @@ TURNS = [_t(1, "user", "Use Postgres for the booking service.", "2026-11-10T10:0
 
 
 def _store(tmp_path, monkeypatch, name="proj", turns=TURNS):
-    monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
-    monkeypatch.setenv("CTXGRAPH_LANG", "en")
+    monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
+    monkeypatch.setenv("COTRAIL_LANG", "en")
     proj = tmp_path / name
     proj.mkdir(exist_ok=True)
     m = ProjectMemory(proj, home=tmp_path / "home")
@@ -31,10 +31,10 @@ def _store(tmp_path, monkeypatch, name="proj", turns=TURNS):
 
 def _cli(tmp_path, *args, cwd=None, stdin=None, lang="en"):
     root = str(Path(__file__).resolve().parents[1])
-    env = {**os.environ, "PYTHONPATH": root + os.pathsep + os.environ.get("PYTHONPATH", ""), "CTXGRAPH_LANG": lang, "PYTHONIOENCODING": "utf-8", "HOME": str(tmp_path), "USERPROFILE": str(tmp_path)}
-    env.pop("CTXGRAPH_PROJECT", None)
-    env.pop("CTXGRAPH_QUALITY", None)
-    argv = [sys.executable, "-m", "ctxgraph.cli", "--home", str(tmp_path / "home"), *args]
+    env = {**os.environ, "PYTHONPATH": root + os.pathsep + os.environ.get("PYTHONPATH", ""), "COTRAIL_LANG": lang, "PYTHONIOENCODING": "utf-8", "HOME": str(tmp_path), "USERPROFILE": str(tmp_path)}
+    env.pop("COTRAIL_PROJECT", None)
+    env.pop("COTRAIL_QUALITY", None)
+    argv = [sys.executable, "-m", "cotrail.cli", "--home", str(tmp_path / "home"), *args]
     return subprocess.run(argv, cwd=cwd or tmp_path, input=stdin, capture_output=True, text=True, encoding="utf-8",
                           timeout=180, env=env)
 
@@ -69,10 +69,10 @@ def test_no_store_lists_known_projects_and_creates_nothing(tmp_path, monkeypatch
     elsewhere.mkdir()
     for cmd in (["rules"], ["recall", "postgres"], ["decisions"], ["later"], ["status"], ["expand", "abc"]):
         r = _cli(tmp_path, *cmd, cwd=elsewhere)
-        assert r.returncode != 0 and "No ctxgraph memory in this folder" in r.stderr, (cmd, r.stderr)
+        assert r.returncode != 0 and "No cotrail memory in this folder" in r.stderr, (cmd, r.stderr)
         assert str(a.resolve()) in r.stderr and str(b.resolve()) in r.stderr and "--project <path>" in r.stderr
     r = _cli(tmp_path, "rules", cwd=elsewhere, lang="ru")
-    assert "В этой папке нет памяти ctxgraph. Известные проекты:" in r.stderr and "--project <путь>" in r.stderr
+    assert "В этой папке нет памяти cotrail. Известные проекты:" in r.stderr and "--project <путь>" in r.stderr
     assert len(M.known_projects(tmp_path / "home")) == 2  # no empty store made for "elsewhere"
     r = _cli(tmp_path, "--project", str(a), "status")
     assert r.returncode == 0 and json.loads(r.stdout)["episodes"] == 2

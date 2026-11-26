@@ -18,9 +18,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph import text as T  # noqa: E402
-from ctxgraph.e1b.coverage import load_turns  # noqa: E402
-from ctxgraph.e1b.memory import _concepts  # noqa: E402
+from cotrail import text as T  # noqa: E402
+from cotrail.e1b.coverage import load_turns  # noqa: E402
+from cotrail.e1b.memory import _concepts  # noqa: E402
 
 PROJECTS = ["greenhouse-iot", "clinic-bot", "econ-thesis", "indie-game"]
 LABELS = ["person", "organization", "location", "software", "technology", "product", "hardware",

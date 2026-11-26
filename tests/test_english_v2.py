@@ -2,8 +2,8 @@
 import importlib.util
 from pathlib import Path
 
-from ctxgraph.cc_transcripts import short_act
-from ctxgraph.memory import classify, is_rule
+from cotrail.cc_transcripts import short_act
+from cotrail.memory import classify, is_rule
 
 ROOT = Path(__file__).resolve().parents[1]
 

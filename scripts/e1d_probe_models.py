@@ -9,7 +9,7 @@ Q11). Вариант 91 (V9, рукава-фразы из шагов + общи�
 рассуждения, упор в лимит токенов шага), обрывы ответа.
 
 Модель: «nvidia:<id>[:think]» — бесплатный API NVIDIA; «timeweb:<id>» — платный timeweb с жёстким
-лимитом в рублях (`--rub`, по учёту ctxgraph.e1.budget).
+лимитом в рублях (`--rub`, по учёту cotrail.e1.budget).
 """
 
 from __future__ import annotations
@@ -59,8 +59,8 @@ class TimewebChat:
     """timeweb (OpenAI-совместимый) с учётом в рублях и дисковым кэшем — интерфейс как у NvidiaChat."""
 
     def __init__(self, model: str, cache: Path, rub: float):
-        from ctxgraph.e1.budget import Ledger
-        from ctxgraph.e1.llm import Client
+        from cotrail.e1.budget import Ledger
+        from cotrail.e1.llm import Client
 
         self.model = model
         self.ledger = Ledger(OUT / "timeweb.spend.jsonl", limit_rub=rub)
@@ -90,10 +90,10 @@ def run_one(spec: str, rub: float) -> dict:
     from huggingface_hub import hf_hub_download
     from tokenizers import Tokenizer
 
-    from ctxgraph.e1b import selection as SEL
-    from ctxgraph.e1b.backends import E5Encoder, NvidiaChat
-    from ctxgraph.e1b.chat import Limits
-    from ctxgraph.e1b.runner import Session, run_project
+    from cotrail.e1b import selection as SEL
+    from cotrail.e1b.backends import E5Encoder, NvidiaChat
+    from cotrail.e1b.chat import Limits
+    from cotrail.e1b.runner import Session, run_project
 
     prov, model, *flags = spec.split(":")
     name = model.split("/")[-1] + ("-think" if "think" in flags else "")

@@ -1,17 +1,28 @@
-<p align="center"><img src="docs/media/ctxgraph_icon.svg" width="140" alt="ctxgraph logo"></p>
+<p align="center"><img src="docs/media/cotrail_icon.svg" width="140" alt="cotrail logo"></p>
 
-# ctxgraph — decision memory for AI coding assistants
+# cotrail — decision memory for AI coding assistants
 
 **English** · [Русский](README.ru.md)
 
-Your assistant forgets what you decided last week. ctxgraph remembers it.
+> **Tell your agent:** `install cotrail: github.com/egor-ml-research/cotrail`
+>
+> It follows [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md): installs the package, registers the memory in the client it runs
+> in, shows your earlier chats of this project and imports them only after your "yes".
+>
+> **Works with:** Claude Code (installation by this phrase checked).
+>
+> **Configs written per official docs, not yet verified:** Cursor, Codex CLI, Gemini CLI, Claude Desktop, Windsurf,
+> Cline, OpenCode (`cotrail setup --client <name>`; sources in [docs/clients.md](docs/clients.md)). For Claude
+> Desktop the one-click extension `.mcpb` from the release is the simplest way.
 
-ctxgraph is a local memory of your conversations with Claude Code, organised around **decisions**: what you decided
+Your assistant forgets what you decided last week. cotrail remembers it.
+
+cotrail is a local memory of your conversations with Claude Code, organised around **decisions**: what you decided
 to do, what you decided not to do, what you put on hold, and when the assistant reported it done. It runs as an MCP
 server next to Claude Code. Before answering, the assistant can ask it what was decided earlier in the project. The
 answer comes with dates and statuses, and every turn is recorded automatically.
 
-![Before and after: in a new session, asked "which database did we choose?", the assistant without memory does not know; with ctxgraph it answers SQLite, with the change of decision and the commit](docs/media/before_after.en.gif)
+![Before and after: in a new session, asked "which database did we choose?", the assistant without memory does not know; with cotrail it answers SQLite, with the change of decision and the commit](docs/media/before_after.en.gif)
 
 *A synthetic project. The memory block is the real output of `recall`; the answers are real answers of one model
 (Mistral Large 4) without memory and with that block.*
@@ -19,26 +30,28 @@ answer comes with dates and statuses, and every turn is recorded automatically.
 - **Local only.** One SQLite file per project on your machine. No cloud, no account, no LLM calls to build the memory.
 - **Works on the history you already have.** On first connection it imports your earlier Claude Code sessions of the
   project (if you agree) and shows the decision chronology right away.
-- **One command to connect.** `ctxgraph setup` writes the MCP config and the hook for the project you are in.
+- **One command to connect.** `cotrail setup` writes the MCP config and the hook for the project you are in.
 - **Small answers.** When nothing in memory is about the question, recall answers in one line instead of a block.
   One-line records show the sentence that answers the question, and in one session a record is not repeated.
 - **A project map in one call.** `overview` gives a new chat the areas of the code (from the Graphify graph:
   main files, functions, links) with the newest decisions about each, in about 600 tokens, without reading code.
-- **A graph you can look at.** `ctxgraph view` opens a local 2D or 3D map of topics, concepts and decisions. A
+- **A graph you can look at.** `cotrail view` opens a local 2D or 3D map of topics, concepts and decisions. A
   [Graphify](https://github.com/Graphify-Labs/graphify) code graph can be shown on the same map.
+
+**Renamed in v0.7.0:** cotrail was called ctxgraph (PyPI package `think-to-recall`, repository egor-ml-research/think-to-recall; old links redirect). An existing install keeps its memory: `~/.ctxgraph` is read in place (`cotrail migrate-home` copies it to `~/.cotrail` if you like), `CTXGRAPH_*` variables are still read, and the old commands `ctxgraph`, `ctxgraph-mcp`, `ctxgraph-mcpw` keep working until 2027-02 with a one-line hint. To switch: `uv tool uninstall think-to-recall`, then `uv tool install cotrail` and `cotrail setup` in the project (it replaces the old entries and hooks).
 
 ## Install
 
 One line (Python 3.11+ and [uv](https://docs.astral.sh/uv/)), from the project you want to connect:
 
 ```bash
-uv tool install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.12" && ctxgraph setup
+uv tool install cotrail && cotrail setup
 ```
 
 With [pipx](https://pipx.pypa.io/) instead of uv:
 
 ```bash
-pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.12" && ctxgraph setup
+pipx install cotrail && cotrail setup
 ```
 
 **Works right away, without downloading a model.** Recall is BM25 over your conversations; the install is about
@@ -46,16 +59,16 @@ pipx install "think-to-recall @ git+https://github.com/egor-ml-research/think-to
 with BM25, which finds a few more answers worded differently from your question:
 
 ```bash
-uv tool install --reinstall "think-to-recall[quality] @ git+https://github.com/egor-ml-research/think-to-recall@v0.6.12" && ctxgraph setup --quality
+uv tool install --reinstall "cotrail[quality]" && cotrail setup --quality
 ```
 
-The package is not on PyPI yet; the commands install release v0.6.12 from GitHub. For finer English concepts in the
+For finer English concepts in the
 graph view, add the `english` extra and run `python -m spacy download en_core_web_sm`. **Installing through an AI assistant?** Point it to
 [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md).
 
 **Claude Code plugin.** The same memory as a plugin (MCP server, a skill on when to call the tools, and the hooks):
-`/plugin marketplace add egor-ml-research/think-to-recall`, then `/plugin install ctxgraph@think-to-recall`. See
-[plugins/ctxgraph](plugins/ctxgraph/README.md).
+`/plugin marketplace add egor-ml-research/cotrail`, then `/plugin install cotrail@cotrail`. See
+[plugins/cotrail](plugins/cotrail/README.md).
 
 `setup` asks all its questions once, before doing anything, and Enter takes the default:
 
@@ -71,17 +84,17 @@ with the command for each.
 
 Then it does four things:
 
-1. Registers the `ctxgraph` MCP server **without any path that could end up in git**. With the `claude` CLI on
-   PATH it runs `claude mcp add --scope local ctxgraph -- ctxgraph-mcp`: the entry is kept in your own Claude Code
+1. Registers the `cotrail` MCP server **without any path that could end up in git**. With the `claude` CLI on
+   PATH it runs `claude mcp add --scope local cotrail -- cotrail-mcp`: the entry is kept in your own Claude Code
    config for this project, not in the repository. Without the CLI it adds to the project's `.mcp.json` only
-   `{"command": "ctxgraph-mcp"}` (no home folder, no Python path, no project path); other servers in that file are
+   `{"command": "cotrail-mcp"}` (no home folder, no Python path, no project path); other servers in that file are
    kept. The server takes the project from the folder Claude Code starts it in.
-   On Windows it registers `ctxgraph-mcpw` instead: the same server behind a GUI launcher, so Claude Desktop and
+   On Windows it registers `cotrail-mcpw` instead: the same server behind a GUI launcher, so Claude Desktop and
    the Claude Code desktop app open no console window for it.
-2. Adds a Claude Code **Stop hook** `ctxgraph hook-stop` to `.claude/settings.local.json`. After every turn it queues
+2. Adds a Claude Code **Stop hook** `cotrail hook-stop` to `.claude/settings.local.json`. After every turn it queues
    the session transcript; the project comes from the hook's input. The hook is fast: it only appends a path, and the
-   server reads the transcript later. Other hooks and settings are kept, and an earlier ctxgraph hook is replaced.
-   A **SessionStart hook** `ctxgraph hook-start` puts one line into each new session when something is open "for
+   server reads the transcript later. Other hooks and settings are kept, and an earlier cotrail hook is replaced.
+   A **SessionStart hook** `cotrail hook-start` puts one line into each new session when something is open "for
    later" (see `later` below); nothing when nothing is open.
 3. **Downloads nothing by default.** Recall works on BM25 over the stored sentences (Russian words lemmatized with
    pymorphy3, whose dictionaries ship with the package). With `--quality` setup **asks before downloading** the
@@ -89,17 +102,17 @@ Then it does four things:
    ([Xenova/multilingual-e5-base](https://huggingface.co/Xenova/multilingual-e5-base), an export of
    [intfloat/multilingual-e5-base](https://huggingface.co/intfloat/multilingual-e5-base), MIT; about 300 MB, a pinned
    revision) and turns the quality mode on: BM25 and the encoder's vectors are fused by reciprocal rank fusion. The
-   download happens once; after that every ctxgraph process runs with the Hugging Face hub offline. A memory built
+   download happens once; after that every cotrail process runs with the Hugging Face hub offline. A memory built
    in the default mode is moved aside and rebuilt (pinned rules are kept). If the download fails (no network, proxy),
    setup says what was not downloaded, from where, and to rerun it; a partial download resumes.
 4. Imports the project's earlier Claude Code sessions (`~/.claude/projects/<project>/*.jsonl`) if you agreed, and
    prints the **decision chronology**, so you see what the memory knows straight away.
 
-Restart Claude Code in the project folder and approve the `ctxgraph` server when it asks.
+Restart Claude Code in the project folder and approve the `cotrail` server when it asks.
 
 ### Installing through an AI assistant
 
-Point the assistant to [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md). Before running `ctxgraph setup` it asks you, in one
+Point the assistant to [INSTALL_FOR_AI.md](INSTALL_FOR_AI.md). Before running `cotrail setup` it asks you, in one
 message, with the default in brackets:
 
 1. "Import the history of your earlier conversations about this project, so the memory knows right away what you
@@ -114,23 +127,24 @@ No answer means the safe values: no / no / the language of the conversation.
 
 ### Recommended `.gitignore`
 
-The memory itself lives outside the project (`~/.ctxgraph/<project>/`), and `setup` writes no paths into shared
+The memory itself lives outside the project (`~/.cotrail/<project>/`), and `setup` writes no paths into shared
 files. Still, keep the per-user and generated files out of the repository:
 
 ```gitignore
-# ctxgraph: per-user Claude Code settings (the Stop hook) and local data
+# cotrail: per-user Claude Code settings (the Stop hook) and local data
 .claude/settings.local.json
-.ctxgraph/
+.cotrail/
 ```
 
-`.ctxgraph/` matters if you point `--home` / `CTXGRAPH_HOME` inside the project. `ctxgraph view` writes its HTML
+`.cotrail/` matters if you point `--home` / `COTRAIL_HOME` inside the project. `cotrail view` writes its HTML
 into the memory folder; if you pass `--out` inside the project, ignore that file too: it embeds quotes from your
-conversations. If your team does not use ctxgraph, keep the `ctxgraph` entry out of a shared `.mcp.json`
+conversations. If your team does not use cotrail, keep the `cotrail` entry out of a shared `.mcp.json`
 (with the `claude` CLI, setup does not write it there at all).
 
 Options: `--quality` turns on the quality mode (see above), `--yes` agrees to the questions (for scripts),
-`--no-model` only writes the config files, `--no-import` skips the history, `--home DIR` keeps the stores somewhere other than `~/.ctxgraph`, and `--print-cursor` prints a
-Cursor config. Cursor has no hooks, so there turns are saved through the `remember` tool.
+`--no-model` only writes the config files, `--no-import` skips the history, `--home DIR` keeps the stores somewhere other than `~/.cotrail`, and `--print-cursor` prints a
+Cursor config. `--client <name>` registers the memory in another client (see the first block); for Cursor, Codex CLI
+and Gemini CLI it also writes their hooks for auto-recording (per their docs, not yet verified).
 
 ## Use
 
@@ -154,28 +168,28 @@ In Claude Code the assistant gets these tools:
 The same things are available from the terminal:
 
 ```bash
-ctxgraph decisions --limit 30
+cotrail decisions --limit 30
 ```
 
 ```bash
-ctxgraph recall "which encoder do we use" --step "an earlier decision about the model" --step "a size limit the user set"
+cotrail recall "which encoder do we use" --step "an earlier decision about the model" --step "a size limit the user set"
 ```
 
 ```bash
-ctxgraph expand 1a2b3c4d   # a record id shown by recall
+cotrail expand 1a2b3c4d   # a record id shown by recall
 ```
 
 ```bash
-ctxgraph rules --add "Never push to main without asking"
+cotrail rules --add "Never push to main without asking"
 ```
 
 ```bash
-ctxgraph pin-rule --global "Answer in English"   # a rule for all projects: in every project's rules, recall and session line, marked (global)
-ctxgraph rules --global                          # list them; `ctxgraph rules --remove <id>` removes one from any folder
+cotrail pin-rule --global "Answer in English"   # a rule for all projects: in every project's rules, recall and session line, marked (global)
+cotrail rules --global                          # list them; `cotrail rules --remove <id>` removes one from any folder
 ```
 
 ```bash
-ctxgraph projects   # every project with a memory: path, number of records, date of the last record
+cotrail projects   # every project with a memory: path, number of records, date of the last record
 ```
 
 A read command (`rules`, `recall`, `decisions`, `later`, `expand`, `overview`, `status`, `view`) run in a folder
@@ -183,16 +197,16 @@ without a memory does not answer "not found": it lists the known projects (or us
 `--project <path>`.
 
 ```bash
-ctxgraph import
+cotrail import
 ```
 
 ```bash
-ctxgraph view --3d
+cotrail view --3d
 ```
 
 ### JSON output
 
-`ctxgraph recall "..." --json`, `decisions --json`, `later --json`, `rules [--global] --json` and `projects --json`
+`cotrail recall "..." --json`, `decisions --json`, `later --json`, `rules [--global] --json` and `projects --json`
 print a JSON array (UTF-8, no labels or colors) for scripts and bulk work, e.g. "all decisions of the month on topic X,
 grouped" in one script instead of many MCP calls. Every object has `id`, `date` (YYYY-MM-DD), `status`, `topic`
 (the topic name, `""` when none) and `text`; the other keys depend on the command:
@@ -218,16 +232,16 @@ After that the assistant keeps saving on its own: when a conversation produces a
 one `recall` answer carries a one-line reminder (not in Claude Code, which records every turn by its hook).
 
 **Claude Desktop extension (no developer mode).** Install the package once in a terminal
-(`uv tool install think-to-recall==0.6.12`, or the same with `pipx install`), then download `ctxgraph-0.6.12.mcpb`
-from the [release page](https://github.com/egor-ml-research/think-to-recall/releases/tag/v0.6.12) and open it (or drag it
+(`uv tool install cotrail==0.7.0`, or the same with `pipx install`), then download `cotrail-0.7.0.mcpb`
+from the [release page](https://github.com/egor-ml-research/cotrail/releases/tag/v0.7.0) and open it (or drag it
 into Claude Desktop → Settings → Extensions). Claude Desktop asks for the project folder; the memory of that folder
-is used. The extension contains no code: it runs the `ctxgraph-mcp` you installed (`~/.local/bin`; on Windows `ctxgraph-mcpw.exe`).
-ctxgraph is not offered as a remote "custom connector" URL on purpose: a connector runs on a server, and this memory
+is used. The extension contains no code: it runs the `cotrail-mcp` you installed (`~/.local/bin`; on Windows `cotrail-mcpw.exe`).
+cotrail is not offered as a remote "custom connector" URL on purpose: a connector runs on a server, and this memory
 stays on your computer.
 
 **claude.ai chats.** Export your data (claude.ai → Settings → Privacy → Export data), then ask the assistant to
 import it (`import_claude_ai`: without a filter it lists the conversations and asks which belong to the project),
-or run `ctxgraph import-claude-ai export.zip --match "..."`. Re-importing a newer export adds only new messages.
+or run `cotrail import-claude-ai export.zip --match "..."`. Re-importing a newer export adds only new messages.
 The export is a one-time import of your history; after it, new chats are saved through the assistant
 (`save_chat`), no new exports needed.
 
@@ -270,12 +284,12 @@ meaning), recall answers with one line, "Nothing in memory on this question", in
 words with the question. Labels are compact: `11-18` for a date of this year, a short `#id` that `expand` accepts,
 the topic once per run of lines. With `detail="brief"`, a record already shown in the same session comes back as one
 short line, "`#id` (shown earlier): date · gist". After a context compaction or in a new session every record is
-shown in full again; `recall(..., fresh=True)` does the same at once. Set `CTXGRAPH_ECONOMY=off` for the previous
+shown in full again; `recall(..., fresh=True)` does the same at once. Set `COTRAIL_ECONOMY=off` for the previous
 behaviour.
 
 **Pinned rules.** Standing rules you state ("always…", "never…", "by default…", "keys only in `.env`") are pinned and
 shown at the top of every recall result, whatever the question. You can also pin or unpin rules by hand. The same rule is pinned once (case, punctuation and a
-pasted `#id date (origin):` prefix do not count), and ctxgraph's own output pasted into a chat (`rules`, recall,
+pasted `#id date (origin):` prefix do not count), and cotrail's own output pasted into a chat (`rules`, recall,
 `decisions`, `later`) never becomes a new rule, decision or "later" item.
 
 **Short confirmations.** A short reply of yours (up to three words, not a question) has no content of its own, for
@@ -286,22 +300,22 @@ short reply gets no search slot of its own, and the report that follows it belon
 
 ## Graph view
 
-`ctxgraph view` writes one self-contained HTML file into the project's memory folder and opens it. The page needs
+`cotrail view` writes one self-contained HTML file into the project's memory folder and opens it. The page needs
 no network: the graph libraries are vendored.
 
 - **Topics** are communities of concepts. A concept shared by several topics is drawn in their colors.
 - **Per topic**, the page shows what `recall` returns for it (the same block the assistant gets) and the decisions
   about it.
 - **The decisions journal** lists all decisions by date: do / not do / on hold.
-- **2D / 3D**: switch in the sidebar, or open in 3D with `ctxgraph view --3d`. 2D uses
+- **2D / 3D**: switch in the sidebar, or open in 3D with `cotrail view --3d`. 2D uses
   [force-graph](https://github.com/vasturiano/force-graph) and 3D uses
   [3d-force-graph](https://github.com/vasturiano/3d-force-graph) (both MIT).
-- **Cosmos**: `ctxgraph view --cosmos` (or the «Космос» switch) draws the project as a galaxy on plain Canvas 2D:
+- **Cosmos**: `cotrail view --cosmos` (or the «Космос» switch) draws the project as a galaxy on plain Canvas 2D:
   the core is the project, topics are constellations scattered in 3D, concepts are stars; the Graphify code is shown as
   constellations of its own. It has a greeting card with what changed
   since your last visit and a dashboard («Панель») with activity, topics, most connected concepts, recent decisions
   and search. Without a flag, the page opens in the mode you used last.
-- **Live memory** (`ctxgraph view --live` serves it on 127.0.0.1 and streams new calls): the project as two trees in
+- **Live memory** (`cotrail view --live` serves it on 127.0.0.1 and streams new calls): the project as two trees in
   3D ([three.js](https://github.com/mrdoob/three.js), MIT). Conversations: the trunk is the project's time, each chat
   is a branch, sessions started by another session (subagents) are side branches, every message is a glowing bead;
   decisions are bigger. Code (if a Graphify graph is imported): a branch per folder, a twig per file, a bead per symbol.
@@ -321,7 +335,7 @@ The demo is synthetic (a fictional habit tracker): `python scripts/demo_views.py
 and writes `graphify-out/graph.json`. To show your code next to your conversations:
 
 ```bash
-ctxgraph import-graphify path/to/repo/graphify-out
+cotrail import-graphify path/to/repo/graphify-out
 ```
 
 Every edge then has an **origin label**:
@@ -329,7 +343,7 @@ Every edge then has an **origin label**:
 - `conversation`: between concepts of your conversations (round nodes, topic colours);
 - `code`: extracted from the code by Graphify (square nodes, slate colour);
 - `inferred`: guessed rather than extracted. Graphify's own INFERRED / AMBIGUOUS edges are drawn as a grey dashed
-  line. Links between a conversation concept and a code node are drawn as a yellow dashed line. ctxgraph makes such a
+  line. Links between a conversation concept and a code node are drawn as a yellow dashed line. cotrail makes such a
   link only when a file path or identifier said in the chat exactly matches a file or symbol in the graph. It does not
   match by similarity, and it skips generic names such as `main` or `utils`.
 
@@ -338,7 +352,7 @@ and the conversation concepts and decisions that mention it. Re-importing replac
 
 ## Privacy
 
-- Everything stays on your machine. Each project has its own store: `~/.ctxgraph/<project>/graph.sqlite`.
+- Everything stays on your machine. Each project has its own store: `~/.cotrail/<project>/graph.sqlite`.
 - Only what people said is imported: your prompts and the assistant's visible prose. Tool calls and their output,
   thinking, system reminders, subagent sidechains, code blocks, command lines and log output are dropped.
 - **Secrets and personal data are scrubbed before storage**, by pattern: API keys and tokens, private keys,
@@ -347,7 +361,7 @@ and the conversation concepts and decisions that mention it. Re-importing replac
   unusual formats.
 - After the one-time model download, nothing goes to the network.
 - The graph view embeds quotes from your conversations. Treat the HTML file as private, like the store itself.
-- `forget` hides a turn from recall. To remove a project's memory completely, delete its folder in `~/.ctxgraph`.
+- `forget` hides a turn from recall. To remove a project's memory completely, delete its folder in `~/.cotrail`.
 
 ## Limits
 
@@ -367,16 +381,16 @@ and the conversation concepts and decisions that mention it. Re-importing replac
   it misses answers worded differently from the question (for example, "DB" for "database"); `--quality` recovers
   some of them.
 - **Two languages.** Status labels follow the project's language (the language of most of your messages);
-  `ctxgraph --lang en|ru …` or `CTXGRAPH_LANG` sets it. Cue words exist for English and Russian only.
-- **Claude Code first.** Automatic recording relies on the Claude Code Stop hook. Claude Desktop and Cursor
-  chats are saved when you ask (`save_chat`). Chats from claude.ai can be imported from a data export with `ctxgraph import-claude-ai`.
+  `cotrail --lang en|ru …` or `COTRAIL_LANG` sets it. Cue words exist for English and Russian only.
+- **Claude Code first.** Automatic recording is verified with the Claude Code Stop hook; the Cursor, Codex CLI and
+  Gemini CLI hooks follow their docs and are not verified yet. Other clients' chats are saved when you ask (`save_chat`). Chats from claude.ai can be imported from a data export with `cotrail import-claude-ai`.
 - **Tested on Windows and on a clean Linux install.** macOS has not been checked yet.
 
 ## Research
 
-ctxgraph grew out of a research project on retrieval for conversational memory. Experiments, pre-registrations and
+cotrail grew out of a research project on retrieval for conversational memory. Experiments, pre-registrations and
 results: [docs/research_README.md](docs/research_README.md) (in this repository).
 
 ## License
 
-Apache-2.0. Vendored libraries keep their own licenses (`ctxgraph/vendor/*.LICENSE`).
+Apache-2.0. Vendored libraries keep their own licenses (`cotrail/vendor/*.LICENSE`).

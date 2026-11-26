@@ -3,7 +3,7 @@
 
 import pytest
 
-from ctxgraph.memory import ProjectMemory, format_decisions
+from cotrail.memory import ProjectMemory, format_decisions
 from tests.test_english import TURNS as EN
 
 RU = [
@@ -30,11 +30,11 @@ def _snapshot(m):
 
 
 def _run(tmp_path, monkeypatch, quality):
-    monkeypatch.delenv("CTXGRAPH_LANG", raising=False)
+    monkeypatch.delenv("COTRAIL_LANG", raising=False)
     if quality:
-        monkeypatch.setenv("CTXGRAPH_QUALITY", "1")
+        monkeypatch.setenv("COTRAIL_QUALITY", "1")
     else:
-        monkeypatch.delenv("CTXGRAPH_QUALITY", raising=False)
+        monkeypatch.delenv("COTRAIL_QUALITY", raising=False)
     turns = EN + RU
     batch = ProjectMemory(tmp_path / "proj", home=tmp_path / "batch")
     batch.import_turns(turns)
@@ -53,7 +53,7 @@ def test_one_by_one_equals_batch_bm25(tmp_path, monkeypatch):
 
 
 def test_one_by_one_equals_batch_quality(tmp_path, monkeypatch):
-    from ctxgraph import model as M
+    from cotrail import model as M
 
     if not M.is_cached():
         pytest.skip("the quality model is not downloaded here")

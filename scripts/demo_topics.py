@@ -15,9 +15,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from ctxgraph import build_engine  # noqa: E402
-from ctxgraph.menu import render_arm  # noqa: E402
-from ctxgraph.text import approx_tokens  # noqa: E402
+from cotrail import build_engine  # noqa: E402
+from cotrail.menu import render_arm  # noqa: E402
+from cotrail.text import approx_tokens  # noqa: E402
 
 TOPICS = {
     "рыбы": (

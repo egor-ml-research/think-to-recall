@@ -1,4 +1,4 @@
-"""Собрать датасет Kaggle `ctxgraph-e1b`: пакет ctxgraph, раннер, диалоги E1b, данные WordNet.
+"""Собрать датасет Kaggle `ctxgraph-e1b`: пакет cotrail, раннер, диалоги E1b, данные WordNet.
 
     python scripts/e1b_kaggle_pack.py <папка>   # затем: kaggle datasets create|version -p <папка> --dir-mode zip
 Ключи и .env не попадают: копируются только перечисленные пути.
@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PATHS = ["ctxgraph", "scripts/e1b_run.py", "benchmark_e1b/projects", ".cache/nltk"]
+PATHS = ["cotrail", "scripts/e1b_run.py", "benchmark_e1b/projects", ".cache/nltk"]
 
 
 def main() -> None:
