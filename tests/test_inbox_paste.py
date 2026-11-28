@@ -68,6 +68,19 @@ def test_inbox_opens_closes_by_report_and_by_hand(tmp_path, monkeypatch) -> None
     assert m.close_by_hand(first, "inbox", reopen=True) and [i["id"] for i in m.inbox()] == [first]
 
 
+def test_advisor_tasks_saved_with_remember_are_inbox_items(tmp_path, monkeypatch) -> None:
+    m = _mem(tmp_path, monkeypatch)  # the inbox rule C
+    m.remember("Задание советника для Claude Code (28.11): синхронизацию вести из MCP-сервера.", role="assistant",
+               ts="2026-11-28T18:48:00Z")
+    m.remember("Уточнение задания советника (28.11): проверку делать через WSL.", role="assistant",
+               ts="2026-11-28T18:49:00Z")
+    m.remember("Решение Егора 28.11: второй участник — WSL.", role="assistant", ts="2026-11-28T18:50:00Z")
+    m.remember("Задание советника: это пишет пользователь, не ассистент.", ts="2026-11-28T18:51:00Z")
+    texts = [i["text"] for i in m.inbox()]
+    assert texts == ["Уточнение задания советника (28.11): проверку делать через WSL.",
+                     "Задание советника для Claude Code (28.11): синхронизацию вести из MCP-сервера."]
+
+
 def test_later_done_by_hand(tmp_path, monkeypatch, capsys) -> None:
     m = _mem(tmp_path, monkeypatch)
     m.import_turns([_t(1, "user", "Кэширование ответов через Redis оставим на потом.", "2026-11-10T10:00:00Z"),

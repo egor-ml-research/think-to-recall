@@ -185,8 +185,8 @@ def close_match(item_id: str, text: str, ts: str, reps) -> tuple[str, str]:
             got = want & _stems(m.group(1))
             if len(got) >= need and len(got) >= 0.6 * len(want):
                 return "closed", rep_ep
-        if need and len(want & _stems(rt)) >= need and (not looks or (looks_ts < CLOSE_RULE_SINCE <= rts)):
-            looks, looks_ts = rep_ep, rts
+        if need and len(want & _stems(rt)) >= need and (not looks or (rts < CLOSE_RULE_SINCE <= looks_ts)):
+            looks, looks_ts = rep_ep, rts  # a report from before the rule wins: its old silent close stays (A5)
     if looks:
         return ("old", looks) if looks_ts < CLOSE_RULE_SINCE else ("looks", looks)  # the close rule A5
     return ("", "")
@@ -2264,11 +2264,12 @@ class ProjectMemory:
     def inbox(self, include_done: bool = False) -> list[dict]:
         """Tasks for Claude Code from the advisor chat (the inbox rule A), newest first; open ones unless include_done."""
         self._use_lang()
-        rows = self.s.q("SELECT e.id, e.text, COALESCE(m.ts,'') FROM episodes e JOIN turn_meta m ON m.episode=e.id "
-                        "WHERE e.role='assistant' AND m.origin IN ('claude.ai','chat') AND e.t_expired IS NULL")  # fmt: skip
+        rows = self.s.q("SELECT e.id, e.text, COALESCE(m.ts,''), m.origin FROM episodes e JOIN turn_meta m ON m.episode=e.id "
+                        "WHERE e.role='assistant' AND m.origin IN ('claude.ai','chat','mcp') AND e.t_expired IS NULL")  # fmt: skip
         items = []
-        for ep, text, ts in rows:
-            for n, t in enumerate(inbox_items(text)):
+        for ep, text, ts, origin in rows:
+            found = inbox_items(text) if origin != "mcp" else ([text.strip()] if INBOX_REMEMBER.match(text or "") else [])
+            for n, t in enumerate(found):
                 iid = "in" + hashlib.sha1(f"{ep}\x1f{n}".encode()).hexdigest()[:6]
                 items.append({"id": iid, "date": ts[:10], "ts": ts, "text": t, "record": ep[:8], "episode": ep})
         if not items:
@@ -2579,6 +2580,7 @@ def format_decisions(rows: list[dict]) -> str:
 # ── inbox: tasks for Claude Code in the advisor chat (the inbox rule, written before the code) ──────────────────────────────
 INBOX_MARK = re.compile(r"^[\s#*>]*(?:сообщение для claude code|message for claude code)[\s*:]*$", re.I)
 INBOX_NUM = re.compile(r"^\s*\d+[.)]\s+")
+INBOX_REMEMBER = re.compile(r"^[\s#*>]*(?:(?:уточнение\s+)?задани[ея]\s+советника|advisor\s+task)", re.I)  # the inbox rule C
 
 
 def inbox_items(text: str) -> list[str]:

@@ -458,7 +458,7 @@ def connect_folder(path: str, memory: str | None = None, confirm: bool = False) 
 
 @team_tool
 def join_team(sync_repo: str, name: str | None = None, confirm: bool = False, memory: str | None = None) -> str:
-    """Join this project's team memory: a PRIVATE git repo (url) shared with teammates. Without confirm=true it
+    """(Experimental) Join this project's team memory: a PRIVATE git repo (url) shared with teammates. Without confirm=true it
     shows the privacy warning, the repo's visibility, the name on the records, how many records would be pushed and
     which are held back by the secret check: show it to the user, ask, then call with confirm=true. A public repo is
     refused. ONLY when the user asks to join a team / share the memory."""
@@ -508,8 +508,28 @@ def show_graph(memory: str | None = None) -> str:
     return f"Graph: {export_html(mem(memory))}"
 
 
+def _opened() -> list:
+    """(project, store, home) of every memory this server has open: the default one and those named by memory=."""
+    with _lock:
+        ms = [m for m in [_mem, *_open.values()] if m is not None]
+    return [(m.project, m.dir, getattr(m, "_home", None)) for m in ms]
+
+
+def _team_sync() -> None:
+    """Sync from the server itself, for any client (the autosync rule 7): pull at start, push after new records (at
+    most once a minute), a pull every 10 minutes. Off with COTRAIL_SYNC=off; absent in a build without team memory."""
+    if os.environ.get("COTRAIL_SYNC", "").lower() == "off":
+        return
+    try:
+        from cotrail import autosync as AS
+    except ImportError:
+        return
+    AS.ServerSync(_opened).run()
+
+
 def main() -> None:
     threading.Thread(target=_warm, daemon=True).start()  # warm up while the client is still connecting
+    threading.Thread(target=_team_sync, daemon=True).start()
     server.run()
 
 

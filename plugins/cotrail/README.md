@@ -51,7 +51,7 @@ If you already connected cotrail by hand with `cotrail setup`, keep only one of 
 The MCP server and the hooks run `uvx` with the package `cotrail` pinned to one exact version on PyPI:
 
 ```
-uvx --from cotrail==0.7.1 cotrail-mcp
+uvx --from cotrail==0.7.2 cotrail-mcp
 ```
 
 On the first run uv downloads that version and its Python dependencies from PyPI (pymorphy3, yake,

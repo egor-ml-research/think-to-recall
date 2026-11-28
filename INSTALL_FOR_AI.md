@@ -29,10 +29,10 @@ If `cotrail setup --help` already lists `--client`, the package is installed: sk
 uv (https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
-uv tool install "cotrail>=0.7.1"
+uv tool install "cotrail>=0.7.2"
 ```
 
-Without uv: `pipx install "cotrail>=0.7.1"`. On Windows, PowerShell and Git Bash both work.
+Without uv: `pipx install "cotrail>=0.7.2"`. On Windows, PowerShell and Git Bash both work.
 
 Renamed: cotrail was called ctxgraph (package `think-to-recall`). If `uv tool list` shows `think-to-recall`, run
 `uv tool uninstall think-to-recall` first (pipx: `pipx uninstall think-to-recall`); the memory in `~/.ctxgraph` is

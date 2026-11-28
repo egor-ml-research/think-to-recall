@@ -63,6 +63,11 @@ def test_shared_stems_only_propose_an_explicit_report_closes(tmp_path, monkeypat
     assert not any("Redis" in i["text"] for i in old.later())
     assert [i["closed"] for i in old.later(include_closed=True) if "Redis" in i["text"]] == [
         "by the old rule (unconfirmed) #l9"]
+    late = [_t(20, "user", "Что ещё?", "2026-12-01T10:00:00Z", "s9"),
+            _t(21, "assistant", "Сводка: кэширование ответов через Redis работает, коммит 5a5a5a5.", "2026-12-01T11:00:00Z", "s9")]
+    kept = _mem(tmp_path / "late", monkeypatch, RU + DONE + late)  # a later report must not undo the old close (A5)
+    assert [i["closed"] for i in kept.later(include_closed=True) if "Redis" in i["text"]] == [
+        "by the old rule (unconfirmed) #l9"]
     import cotrail.memory as M
 
     monkeypatch.setattr(M, "CLOSE_RULE_SINCE", "2000-01-01")  # these reports come after the rule

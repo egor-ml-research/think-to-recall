@@ -25,6 +25,7 @@
 - list_memories(): the memories on this computer (name, folder, records); every memory tool takes memory=<name>
 - connect_folder(path, memory, confirm): connect a folder to its own or an existing memory and import its Claude Code chats (dry run until confirm=true)
 - find_chats(query, export) / import_chats(ids, memory, export, confirm): find earlier Claude Code chats or claude.ai export conversations, import the chosen ones (dry run until confirm=true)
+- join_team(sync_repo, name, confirm): (experimental) share this project's memory through a PRIVATE git repo; dry run with the secret check until confirm=true, a public repo is refused
 - forget(episode): hide a turn from recall
 - memory_status, show_graph: what is stored; the graph view path
 

@@ -417,6 +417,12 @@ def import_file(project: str | Path, f: str | Path, home: str | None = None) -> 
         f.unlink()
     except OSError:
         pass
+    try:  # team memory: this process is already detached - push now (at most once a minute; the autosync rule 7)
+        from cotrail import autosync as AS
+
+        res["sync"] = AS.maybe_sync(project, home)
+    except ImportError:  # a build without team memory
+        pass
     return res
 
 

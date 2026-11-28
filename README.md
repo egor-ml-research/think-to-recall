@@ -232,8 +232,8 @@ After that the assistant keeps saving on its own: when a conversation produces a
 one `recall` answer carries a one-line reminder (not in Claude Code, which records every turn by its hook).
 
 **Claude Desktop extension (no developer mode).** Install the package once in a terminal
-(`uv tool install cotrail==0.7.1`, or the same with `pipx install`), then download `cotrail-0.7.1.mcpb`
-from the [release page](https://github.com/egor-ml-research/cotrail/releases/tag/v0.7.1) and open it (or drag it
+(`uv tool install cotrail==0.7.2`, or the same with `pipx install`), then download `cotrail-0.7.2.mcpb`
+from the [release page](https://github.com/egor-ml-research/cotrail/releases/tag/v0.7.2) and open it (or drag it
 into Claude Desktop → Settings → Extensions). Claude Desktop asks for the project folder; the memory of that folder
 is used. The extension contains no code: it runs the `cotrail-mcp` you installed (`~/.local/bin`; on Windows `cotrail-mcpw.exe`).
 cotrail is not offered as a remote "custom connector" URL on purpose: a connector runs on a server, and this memory
@@ -260,6 +260,34 @@ export, imported only after `confirm=true`).
 Code:» / "Message for Claude Code:" become inbox items: the session start shows the open ones, `inbox` lists them,
 and an item closes only on an explicit report (its id and a done word) or by hand (`cotrail inbox done <id>`;
 `reopen <id>` opens it again). The same rule closes "later" items; a near match only says "looks done - confirm".
+
+## Team memory (experimental)
+
+Several people on one project can share one memory through a **private** git repository (GitHub, GitLab, any git
+host). Experimental in 0.7.2: try it on one project first.
+
+**Setup in one phrase.** Create an empty private repository, then tell the assistant in the project:
+`join the team memory: <url of the private repo>`. It calls `join_team`, which shows a dry run first: the
+repository's visibility (a public repository is refused), the name on your records, how many records would be pushed
+and which are held back by the secret check. Only after your "yes" does it join. By hand: `cotrail team join <url>`
+(`--dry-run` to only look). Everyone else runs the same command with the same url.
+
+**What syncs:** your conversation turns of that project (prompts and visible replies, after the secret filter, home
+folders shortened to `~`), who wrote each record, chat titles, and, if you agree (`--graphify yes`), the Graphify code
+graph (names and relative paths, no source code). Each device writes only its own log file, so there are no merge
+conflicts. **What does not:** the SQLite store (each device rebuilds it from the logs), your code, other projects,
+anything a record never contained. A record forgotten with `forget` stops syncing from you but is not removed from the
+others.
+
+**Check:** `cotrail team status` (members, records per member, last sync, what is not synced yet);
+`cotrail team check` scans your copy of the memory repository for keys, e-mails and home folders. `cotrail team leave`
+turns sync off for the project; the local memory stays.
+
+**What was tested how.** Between two real Windows machines with a GitHub repository: `team join`, authors,
+`team status`, the Claude Code hooks (Stop / SessionStart) and the Graphify git hooks, and the background push reaching
+GitHub. **Only in a simulation** (WSL, a local bare repository, no GitHub): the sync driven by the MCP server itself (for
+clients without hooks), the Cursor / Codex / Gemini CLI hooks, the code graph syncing both ways, and recall finding
+the other member's decision with its author. No client other than Claude Code has been checked live.
 
 ## How recall works
 

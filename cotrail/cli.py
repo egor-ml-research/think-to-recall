@@ -563,11 +563,11 @@ def main(argv=None) -> None:
     p.add_argument("--json", action="store_true")
     p.set_defaults(f=cmd_inbox)
     if HAS_TEAM:  # team memory (experimental): only in a build that ships cotrail/team.py
-        p = sub.add_parser("sync", help="sync the memory through a private git repo (episode logs, one file per device)")
+        p = sub.add_parser("sync", help="(experimental) sync the memory through a private git repo (episode logs, one file per device)")
         p.add_argument("--remote", help="git url of the PRIVATE sync repo (remembered after the first use)")
         p.add_argument("--quiet", action="store_true", help="no output on success; errors do not fail (the hook's mode)")
         p.set_defaults(f=cmd_sync)
-        p = sub.add_parser("team", help="team memory through a PRIVATE git repo: join, status, check")
+        p = sub.add_parser("team", help="(experimental) team memory through a PRIVATE git repo: join, status, check")
         ts = p.add_subparsers(dest="team_cmd", required=True)
         q = ts.add_parser("join", help="connect the PRIVATE memory repo, import this project's sessions, turn sync on")
         q.add_argument("remote", help="git url of the PRIVATE memory repo")
